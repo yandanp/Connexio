@@ -1,0 +1,42 @@
+[package]
+name = "connexio"
+version = "0.1.0"
+description = "Modern Windows terminal with session persistence"
+authors = ["Bos Yanda"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "connexio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# PTY support for terminal emulation
+portable-pty = "0.8"
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async runtime for PTY streaming
+tokio = { version = "1", features = ["sync", "rt-multi-thread", "time"] }
+
+# UUID for unique PTY session IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Parking lot for efficient mutexes
+parking_lot = "0.12"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }

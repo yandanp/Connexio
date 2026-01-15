@@ -1,0 +1,130 @@
+# Workflow Status Template
+
+# This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
+# Implementation phase is tracked separately in sprint-status.yaml
+
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/product-brief.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+generated: "2026-01-13"
+project: "Connexio"
+project_type: "software"
+selected_track: "method"
+field_type: "greenfield"
+workflow_path: "_bmad/bmm/workflows/workflow-status/paths/method-greenfield.yaml"
+
+# Discovery Selections
+discovery:
+  brainstorm_requested: false
+  research_requested: false
+  product_brief_requested: true
+
+# Workflow Status Tracking
+workflow_status:
+  # Phase 1: Analysis (Optional)
+  - phase: 1
+    name: "Analysis (Optional)"
+    workflows:
+      - id: "brainstorm-project"
+        name: "Brainstorm"
+        status: "skipped"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:brainstorming"
+        
+      - id: "research"
+        name: "Research"
+        status: "skipped"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:research"
+        
+      - id: "product-brief"
+        name: "Product Brief"
+        status: "_bmad-output/planning-artifacts/product-brief-Connexio-2026-01-14.md"
+        completed: "2026-01-14"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:create-product-brief"
+        note: "Completed - Comprehensive product brief for Connexio terminal application"
+
+  # Phase 2: Planning
+  - phase: 2
+    name: "Planning"
+    workflows:
+      - id: "prd"
+        name: "Product Requirements Document"
+        status: "_bmad-output/planning-artifacts/prd.md"
+        completed: "2026-01-14"
+        required: true
+        agent: "pm"
+        command: "/bmad:bmm:workflows:create-prd"
+        output: "Product Requirements Document with FRs and NFRs"
+        note: "Completed - Comprehensive PRD with 43 FRs, 37 NFRs, 4 User Journeys"
+        
+      - id: "create-ux-design"
+        name: "UX Design"
+        status: "_bmad-output/planning-artifacts/ux-design-specification.md"
+        completed: "2026-01-14"
+        conditional: "if_has_ui"
+        agent: "ux-designer"
+        command: "/bmad:bmm:workflows:create-ux-design"
+        note: "Completed - Comprehensive UX specification with 14 steps: experience, emotions, components, patterns, accessibility"
+
+  # Phase 3: Solutioning
+  - phase: 3
+    name: "Solutioning"
+    workflows:
+      - id: "create-architecture"
+        name: "System Architecture"
+        status: "_bmad-output/planning-artifacts/architecture.md"
+        completed: "2026-01-14"
+        required: true
+        agent: "architect"
+        command: "/bmad:bmm:workflows:create-architecture"
+        output: "System architecture document"
+        note: "Completed - Full 8-step architecture with decisions, patterns, structure, and validation"
+        
+      - id: "create-epics-and-stories"
+        name: "Epics and Stories"
+        status: "_bmad-output/planning-artifacts/epics.md"
+        completed: "2026-01-14"
+        required: true
+        agent: "pm"
+        command: "/bmad:bmm:workflows:create-epics-and-stories"
+        note: "Completed - 6 Epics, 43 Stories, 100% FR coverage"
+        
+      - id: "test-design"
+        name: "Test Design"
+        status: "pending"
+        optional: true
+        agent: "tea"
+        command: "/bmad:bmm:workflows:test-design"
+        output: "System-level testability review"
+        
+      - id: "implementation-readiness"
+        name: "Implementation Readiness Check"
+        status: "pending"
+        required: true
+        agent: "architect"
+        command: "/bmad:bmm:workflows:implementation-readiness"
+        note: "Validates PRD + Architecture + Epics + UX (optional)"
+
+  # Phase 4: Implementation
+  - phase: 4
+    name: "Implementation"
+    workflows:
+      - id: "sprint-planning"
+        name: "Sprint Planning"
+        status: "_bmad-output/implementation-artifacts/sprint-status.yaml"
+        completed: "2026-01-14"
+        required: true
+        agent: "sm"
+        command: "/bmad:bmm:workflows:sprint-planning"
+        note: "Completed - 6 Epics, 43 Stories ready for development"

@@ -1,0 +1,134 @@
+# Sprint Status - Connexio
+# generated: 2026-01-14
+# project: Connexio
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: "2026-01-14"
+project: "Connexio"
+tracking_system: "file-system"
+story_location: "_bmad-output/implementation-artifacts"
+
+development_status:
+  # ============================================
+  # EPIC 1: Project Foundation & Basic Terminal
+  # ============================================
+  # Developer dapat membuka Connexio dan menggunakan terminal dasar dengan satu shell yang functional.
+  # FRs covered: FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR40, FR41, FR42, FR43
+  
+  epic-1: in-progress
+  1-1-initialize-tauri-project-with-react-template: done
+  1-2-integrate-pty-backend-with-conpty: backlog
+  1-3-implement-basic-terminal-ui-with-xtermjs: backlog
+  1-4-enable-terminal-scrollback-and-history: backlog
+  1-5-implement-copy-and-paste-operations: backlog
+  1-6-enable-true-color-and-unicode-support: backlog
+  1-7-implement-basic-keyboard-shortcuts: backlog
+  1-8-display-application-version-information: backlog
+  epic-1-retrospective: optional
+
+  # ============================================
+  # EPIC 2: Multi-Shell Support
+  # ============================================
+  # Developer dapat memilih dan menggunakan berbagai shell (PowerShell, CMD, WSL, Git Bash).
+  # FRs covered: FR13, FR14, FR15, FR16, FR17, FR18, FR19
+  
+  epic-2: backlog
+  2-1-implement-shell-detection-system: backlog
+  2-2-add-powershell-shell-support: backlog
+  2-3-add-cmd-shell-support: backlog
+  2-4-add-wsl-shell-support: backlog
+  2-5-add-git-bash-shell-support: backlog
+  2-6-implement-shell-selector-ui: backlog
+  2-7-configure-default-shell-preference: backlog
+  epic-2-retrospective: optional
+
+  # ============================================
+  # EPIC 3: Tab Management
+  # ============================================
+  # Developer dapat bekerja dengan multiple terminal tabs secara efisien.
+  # FRs covered: FR7, FR8, FR9, FR10, FR11, FR12
+  
+  epic-3: backlog
+  3-1-implement-tab-bar-ui-component: backlog
+  3-2-open-new-terminal-tabs: backlog
+  3-3-close-terminal-tabs: backlog
+  3-4-switch-between-terminal-tabs: backlog
+  3-5-reorder-tabs-via-drag-and-drop: backlog
+  3-6-display-dynamic-tab-titles: backlog
+  3-7-support-many-simultaneous-tabs: backlog
+  epic-3-retrospective: optional
+
+  # ============================================
+  # EPIC 4: Session Persistence (KILLER FEATURE)
+  # ============================================
+  # Developer dapat menutup Connexio dan membukanya kembali dengan semua tabs, directories, dan history ter-restore secara otomatis.
+  # FRs covered: FR1, FR2, FR3, FR4, FR5, FR6
+  # 🚀 INI ADALAH CORE DIFFERENTIATOR CONNEXIO!
+  
+  epic-4: backlog
+  4-1-define-session-state-schema: backlog
+  4-2-implement-session-auto-save: backlog
+  4-3-save-session-on-application-close: backlog
+  4-4-restore-tabs-on-application-launch: backlog
+  4-5-restore-working-directories: backlog
+  4-6-preserve-command-history-per-tab: backlog
+  4-7-implement-crash-recovery: backlog
+  epic-4-retrospective: optional
+
+  # ============================================
+  # EPIC 5: Theme System & Settings
+  # ============================================
+  # Developer dapat mempersonalisasi tampilan terminal dan mengkonfigurasi preferences melalui UI yang intuitif.
+  # FRs covered: FR27, FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35
+  
+  epic-5: backlog
+  5-1-create-theme-css-architecture: backlog
+  5-2-implement-5-built-in-themes: backlog
+  5-3-build-theme-picker-with-live-preview: backlog
+  5-4-persist-theme-selection: backlog
+  5-5-build-settings-panel-ui: backlog
+  5-6-implement-shell-settings: backlog
+  5-7-implement-theme-settings: backlog
+  5-8-store-settings-in-appdata: backlog
+  epic-5-retrospective: optional
+
+  # ============================================
+  # EPIC 6: Windows Integration & Distribution
+  # ============================================
+  # Developer dapat mengintegrasikan Connexio dengan Windows Explorer dan menginstall aplikasi dengan mudah.
+  # FRs covered: FR36, FR37, FR38, FR39
+  
+  epic-6: backlog
+  6-1-add-explorer-context-menu-integration: backlog
+  6-2-support-command-line-directory-parameter: backlog
+  6-3-support-command-line-command-execution: backlog
+  6-4-register-as-default-terminal-application: backlog
+  6-5-build-msi-installer-package: backlog
+  6-6-build-portable-zip-distribution: backlog
+  epic-6-retrospective: optional

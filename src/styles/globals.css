@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/**
+ * Connexio Theme System
+ * Story 5.1: CSS Variable-based Theming Architecture
+ *
+ * All colors are defined as CSS variables for instant theme switching.
+ * UI colors use HSL format for Tailwind compatibility.
+ * Terminal colors use hex for xterm.js compatibility.
+ */
+
+@layer base {
+  :root {
+    /* ===== UI Colors (HSL format) ===== */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --border: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --radius: 0.5rem;
+
+    /* ===== Terminal Colors (Hex format for xterm.js) ===== */
+    /* Tokyo Night theme as default */
+    --terminal-background: #1a1b26;
+    --terminal-foreground: #a9b1d6;
+    --terminal-cursor: #c0caf5;
+    --terminal-cursor-accent: #1a1b26;
+    --terminal-selection-bg: #33467c;
+    --terminal-selection-fg: #c0caf5;
+
+    /* ANSI 16 colors - Normal */
+    --terminal-black: #15161e;
+    --terminal-red: #f7768e;
+    --terminal-green: #9ece6a;
+    --terminal-yellow: #e0af68;
+    --terminal-blue: #7aa2f7;
+    --terminal-magenta: #bb9af7;
+    --terminal-cyan: #7dcfff;
+    --terminal-white: #a9b1d6;
+
+    /* ANSI 16 colors - Bright */
+    --terminal-bright-black: #414868;
+    --terminal-bright-red: #f7768e;
+    --terminal-bright-green: #9ece6a;
+    --terminal-bright-yellow: #e0af68;
+    --terminal-bright-blue: #7aa2f7;
+    --terminal-bright-magenta: #bb9af7;
+    --terminal-bright-cyan: #7dcfff;
+    --terminal-bright-white: #c0caf5;
+  }
+
+  /* Light mode variant (legacy .light class) */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --terminal-background: #ffffff;
+    --terminal-foreground: #24292e;
+    --terminal-cursor: #24292e;
+    --terminal-cursor-accent: #ffffff;
+    --terminal-selection-bg: #0366d6;
+    --terminal-selection-fg: #ffffff;
+
+    --terminal-black: #24292e;
+    --terminal-red: #d73a49;
+    --terminal-green: #22863a;
+    --terminal-yellow: #b08800;
+    --terminal-blue: #0366d6;
+    --terminal-magenta: #6f42c1;
+    --terminal-cyan: #1b7c83;
+    --terminal-white: #fafbfc;
+
+    --terminal-bright-black: #586069;
+    --terminal-bright-red: #cb2431;
+    --terminal-bright-green: #28a745;
+    --terminal-bright-yellow: #dbab09;
+    --terminal-bright-blue: #2188ff;
+    --terminal-bright-magenta: #8a63d2;
+    --terminal-bright-cyan: #3192aa;
+    --terminal-bright-white: #ffffff;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family:
+      "Segoe UI",
+      system-ui,
+      -apple-system,
+      sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Prevent text selection in UI elements */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Custom scrollbar for terminal */
+.terminal-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal-scrollbar::-webkit-scrollbar-track {
+  background: var(--terminal-background);
+}
+
+.terminal-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 5px;
+}
+
+.terminal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Terminal viewport base styles */
+.terminal-viewport {
+  background-color: var(--terminal-background);
+}
+
+/* Smooth theme transitions (optional, can be disabled for instant) */
+.theme-transition,
+.theme-transition * {
+  transition:
+    background-color 0.15s ease-in-out,
+    color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out !important;
+}
+
+/* Solid background for dialogs - ensures no transparency */
+.bg-background {
+  background-color: hsl(var(--background)) !important;
+}

@@ -44,3 +44,7 @@ nul
 
 # OpenCode / Claude session files (optional - comment out if you want to track these)
 .opencode
+
+
+# Tauri signing keys (PRIVATE - NEVER COMMIT)
+.tauri-key

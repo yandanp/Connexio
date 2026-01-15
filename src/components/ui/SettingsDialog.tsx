@@ -24,6 +24,7 @@ import {
   Moon,
   Trash2,
   FolderOpen,
+  RefreshCw,
 } from "lucide-react";
 import {
   Dialog,
@@ -54,6 +55,7 @@ const AVAILABLE_SHELLS: ShellType[] = ["powershell", "cmd", "wsl", "gitbash"];
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCheckUpdates?: () => void;
 }
 
 /**
@@ -258,7 +260,7 @@ function ShellSection() {
 /**
  * General settings section
  */
-function GeneralSection() {
+function GeneralSection({ onCheckUpdates }: { onCheckUpdates?: () => void }) {
   const restoreSession = useSettingsStore((state) => state.restoreSession);
   const lastTabBehavior = useSettingsStore((state) => state.lastTabBehavior);
   const setSetting = useSettingsStore((state) => state.setSetting);
@@ -287,6 +289,14 @@ function GeneralSection() {
           onChange={(value) => setSetting("lastTabBehavior", value)}
           getLabel={(v) => (v === "close" ? "Close window" : "Open new tab")}
         />
+      </SettingRow>
+
+      <SectionHeader>Updates</SectionHeader>
+      <SettingRow label="Check for updates" description="See if a newer version is available">
+        <Button variant="outline" size="sm" className="gap-2" onClick={onCheckUpdates}>
+          <RefreshCw className="h-3.5 w-3.5" />
+          Check Now
+        </Button>
       </SettingRow>
     </div>
   );
@@ -382,7 +392,7 @@ function WorkspacesSection() {
 /**
  * Settings dialog component
  */
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, onCheckUpdates }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
 
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
@@ -425,7 +435,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             {activeTab === "appearance" && <AppearanceSection />}
             {activeTab === "shell" && <ShellSection />}
             {activeTab === "workspaces" && <WorkspacesSection />}
-            {activeTab === "general" && <GeneralSection />}
+            {activeTab === "general" && <GeneralSection onCheckUpdates={onCheckUpdates} />}
           </div>
         </div>
       </DialogContent>

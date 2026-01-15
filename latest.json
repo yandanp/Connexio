@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0",
+  "notes": "Initial release of Connexio - AI-powered terminal for Windows",
+  "pub_date": "2026-01-15T22:15:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUdjNlSHlEaGFCQWNPTW5GK0kxMTVWb2tLSXZGalREUSsrUVpNbHpsUlpWTy9RZmhTWUdRWk5oVFNjRFRqRGxNQ3NRcFFUUlBNdWhEVCtwd3hCRmxKK1B6WjJCOXpFUUFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4NDkwMDIxCWZpbGU6Q29ubmV4aW9fMC4xLjBfeDY0LXNldHVwLmV4ZQpKdUt2Y2ZrdDZnMVV1VE1tbXd3cGN5Umt0cGhzaFFYZFNxeStGNHhvZzZMeFdReGJjVDZDcEpIN0FCUy9tRUNyYy82Y3VqYktYazZ4V3BTVkkwMnVCZz09Cg==",
+      "url": "https://github.com/yandanp/Connexio/releases/download/v0.1.0/Connexio_0.1.0_x64-setup.exe"
+    }
+  }
+}

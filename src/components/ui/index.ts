@@ -35,3 +35,4 @@ export { WorkspaceSidebar } from "./WorkspaceSidebar";
 export { WorkspaceManagerDialog } from "./WorkspaceManagerDialog";
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip";
 export { AboutDialog } from "./AboutDialog";
+export { UpdateDialog, useAutoUpdateCheck } from "./UpdateDialog";

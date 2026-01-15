@@ -14,7 +14,13 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { MainLayout, TabBar } from "@/components/layout";
 import { TerminalViewport } from "@/components/terminal";
-import { TerminalErrorBoundary, SettingsDialog, AboutDialog } from "@/components/ui";
+import {
+  TerminalErrorBoundary,
+  SettingsDialog,
+  AboutDialog,
+  UpdateDialog,
+  useAutoUpdateCheck,
+} from "@/components/ui";
 import {
   useSessionStore,
   useTabs,
@@ -46,6 +52,19 @@ function App() {
 
   // About dialog state
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Update dialog state
+  const [updateOpen, setUpdateOpen] = useState(false);
+
+  // Auto-check for updates on startup
+  const { updateAvailable } = useAutoUpdateCheck();
+
+  // Show update dialog when update is available
+  useEffect(() => {
+    if (updateAvailable) {
+      setUpdateOpen(true);
+    }
+  }, [updateAvailable]);
 
   // Track if we've processed startup config
   const startupProcessedRef = useRef(false);
@@ -262,10 +281,20 @@ function App() {
       </div>
 
       {/* Settings Dialog */}
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onCheckUpdates={() => {
+          setSettingsOpen(false);
+          setUpdateOpen(true);
+        }}
+      />
 
       {/* About Dialog */}
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      {/* Update Dialog */}
+      <UpdateDialog open={updateOpen} onOpenChange={setUpdateOpen} checkOnMount />
     </MainLayout>
   );
 }

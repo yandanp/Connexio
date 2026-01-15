@@ -13,6 +13,8 @@ node_modules
 # Build outputs
 dist
 dist-ssr
+dist-portable
+dist-installer
 *.local
 
 # Rust/Tauri build artifacts (LARGE - ~5GB)

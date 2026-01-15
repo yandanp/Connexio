@@ -10,19 +10,17 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Connexio",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
-        "decorations": false,
-        "transparent": false,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [{
+      "title": "Connexio",
+      "width": 1200,
+      "height": 800,
+      "minWidth": 800,
+      "minHeight": 600,
+      "decorations": false,
+      "transparent": false,
+      "resizable": true,
+      "fullscreen": false
+    }],
     "security": {
       "csp": null
     }
@@ -37,6 +35,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": [],
     "windows": {
       "wix": {
         "language": "en-US"
@@ -48,13 +47,15 @@
         "installMode": "currentUser",
         "languages": ["English"],
         "displayLanguageSelector": false,
-        "customLanguageFiles": null,
-        "template": null
-      }
+        "installerHooks": "nsis/installer-hooks.nsh"
+      },
+      "allowDowngrades": true
     },
     "shortDescription": "Modern Windows terminal with session persistence",
     "longDescription": "Connexio is a modern Windows terminal emulator featuring automatic session persistence, multi-tab support, and beautiful themes. Your tabs, directories, and command history are automatically saved and restored.",
     "category": "Utility",
-    "publisher": "Connexio"
+    "publisher": "yandanp",
+    "copyright": "Copyright © 2026 yandanp",
+    "licenseFile": null
   }
 }

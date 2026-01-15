@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Connexio WiX Fragment for Context Menu Registration
+  Story 6.1 & 6.5: Add Explorer Context Menu via MSI Installer
+  
+  This fragment adds "Open in Connexio" to Windows Explorer context menu:
+  - Right-click on folder
+  - Right-click on folder background
+  - Right-click on drive
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <!-- Registry entries for context menu -->
+      <Component Id="ContextMenuRegistry" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+        
+        <!-- Folder context menu: Right-click on folder -->
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\shell\Connexio">
+          <RegistryValue Type="string" Value="Open in Connexio" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLDIR]Connexio.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\shell\Connexio\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Connexio.exe&quot; &quot;%V&quot;" />
+        </RegistryKey>
+        
+        <!-- Folder background context menu: Right-click inside folder -->
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\Background\shell\Connexio">
+          <RegistryValue Type="string" Value="Open in Connexio" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLDIR]Connexio.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\Background\shell\Connexio\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Connexio.exe&quot; &quot;%V&quot;" />
+        </RegistryKey>
+        
+        <!-- Drive context menu: Right-click on drive -->
+        <RegistryKey Root="HKCU" Key="Software\Classes\Drive\shell\Connexio">
+          <RegistryValue Type="string" Value="Open in Connexio" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLDIR]Connexio.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Drive\shell\Connexio\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Connexio.exe&quot; &quot;%V&quot;" />
+        </RegistryKey>
+        
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+  
+  <!-- Feature reference to include context menu -->
+  <Fragment>
+    <ComponentGroup Id="ContextMenuComponents">
+      <ComponentRef Id="ContextMenuRegistry" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>

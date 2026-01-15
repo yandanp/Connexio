@@ -1,8 +1,8 @@
 [package]
 name = "connexio"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modern Windows terminal with session persistence"
-authors = ["Bos Yanda"]
+authors = ["yandanp"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

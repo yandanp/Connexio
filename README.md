@@ -1,78 +1,66 @@
 # Connexio
 
+[![GitHub release](https://img.shields.io/github/v/release/yandanp/Connexio)](https://github.com/yandanp/Connexio/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/yandanp/Connexio/total)](https://github.com/yandanp/Connexio/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Modern Windows Terminal with Session Persistence**
 
 Connexio is a Windows terminal emulator that automatically saves and restores your sessions - tabs, working directories, and command history. Never lose your terminal setup again.
 
-## Features (MVP)
+## 📦 Download
+
+Get the latest release from [GitHub Releases](https://github.com/yandanp/Connexio/releases/latest):
+
+| Package                             | Description                                                          |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `Connexio_x.x.x_x64-setup.exe`      | **NSIS Installer** (Recommended) - Includes context menu integration |
+| `Connexio_x.x.x_x64_en-US.msi`      | **MSI Installer** - For enterprise/GPO deployment                    |
+| `Connexio-x.x.x-portable-win64.zip` | **Portable** - No installation required                              |
+
+## ✨ Features
 
 - **Session Persistence**: Auto-save and restore tabs, directories, and history
-- **Multi-Tab Support**: Work with multiple terminals simultaneously  
+- **Multi-Tab Support**: Work with multiple terminals simultaneously
 - **Multi-Shell Support**: PowerShell, CMD, WSL, Git Bash
-- **Theme System**: 5 beautiful built-in themes with live preview
+- **Theme System**: Beautiful built-in themes (One Dark, Dracula, Nord, Solarized, etc.)
 - **Windows Integration**: Explorer context menu, CLI parameters
+- **Auto-Update**: Automatic update notifications with one-click install
 - **Zero Configuration**: Works out of the box
 
-## Prerequisites
+## 🖼️ Screenshots
 
-Before running Connexio, ensure you have:
+_Coming soon_
 
-1. **Windows 10 (1903+) or Windows 11**
+## 🔧 System Requirements
 
-2. **Node.js 18+**
-   ```
-   https://nodejs.org/
-   ```
+- Windows 10 (1903+) or Windows 11
+- ~50MB disk space
+- WebView2 Runtime (pre-installed on Windows 10/11)
 
-3. **Rust (via rustup)**
-   ```
-   https://rustup.rs/
-   ```
+## 🛠️ Development
 
-4. **Visual Studio 2022 with C++ tools**
-   - Download Visual Studio Installer
-   - Install "Desktop development with C++" workload
-   - Include "Windows 10/11 SDK"
+### Prerequisites
 
-5. **WebView2 Runtime** (usually pre-installed on Windows 10/11)
-   ```
-   https://developer.microsoft.com/microsoft-edge/webview2/
-   ```
+1. **Node.js 18+** - https://nodejs.org/
+2. **Rust (via rustup)** - https://rustup.rs/
+3. **Visual Studio 2022** with "Desktop development with C++" workload
+4. **WebView2 Runtime** - https://developer.microsoft.com/microsoft-edge/webview2/
 
-## Development Setup
-
-### 1. Install Dependencies
+### Setup
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### 2. Run Development Server
-
-**IMPORTANT**: Due to Visual Studio environment requirements, use the provided batch scripts from a **regular Windows Command Prompt** (not Git Bash, WSL, or PowerShell):
-
-```cmd
+# Run development server (use Windows Command Prompt)
 dev.bat
-```
 
-Or to just build:
-
-```cmd
+# Build for production
 build.bat
 ```
 
-### Alternative: Visual Studio Developer Command Prompt
-
-You can also use the Visual Studio Developer Command Prompt:
-
-1. Open "Developer Command Prompt for VS 2022" from Start menu
-2. Navigate to the project directory
-3. Run:
-   ```cmd
-   npm run tauri:dev
-   ```
-
-## Project Structure
+### Project Structure
 
 ```
 connexio/
@@ -92,17 +80,7 @@ connexio/
 └── package.json
 ```
 
-## Building for Production
-
-From Windows Command Prompt:
-
-```cmd
-build.bat
-```
-
-The installer will be generated in `src-tauri/target/release/bundle/`.
-
-## Tech Stack
+## 🏗️ Tech Stack
 
 - **Framework**: Tauri v2 (Rust + WebView2)
 - **Frontend**: React 19, TypeScript, Tailwind CSS
@@ -110,12 +88,10 @@ The installer will be generated in `src-tauri/target/release/bundle/`.
 - **State**: Zustand with persistence
 - **PTY**: Windows ConPTY via portable-pty
 
-## Recommended IDE Setup
+## 📝 License
 
-- [VS Code](https://code.visualstudio.com/)
-- [Tauri Extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
-- [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+MIT © [yandanp](https://github.com/yandanp)
 
-## License
+---
 
-MIT
+Made with ❤️ by [yandanp](https://github.com/yandanp)

@@ -1,11 +1,11 @@
 {
-  "version": "0.2.0",
-  "notes": "Version 0.2.0 - Auto-update feature and improvements",
-  "pub_date": "2026-01-15T22:37:00Z",
+  "version": "0.2.3",
+  "notes": "Version 0.2.3 - Bug fixes, contributing guidelines, and release workflow improvements",
+  "pub_date": "2026-01-16T11:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUdjNlSHlEaGFCQWIwMkx0OGlJZHFNOVNiRGlieGN5aXc5TEtVTkpRWVFsS1NGTUV0MkxnaTBPZXM5NTU1QVlZanRWRnZ0SGlVcmIvd1pGQWgxR2gwb2JTOFkrd1dLL1FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4NDkxMjEzCWZpbGU6Q29ubmV4aW9fMC4yLjBfeDY0LXNldHVwLmV4ZQpPTjJVTVRONnRxSGpVa1FQcm0vdHFwdDNJRnc0SGdkK3grcDlrMjNDcmIvOGg0SDNNTm9OT1N3QXNBVDRvNmdJNjFoOHRhRnllMm85TDlHSWFQVkNCdz09Cg==",
-      "url": "https://github.com/yandanp/Connexio/releases/download/v0.2.0/Connexio_0.2.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUdjNlSHlEaGFCQWRaL2lRbmUvVDVsSWVTZTIyczA0bjVsWXVxSmlabWk4dFArUEIyd0w3MHFoRHNhSDg3NUU0VTFQbWU5ditiQkIrc3JOcmRxN09yUUJsazJRYkdKRXdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4NTYzNjA5CWZpbGU6Q29ubmV4aW9fMC4yLjNfeDY0LXNldHVwLmV4ZQo2c3UrdGgwYXA0aHBabTJzQitZQzl1WFB3Qi9kUFhDdjE4UVJaTFY0a2p5aE9qdmduYVRlc01Ld1czZy80NzhTK0tWZE02MHZCMzFObE9UZ05QRjFEUT09Cg==",
+      "url": "https://github.com/yandanp/Connexio/releases/download/v0.2.3/Connexio_0.2.3_x64-setup.exe"
     }
   }
 }

@@ -2,6 +2,16 @@
 //!
 //! This module manages multiple PTY sessions, handling spawning,
 //! I/O streaming, resizing, and cleanup.
+//!
+//! ## UTF-8 and Escape Sequence Handling
+//!
+//! Terminal output can contain:
+//! - Multi-byte UTF-8 characters that might be split across buffer reads
+//! - ANSI escape sequences (e.g., `\x1b[32m`) that might be split across reads
+//!
+//! This implementation handles both cases by:
+//! 1. Finding valid UTF-8 boundaries before emitting data
+//! 2. Carrying over incomplete bytes to the next read cycle
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -16,6 +26,104 @@ use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 use super::types::{PtyExitPayload, PtyInfo, PtyOutputPayload, PtySpawnConfig, ShellType};
+
+/// Find the last valid UTF-8 boundary in a byte slice.
+/// Returns the number of bytes that form valid UTF-8.
+/// Any trailing incomplete UTF-8 sequence should be carried over to the next read.
+fn find_utf8_boundary(bytes: &[u8]) -> usize {
+    if bytes.is_empty() {
+        return 0;
+    }
+
+    // Try to decode the entire buffer
+    match std::str::from_utf8(bytes) {
+        Ok(_) => bytes.len(), // All bytes are valid UTF-8
+        Err(e) => {
+            // valid_up_to() gives us the position of the first invalid byte
+            let valid_up_to = e.valid_up_to();
+            
+            // Check if the error is due to an incomplete sequence at the end
+            // (as opposed to truly invalid bytes in the middle)
+            if e.error_len().is_none() {
+                // Incomplete sequence at end - return only the valid portion
+                valid_up_to
+            } else {
+                // There's actually invalid data - this shouldn't happen with PTY output
+                // but we handle it gracefully by including up to the error point
+                valid_up_to
+            }
+        }
+    }
+}
+
+/// Find if we're in the middle of an ANSI escape sequence.
+/// Returns the position where an incomplete escape sequence starts, or None if complete.
+/// 
+/// Escape sequences typically look like:
+/// - CSI: `\x1b[...m` or `\x1b[...H` etc.
+/// - OSC: `\x1b]...;\x07` or `\x1b]...;\x1b\\`
+/// - Simple: `\x1bM`, `\x1b7`, etc.
+fn find_incomplete_escape_sequence(data: &str) -> Option<usize> {
+    // Look for the last ESC character
+    if let Some(last_esc_pos) = data.rfind('\x1b') {
+        let after_esc = &data[last_esc_pos..];
+        
+        // Check if this escape sequence is complete
+        // A complete CSI sequence ends with a letter (A-Z, a-z) or specific chars
+        // A complete OSC sequence ends with BEL (\x07) or ST (\x1b\\)
+        
+        if after_esc.len() == 1 {
+            // Just ESC by itself - incomplete
+            return Some(last_esc_pos);
+        }
+        
+        let bytes = after_esc.as_bytes();
+        
+        // CSI sequence: ESC [
+        if bytes.len() >= 2 && bytes[1] == b'[' {
+            // Look for terminating character (letter or specific chars like @, `, ~)
+            for (i, &b) in bytes[2..].iter().enumerate() {
+                if b.is_ascii_alphabetic() || b == b'@' || b == b'`' || b == b'~' {
+                    // Sequence is complete, check if there's another ESC after
+                    let seq_end = last_esc_pos + 2 + i + 1;
+                    if seq_end < data.len() {
+                        // There might be more content or another sequence
+                        return find_incomplete_escape_sequence(&data[seq_end..])
+                            .map(|p| seq_end + p);
+                    }
+                    return None; // Complete
+                }
+            }
+            // No terminator found - incomplete CSI
+            return Some(last_esc_pos);
+        }
+        
+        // OSC sequence: ESC ]
+        if bytes.len() >= 2 && bytes[1] == b']' {
+            // Look for BEL (\x07) or ST (ESC \)
+            if after_esc.contains('\x07') || after_esc.contains("\x1b\\") {
+                return None; // Complete
+            }
+            // No terminator - incomplete OSC
+            return Some(last_esc_pos);
+        }
+        
+        // Simple escape sequences (ESC followed by single char)
+        if bytes.len() >= 2 {
+            let second = bytes[1];
+            // Common single-char sequences: ESC 7, ESC 8, ESC M, ESC D, ESC E, etc.
+            if second.is_ascii_alphabetic() || second.is_ascii_digit() 
+                || second == b'=' || second == b'>' || second == b'<' {
+                return None; // Complete
+            }
+        }
+        
+        // Unknown or incomplete sequence
+        Some(last_esc_pos)
+    } else {
+        None // No ESC found
+    }
+}
 
 /// Represents an active PTY session
 struct PtySession {
@@ -122,7 +230,10 @@ impl PtyManager {
         let sessions_ref = Arc::clone(&self.sessions);
 
         thread::spawn(move || {
-            let mut buffer = [0u8; 8192];
+            // Increased buffer size for better performance with fast output
+            let mut buffer = [0u8; 16384];
+            // Carryover buffer for incomplete UTF-8 sequences or escape sequences
+            let mut carryover: Vec<u8> = Vec::with_capacity(256);
 
             loop {
                 // Check if we should stop
@@ -134,29 +245,85 @@ impl PtyManager {
                 match reader.read(&mut buffer) {
                     Ok(0) => {
                         // EOF - process exited
+                        // Emit any remaining carryover data
+                        if !carryover.is_empty() {
+                            let data = String::from_utf8_lossy(&carryover).to_string();
+                            let payload = PtyOutputPayload {
+                                pty_id: pty_id_clone.clone(),
+                                data,
+                            };
+                            let _ = app_handle_clone.emit("pty-output", payload);
+                        }
                         break;
                     }
                     Ok(n) => {
-                        // Convert to string (lossy to handle non-UTF8)
-                        let data = String::from_utf8_lossy(&buffer[..n]).to_string();
-                        
-                        log::debug!(
-                            "[PTY {}] Read {} bytes: {:?}",
-                            &pty_id_clone[..8],
-                            n,
-                            if data.len() > 100 { &data[..100] } else { &data }
-                        );
-
-                        // Emit the output event
-                        let payload = PtyOutputPayload {
-                            pty_id: pty_id_clone.clone(),
-                            data,
+                        // Combine carryover with new data
+                        let combined = if carryover.is_empty() {
+                            buffer[..n].to_vec()
+                        } else {
+                            let mut c = std::mem::take(&mut carryover);
+                            c.extend_from_slice(&buffer[..n]);
+                            c
                         };
 
-                        if let Err(e) = app_handle_clone.emit("pty-output", payload) {
-                            log::error!("Failed to emit pty-output event: {}", e);
+                        // Find valid UTF-8 boundary
+                        let utf8_boundary = find_utf8_boundary(&combined);
+                        
+                        if utf8_boundary == 0 && combined.len() < 6 {
+                            // Not enough data yet for valid UTF-8, wait for more
+                            carryover = combined;
+                            continue;
+                        }
+
+                        // Split at UTF-8 boundary
+                        let (valid_bytes, remaining) = combined.split_at(utf8_boundary);
+                        
+                        // Convert valid bytes to string
+                        let data = match std::str::from_utf8(valid_bytes) {
+                            Ok(s) => s.to_string(),
+                            Err(_) => {
+                                // Fallback: use lossy conversion
+                                String::from_utf8_lossy(valid_bytes).to_string()
+                            }
+                        };
+
+                        // Check for incomplete escape sequences at the end
+                        let (data_to_emit, escape_carryover) = 
+                            if let Some(esc_pos) = find_incomplete_escape_sequence(&data) {
+                                // Split at the incomplete escape sequence
+                                let (emit, carry) = data.split_at(esc_pos);
+                                (emit.to_string(), Some(carry.as_bytes().to_vec()))
+                            } else {
+                                (data, None)
+                            };
+
+                        // Store remaining bytes for next iteration
+                        carryover = if let Some(esc) = escape_carryover {
+                            let mut c = esc;
+                            c.extend_from_slice(remaining);
+                            c
                         } else {
-                            log::trace!("[PTY {}] Emitted pty-output event", &pty_id_clone[..8]);
+                            remaining.to_vec()
+                        };
+
+                        // Only emit if we have data
+                        if !data_to_emit.is_empty() {
+                            log::debug!(
+                                "[PTY {}] Read {} bytes, emitting {} chars",
+                                &pty_id_clone[..8],
+                                n,
+                                data_to_emit.len()
+                            );
+
+                            // Emit the output event
+                            let payload = PtyOutputPayload {
+                                pty_id: pty_id_clone.clone(),
+                                data: data_to_emit,
+                            };
+
+                            if let Err(e) = app_handle_clone.emit("pty-output", payload) {
+                                log::error!("Failed to emit pty-output event: {}", e);
+                            }
                         }
                     }
                     Err(e) => {

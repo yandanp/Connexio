@@ -54,3 +54,6 @@ _bmad-output/
 
 # Marketing landing page (separate project)
 connexio-marketing/
+
+# Release documentation (local only)
+RELEASE.md

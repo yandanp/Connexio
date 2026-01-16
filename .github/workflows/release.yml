@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build & Release
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Connexio ${{ github.ref_name }}"
+          releaseBody: |
+            ## What's Changed
+
+            See the [full changelog](https://github.com/${{ github.repository }}/compare/v0.1.0...${{ github.ref_name }}) for details.
+
+            ## Downloads
+
+            | Platform | Download |
+            |----------|----------|
+            | Windows (Installer) | `Connexio_x.x.x_x64-setup.exe` |
+            | Windows (MSI) | `Connexio_x.x.x_x64_en-US.msi` |
+
+            ## Installation
+
+            1. Download the installer for your platform
+            2. Run the installer and follow the prompts
+            3. Launch Connexio from Start Menu or Desktop
+
+            ## Auto-Update
+
+            If you already have Connexio installed, it will automatically notify you of this update!
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

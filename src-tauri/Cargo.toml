@@ -1,6 +1,6 @@
 [package]
 name = "connexio"
-version = "0.2.1"
+version = "0.2.2"
 description = "Modern Windows terminal with session persistence"
 authors = ["yandanp"]
 edition = "2021"

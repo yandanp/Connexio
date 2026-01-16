@@ -92,12 +92,12 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
           {/* Links */}
           <div className="flex justify-center gap-4">
             <LinkButton
-              href="https://github.com/user/connexio"
+              href="https://github.com/yandanp/connexio"
               icon={<Github className="h-4 w-4" />}
               label="GitHub"
             />
             <LinkButton
-              href="https://github.com/user/connexio/releases"
+              href="https://github.com/yandanp/connexio/releases"
               icon={<ExternalLink className="h-4 w-4" />}
               label="Releases"
             />
@@ -105,7 +105,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 
           {/* Copyright */}
           <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
-            Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" /> by Bos Yanda
+            Made with <Heart className="h-3 w-3 text-red-500 fill-red-500" /> by yandanp
           </p>
           <p className="text-xs text-muted-foreground text-center">
             © {currentYear} Connexio. All rights reserved.

@@ -51,3 +51,6 @@ _bmad-output/
 
 # Tauri signing keys (PRIVATE - NEVER COMMIT)
 .tauri-key
+
+# Marketing landing page (separate project)
+connexio-marketing/

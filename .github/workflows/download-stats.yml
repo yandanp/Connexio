@@ -1,0 +1,101 @@
+name: Download Stats Notifier
+
+on:
+  # Run daily at 09:00 UTC (16:00 WIB)
+  schedule:
+    - cron: "0 9 * * *"
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Download Stats
+        id: stats
+        run: |
+          # Fetch release data from GitHub API
+          RELEASES=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases")
+
+          # Calculate total downloads across all releases
+          TOTAL_DOWNLOADS=$(echo "$RELEASES" | jq '[.[].assets[].download_count] | add // 0')
+
+          # Get latest release info
+          LATEST_VERSION=$(echo "$RELEASES" | jq -r '.[0].tag_name')
+          LATEST_DOWNLOADS=$(echo "$RELEASES" | jq '[.[0].assets[].download_count] | add // 0')
+          LATEST_DATE=$(echo "$RELEASES" | jq -r '.[0].published_at' | cut -d'T' -f1)
+
+          # Get download breakdown for latest release
+          LATEST_ASSETS=$(echo "$RELEASES" | jq -r '.[0].assets[] | "\(.name): \(.download_count)"' | grep -E '\.(exe|msi)$' | head -4)
+
+          # Store in outputs
+          echo "total=$TOTAL_DOWNLOADS" >> $GITHUB_OUTPUT
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "latest_downloads=$LATEST_DOWNLOADS" >> $GITHUB_OUTPUT
+          echo "latest_date=$LATEST_DATE" >> $GITHUB_OUTPUT
+
+          # Store assets as multiline
+          {
+            echo 'latest_assets<<EOF'
+            echo "$LATEST_ASSETS"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Read Previous Stats
+        id: previous
+        run: |
+          # Try to get previous stats from cache or use 0
+          PREV_FILE=".download-stats-cache"
+          if [ -f "$PREV_FILE" ]; then
+            PREV_TOTAL=$(cat "$PREV_FILE")
+          else
+            PREV_TOTAL=0
+          fi
+          echo "total=$PREV_TOTAL" >> $GITHUB_OUTPUT
+
+      - name: Calculate Difference
+        id: diff
+        run: |
+          CURRENT=${{ steps.stats.outputs.total }}
+          PREVIOUS=${{ steps.previous.outputs.total }}
+          DIFF=$((CURRENT - PREVIOUS))
+
+          if [ $DIFF -gt 0 ]; then
+            echo "new_downloads=$DIFF" >> $GITHUB_OUTPUT
+            echo "has_new=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_downloads=0" >> $GITHUB_OUTPUT
+            echo "has_new=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Telegram Notification
+        if: steps.diff.outputs.has_new == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          # Build message
+          MESSAGE="📊 *Connexio Download Stats*%0A"
+          MESSAGE+="━━━━━━━━━━━━━━━━━━━━━━%0A"
+          MESSAGE+="📦 *Total Downloads:* ${{ steps.stats.outputs.total }}%0A"
+          MESSAGE+="🆕 *New Downloads:* +${{ steps.diff.outputs.new_downloads }}%0A"
+          MESSAGE+="%0A"
+          MESSAGE+="🏷️ *Latest Release:* ${{ steps.stats.outputs.latest_version }}%0A"
+          MESSAGE+="📅 *Released:* ${{ steps.stats.outputs.latest_date }}%0A"
+          MESSAGE+="⬇️ *Downloads:* ${{ steps.stats.outputs.latest_downloads }}%0A"
+          MESSAGE+="%0A"
+          MESSAGE+="🔗 [View Releases](https://github.com/${{ github.repository }}/releases)"
+
+          # Send to Telegram
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=$MESSAGE" \
+            -d "parse_mode=Markdown" \
+            -d "disable_web_page_preview=true"
+
+      - name: Save Current Stats
+        run: |
+          echo "${{ steps.stats.outputs.total }}" > .download-stats-cache
+
+      - name: Upload Stats Cache
+        uses: actions/cache/save@v4
+        with:
+          path: .download-stats-cache
+          key: download-stats-${{ github.run_id }}

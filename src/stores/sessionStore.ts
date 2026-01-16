@@ -177,6 +177,7 @@ export function getDefaultTitle(shellType: ShellType): string {
     cmd: "Command Prompt",
     wsl: "WSL",
     gitbash: "Git Bash",
+    csh: "Connexio Shell",
   };
   return titles[shellType];
 }

@@ -4,12 +4,17 @@ version = "0.2.3"
 description = "Modern Windows terminal with session persistence"
 authors = ["yandanp"]
 edition = "2021"
+default-run = "connexio"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "connexio_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "csh"
+path = "src/bin/csh.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -42,3 +47,14 @@ parking_lot = "0.12"
 
 # CLI argument parsing
 clap = { version = "4", features = ["derive"] }
+
+# CSH Shell dependencies
+dirs = "6.0"           # Home directory, config paths
+glob = "0.3"           # Glob pattern matching for wildcards
+chrono = "0.4"         # Date/time for prompts
+whoami = "1.5"         # Username/hostname
+regex = "1.10"         # Pattern matching
+crossterm = "0.28"     # Raw terminal input, cross-platform readline
+terminal_size = "0.4"  # Detect terminal dimensions for grid layout
+unicode-width = "0.2"  # Proper character width for alignment
+atty = "0.2"           # Detect if running in a terminal

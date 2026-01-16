@@ -1,13 +1,13 @@
 /**
  * PTY (Pseudo-Terminal) related types
- * 
+ *
  * These types mirror the Rust types for IPC communication.
  */
 
 /**
  * Shell types supported by Connexio
  */
-export type ShellType = 'powershell' | 'cmd' | 'wsl' | 'gitbash';
+export type ShellType = "powershell" | "cmd" | "wsl" | "gitbash" | "csh";
 
 /**
  * Configuration for spawning a new PTY session
@@ -82,7 +82,7 @@ export interface ShellInfo {
  * Default PTY spawn configuration
  */
 export const DEFAULT_PTY_CONFIG: PtySpawnConfig = {
-  shellType: 'powershell',
+  shellType: "powershell",
   rows: 24,
   cols: 80,
 };
@@ -92,10 +92,11 @@ export const DEFAULT_PTY_CONFIG: PtySpawnConfig = {
  */
 export function getShellDisplayName(shellType: ShellType): string {
   const names: Record<ShellType, string> = {
-    powershell: 'PowerShell',
-    cmd: 'Command Prompt',
-    wsl: 'WSL',
-    gitbash: 'Git Bash',
+    powershell: "PowerShell",
+    cmd: "Command Prompt",
+    wsl: "WSL",
+    gitbash: "Git Bash",
+    csh: "Connexio Shell",
   };
   return names[shellType];
 }

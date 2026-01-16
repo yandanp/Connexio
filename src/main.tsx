@@ -32,7 +32,7 @@ function validateSessionData(): void {
       // Must have id and shellType
       if (!tab.id || !tab.shellType) return false;
       // shellType must be valid
-      if (!["powershell", "cmd", "wsl", "gitbash"].includes(tab.shellType)) return false;
+      if (!["powershell", "cmd", "wsl", "gitbash", "csh"].includes(tab.shellType)) return false;
       return true;
     });
 

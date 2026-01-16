@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 // Modules
 pub mod cli;
 pub mod commands;
+pub mod csh;
 pub mod pty;
 
 // Re-exports

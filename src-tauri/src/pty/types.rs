@@ -13,6 +13,8 @@ pub enum ShellType {
     Cmd,
     Wsl,
     GitBash,
+    /// CSH - Connexio Shell (built-in shell)
+    Csh,
 }
 
 impl ShellType {
@@ -20,13 +22,56 @@ impl ShellType {
     /// 
     /// For Git Bash, attempts to find the actual installation path
     /// to avoid conflicts with WSL bash.
+    /// For CSH, returns the path to the csh binary.
     pub fn get_command(&self) -> String {
         match self {
             ShellType::PowerShell => "powershell.exe".to_string(),
             ShellType::Cmd => "cmd.exe".to_string(),
             ShellType::Wsl => "wsl.exe".to_string(),
             ShellType::GitBash => Self::find_git_bash_path(),
+            ShellType::Csh => Self::find_csh_path(),
         }
+    }
+
+    /// Find CSH (Connexio Shell) binary path
+    /// 
+    /// Looks for csh.exe in the same directory as the main executable,
+    /// or falls back to the current executable with --csh flag.
+    fn find_csh_path() -> String {
+        // First, try to find csh.exe next to the main executable
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let csh_path = exe_dir.join("csh.exe");
+                log::info!("Looking for CSH at: {:?}", csh_path);
+                if csh_path.exists() {
+                    log::info!("Found CSH at: {:?}", csh_path);
+                    return csh_path.to_string_lossy().to_string();
+                }
+            }
+        }
+
+        // Try relative to cargo target directory (for development)
+        let dev_paths = [
+            "target/debug/csh.exe",
+            "target/release/csh.exe",
+            "../target/debug/csh.exe",
+            "../target/release/csh.exe",
+        ];
+        
+        for path in dev_paths {
+            let path_buf = std::path::PathBuf::from(path);
+            if path_buf.exists() {
+                log::info!("Found CSH at dev path: {:?}", path_buf);
+                return path_buf.canonicalize()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|_| path.to_string());
+            }
+        }
+
+        // Fallback: use the main connexio executable with --csh flag
+        // This will be handled specially in the PTY manager
+        log::warn!("CSH not found, falling back to connexio-csh");
+        "connexio-csh".to_string()
     }
 
     /// Find Git Bash installation path
@@ -90,6 +135,7 @@ impl ShellType {
             ShellType::Cmd => "Command Prompt",
             ShellType::Wsl => "WSL",
             ShellType::GitBash => "Git Bash",
+            ShellType::Csh => "Connexio Shell",
         }
     }
 }

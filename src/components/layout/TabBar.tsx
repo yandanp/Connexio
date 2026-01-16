@@ -50,6 +50,7 @@ const shellColors: Record<ShellType, string> = {
   cmd: "text-yellow-400",
   wsl: "text-orange-400",
   gitbash: "text-red-400",
+  csh: "text-cyan-400",
 };
 
 /**
@@ -253,6 +254,10 @@ function NewTabButton({ onNewTab }: { onNewTab: (shellType: ShellType) => void }
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="bg-popover border-border">
+        <DropdownMenuItem onClick={() => onNewTab("csh")}>
+          <Terminal className={cn("h-4 w-4 mr-2", shellColors.csh)} />
+          {getShellDisplayName("csh")}
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onNewTab("powershell")}>
           <Terminal className={cn("h-4 w-4 mr-2", shellColors.powershell)} />
           {getShellDisplayName("powershell")}

@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
 
 type SettingsTab = "appearance" | "shell" | "general" | "workspaces";
 
-const AVAILABLE_SHELLS: ShellType[] = ["powershell", "cmd", "wsl", "gitbash"];
+const AVAILABLE_SHELLS: ShellType[] = ["powershell", "cmd", "wsl", "gitbash", "csh"];
 
 interface SettingsDialogProps {
   open: boolean;

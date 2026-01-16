@@ -55,7 +55,7 @@ export type SettingsStore = Settings & SettingsActions;
  * Default settings
  */
 export const DEFAULT_SETTINGS: Settings = {
-  defaultShell: "powershell",
+  defaultShell: "csh",
   fontSize: 14,
   restoreSession: true,
   confirmCloseLastTab: false,

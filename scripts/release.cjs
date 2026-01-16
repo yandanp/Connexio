@@ -141,24 +141,32 @@ Steps performed:
   const msiExe = `src-tauri/target/release/bundle/msi/Connexio_${version}_x64_en-US.msi`;
   const msiSig = `src-tauri/target/release/bundle/msi/Connexio_${version}_x64_en-US.msi.sig`;
 
-  const releaseNotes = `## What's New
+  // Create release notes file to avoid shell escaping issues
+  const releaseNotes = `## What's New in v${version}
 
-See the full changelog for details.
+See commit history for detailed changes.
 
 ## Downloads
 
-| Platform | File |
-|----------|------|
-| Windows (Installer) | Connexio_${version}_x64-setup.exe |
-| Windows (MSI) | Connexio_${version}_x64_en-US.msi |
+| Package | Description |
+|---------|-------------|
+| Connexio_${version}_x64-setup.exe | **NSIS Installer** (Recommended) |
+| Connexio_${version}_x64_en-US.msi | **MSI Installer** - For enterprise deployment |
 
 ## Auto-Update
 
-Existing users will receive this update automatically!`;
+Existing users will receive this update automatically!
+`;
+
+  const releaseNotesPath = path.join(ROOT_DIR, "RELEASE_NOTES.tmp.md");
+  fs.writeFileSync(releaseNotesPath, releaseNotes);
 
   run(
-    `gh release create v${version} "${nsisExe}" "${nsisSig}" "${msiExe}" "${msiSig}" "latest.json" --title "Connexio v${version}" --notes "${releaseNotes}"`
+    `gh release create v${version} "${nsisExe}" "${nsisSig}" "${msiExe}" "${msiSig}" "latest.json" --title "Connexio v${version}" --notes-file "${releaseNotesPath}"`
   );
+
+  // Clean up temp file
+  fs.unlinkSync(releaseNotesPath);
 
   // Step 6: Commit latest.json
   console.log("\n📤 Step 6: Committing latest.json...");

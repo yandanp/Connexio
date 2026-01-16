@@ -22,8 +22,12 @@ Get the latest release from [GitHub Releases](https://github.com/yandanp/Connexi
 
 - **Session Persistence**: Auto-save and restore tabs, directories, and history
 - **Multi-Tab Support**: Work with multiple terminals simultaneously
-- **Multi-Shell Support**: PowerShell, CMD, WSL, Git Bash
-- **Theme System**: Beautiful built-in themes (One Dark, Dracula, Nord, Solarized, etc.)
+- **Multi-Shell Support**: PowerShell, CMD, WSL, Git Bash, and **Connexio Shell (CSH)**
+- **Connexio Shell (CSH)**: Built-in shell with modern features
+  - Built-in commands: `cd`, `ls`, `cat`, `echo`, `pwd`, `clear`, `exit`, `env`, `history`, `alias`
+  - Pipes and redirection support
+  - Command history with tab completion
+- **Theme System**: Beautiful built-in themes (Tokyo Night, Dark, Light, Nord, Dracula)
 - **Windows Integration**: Explorer context menu, CLI parameters
 - **Auto-Update**: Automatic update notifications with one-click install
 - **Zero Configuration**: Works out of the box
@@ -73,6 +77,7 @@ connexio/
 ├── src-tauri/              # Rust backend
 │   ├── src/
 │   │   ├── commands/       # Tauri commands
+│   │   ├── csh/            # Connexio Shell implementation
 │   │   └── pty/            # PTY/ConPTY handling
 │   └── Cargo.toml
 ├── dev.bat                 # Development script

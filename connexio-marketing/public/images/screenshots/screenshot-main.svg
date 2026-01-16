@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#0d1117"/>
+  <!-- Title bar -->
+  <rect width="1920" height="40" fill="#161b22"/>
+  <circle cx="30" cy="20" r="8" fill="#ff5f56"/>
+  <circle cx="55" cy="20" r="8" fill="#ffbd2e"/>
+  <circle cx="80" cy="20" r="8" fill="#27c93f"/>
+  <text x="960" y="27" fill="#8b949e" font-family="monospace" font-size="14" text-anchor="middle">Connexio — Terminal</text>
+  
+  <!-- Sidebar -->
+  <rect width="240" y="40" height="1040" fill="#161b22"/>
+  <rect width="240" y="40" height="1" fill="#30363d"/>
+  
+  <!-- Sidebar items -->
+  <rect x="16" y="64" width="208" height="40" rx="8" fill="#21262d"/>
+  <text x="40" y="87" fill="#c9d1d9" font-family="sans-serif" font-size="14">New Tab +</text>
+  
+  <rect x="16" y="120" width="208" height="32" rx="6" fill="transparent"/>
+  <circle cx="36" cy="136" r="12" fill="#238636"/>
+  <text x="58" y="141" fill="#c9d1d9" font-family="monospace" font-size="12">~</text>
+  <text x="80" y="141" fill="#8b949e" font-family="monospace" font-size="12">Main Session</text>
+  
+  <rect x="16" y="160" width="208" height="32" rx="6" fill="transparent"/>
+  <circle cx="36" cy="176" r="12" fill="#1f6feb"/>
+  <text x="58" y="181" fill="#c9d1d9" font-family="monospace" font-size="12">/</text>
+  <text x="80" y="181" fill="#8b949e" font-family="monospace" font-size="12">Server SSH</text>
+  
+  <rect x="16" y="200" width="208" height="32" rx="6" fill="transparent"/>
+  <circle cx="36" cy="216" r="12" fill="#8957e5"/>
+  <text x="58" y="221" fill="#c9d1d9" font-family="monospace" font-size="12">⚡</text>
+  <text x="80" y="221" fill="#8b949e" font-family="monospace" font-size="12">Quick Tasks</text>
+  
+  <!-- Terminal content -->
+  <rect x="272" y="64" width="1632" height="992" fill="#0d1117"/>
+  
+  <text x="304" y="120" fill="#7ee787" font-family="monospace" font-size="16">➜ ~ echo "Welcome to Connexio!"</text>
+  <text x="304" y="152" fill="#c9d1d9" font-family="monospace" font-size="16">Welcome to Connexio!</text>
+  <text x="304" y="200" fill="#79c0ff" font-family="monospace" font-size="16">➜ ~ npm run dev</text>
+  <text x="304" y="232" fill="#a5d6ff" font-family="monospace" font-size="16">▲ Connexio v1.0.0</text>
+  <text x="304" y="264" fill="#8b949e" font-family="monospace" font-size="16">Ready for commands...</text>
+  
+  <!-- Cursor -->
+  <rect x="304" y="300" width="10" height="20" fill="#58a6ff">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Placeholder text -->
+  <text x="960" y="600" fill="#484f58" font-family="sans-serif" font-size="24" text-anchor="middle">MAIN TERMINAL INTERFACE</text>
+  <text x="960" y="640" fill="#484f58" font-family="sans-serif" font-size="16" text-anchor="middle">Replace this placeholder with your actual screenshot</text>
+</svg>

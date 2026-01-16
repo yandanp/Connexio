@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#0d1117"/>
+  <!-- Title bar -->
+  <rect width="1920" height="40" fill="#161b22"/>
+  <circle cx="30" cy="20" r="8" fill="#ff5f56"/>
+  <circle cx="55" cy="20" r="8" fill="#ffbd2e"/>
+  <circle cx="80" cy="20" r="8" fill="#27c93f"/>
+  
+  <!-- Sidebar expanded -->
+  <rect width="320" y="40" height="1040" fill="#161b22"/>
+  <rect width="320" y="40" height="1" fill="#30363d"/>
+  
+  <!-- Header -->
+  <text x="24" y="80" fill="#f0f6fc" font-family="sans-serif" font-size="14" font-weight="600">WORKSPACES</text>
+  
+  <!-- Workspace items -->
+  <rect x="16" y="100" width="288" height="48" rx="8" fill="#21262d"/>
+  <circle cx="48" cy="124" r="16" fill="#238636"/>
+  <text x="76" y="129" fill="#c9d1d9" font-family="sans-serif" font-size="14">Development</text>
+  <text x="76" y="147" fill="#8b949e" font-family="sans-serif" font-size="11">3 tabs</text>
+  
+  <rect x="16" y="156" width="288" height="48" rx="8" fill="transparent"/>
+  <circle cx="48" cy="180" r="16" fill="#1f6feb"/>
+  <text x="76" y="185" fill="#c9d1d9" font-family="sans-serif" font-size="14">Production</text>
+  <text x="76" y="203" fill="#8b949e" font-family="sans-serif" font-size="11">5 tabs</text>
+  
+  <rect x="16" y="212" width="288" height="48" rx="8" fill="transparent"/>
+  <circle cx="48" cy="236" r="16" fill="#8957e5"/>
+  <text x="76" y="241" fill="#c9d1d9" font-family="sans-serif" font-size="14">Staging</text>
+  <text x="76" y="259" fill="#8b949e" font-family="sans-serif" font-size="11">2 tabs</text>
+  
+  <!-- Quick actions -->
+  <text x="24" y="340" fill="#f0f6fc" font-family="sans-serif" font-size="14" font-weight="600">QUICK ACTIONS</text>
+  
+  <rect x="16" y="360" width="288" height="40" rx="6" fill="transparent"/>
+  <circle cx="40" cy="380" r="12" fill="#21262d"/>
+  <text x="64" y="386" fill="#c9d1d9" font-family="sans-serif" font-size="13">New Tab</text>
+  
+  <rect x="16" y="408" width="288" height="40" rx="6" fill="transparent"/>
+  <circle cx="40" cy="428" r="12" fill="#21262d"/>
+  <text x="64" y="434" fill="#c9d1d9" font-family="sans-serif" font-size="13">New Workspace</text>
+  
+  <!-- Main area with tabs -->
+  <rect x="336" y="40" width="1584" height="1040" fill="#0d1117"/>
+  
+  <!-- Tab bar -->
+  <rect x="336" y="40" width="1584" height="48" fill="#0d1117"/>
+  <rect x="336" y="86" width="1584" height="1" fill="#30363d"/>
+  
+  <!-- Active tab -->
+  <rect x="352" y="48" width="200" height="38" rx="6" fill="#21262d"/>
+  <text x="372" y="72" fill="#c9d1d9" font-family="monospace" font-size="13">~</text>
+  <text x="394" y="72" fill="#c9d1d9" font-family="sans-serif" font-size="13">Main Session</text>
+  
+  <!-- Inactive tabs -->
+  <rect x="560" y="48" width="180" height="38" rx="6" fill="transparent"/>
+  <text x="580" y="72" fill="#8b949e" font-family="monospace" font-size="13">/</text>
+  <text x="602" y="72" fill="#8b949e" font-family="sans-serif" font-size="13">Server SSH</text>
+  
+  <rect x="748" y="48" width="180" height="38" rx="6" fill="transparent"/>
+  <text x="768" y="72" fill="#8b949e" font-family="monospace" font-size="13">⚡</text>
+  <text x="790" y="72" fill="#8b949e" font-family="sans-serif" font-size="13">Quick Tasks</text>
+  
+  <!-- Terminal -->
+  <rect x="336" y="88" width="1584" height="992" fill="#0d1117"/>
+  <text x="368" y="144" fill="#7ee787" font-family="monospace" font-size="16">➜ ~ ls -la</text>
+  
+  <!-- Placeholder text -->
+  <text x="1128" y="600" fill="#484f58" font-family="sans-serif" font-size="24" text-anchor="middle">WORKSPACE SIDEBAR</text>
+  <text x="1128" y="640" fill="#484f58" font-family="sans-serif" font-size="16" text-anchor="middle">Replace this placeholder with your actual screenshot</text>
+</svg>

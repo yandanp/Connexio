@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#0d1117"/>
+  <!-- Title bar -->
+  <rect width="1920" height="40" fill="#161b22"/>
+  <circle cx="30" cy="20" r="8" fill="#ff5f56"/>
+  <circle cx="55" cy="20" r="8" fill="#ffbd2e"/>
+  <circle cx="80" cy="20" r="8" fill="#27c93f"/>
+  
+  <!-- Features layout -->
+  <text x="960" y="100" fill="#f0f6fc" font-family="sans-serif" font-size="28" font-weight="600" text-anchor="middle">Powerful Features</text>
+  <text x="960" y="140" fill="#8b949e" font-family="sans-serif" font-size="16" text-anchor="middle">Everything you need for a modern development workflow</text>
+  
+  <!-- Feature grid -->
+  <g transform="translate(160, 200)">
+    <!-- Feature 1: Tabs -->
+    <rect x="0" y="0" width="480" height="180" rx="12" fill="#161b22"/>
+    <rect x="0" y="0" width="480" height="60" rx="12" fill="#21262d"/>
+    <text x="24" y="40" fill="#c9d1d9" font-family="sans-serif" font-size="16" font-weight="600">Multi-Tab Support</text>
+    <text x="24" y="80" fill="#8b949e" font-family="sans-serif" font-size="13">Manage multiple terminals in one window</text>
+    <rect x="24" y="100" width="432" height="60" rx="8" fill="#0d1117"/>
+    <rect x="40" y="115" width="120" height="30" rx="4" fill="#21262d"/>
+    <rect x="170" y="115" width="120" height="30" rx="4" fill="#1f6feb"/>
+    <rect x="300" y="115" width="120" height="30" rx="4" fill="#21262d"/>
+    
+    <!-- Feature 2: Split -->
+    <rect x="520" y="0" width="480" height="180" rx="12" fill="#161b22"/>
+    <rect x="520" y="0" width="480" height="60" rx="12" fill="#21262d"/>
+    <text x="544" y="40" fill="#c9d1d9" font-family="sans-serif" font-size="16" font-weight="600">Split Views</text>
+    <text x="544" y="80" fill="#8b949e" font-family="sans-serif" font-size="13">Split terminals horizontally or vertically</text>
+    <rect x="544" y="100" width="200" height="60" rx="8" fill="#0d1117"/>
+    <rect x="752" y="100" width="200" height="60" rx="8" fill="#0d1117"/>
+    <line x1="744" y1="100" x2="744" y2="160" stroke="#30363d" stroke-width="2"/>
+    
+    <!-- Feature 3: Search -->
+    <rect x="1040" y="0" width="480" height="180" rx="12" fill="#161b22"/>
+    <rect x="1040" y="0" width="480" height="60" rx="12" fill="#21262d"/>
+    <text x="1064" y="40" fill="#c9d1d9" font-family="sans-serif" font-size="16" font-weight="600">Powerful Search</text>
+    <text x="1064" y="80" fill="#8b949e" font-family="sans-serif" font-size="13">Search through command history and output</text>
+    <rect x="1064" y="100" width="432" height="60" rx="8" fill="#0d1117"/>
+    <rect x="1080" y="115" width="200" height="30" rx="4" fill="#21262d"/>
+    <text x="1100" y="135" fill="#8b949e" font-family="monospace" font-size="12">Search...</text>
+    <rect x="1300" y="115" width="80" height="30" rx="4" fill="#238636"/>
+    <text x="1320" y="135" fill="#ffffff" font-family="sans-serif" font-size="11">Case</text>
+    
+    <!-- Feature 4: Snippets -->
+    <rect x="0" y="220" width="480" height="180" rx="12" fill="#161b22"/>
+    <rect x="0" y="220" width="480" height="60" rx="12" fill="#21262d"/>
+    <text x="24" y="260" fill="#c9d1d9" font-family="sans-serif" font-size="16" font-weight="600">Code Snippets</text>
+    <text x="24" y="300" fill="#8b949e" font-family="sans-serif" font-size="13">Save and reuse common commands</text>
+    <rect x="24" y="320" width="432" height="60" rx="8" fill="#0d1117"/>
+    <text x="40" y="355" fill="#7ee787" font-family="monospace" font-size="12"># my-snippet</text>
+    <text x="160" y="355" fill="#8b949e" font-family="monospace" font-size="12">npm run dev</text>
+    
+    <!-- Feature 5: Integration -->
+    <rect x="520" y="220" width="480" height="180" rx="12" fill="#161b22"/>
+    <rect x="520" y="220" width="480" height="60" rx="12" fill="#21262d"/>
+    <text x="544" y="260" fill="#c9d1d9" font-family="sans-serif" font-size="16" font-weight="600">Shell Integration</text>
+    <text x="544" y="300" fill="#8b949e" font-family="sans-serif" font-size="13">Enhanced command experience with shell</text>
+    <rect x="544" y="320" width="432" height="60" rx="8" fill="#0d1117"/>
+    <rect x="560" y="335" width="80" height="30" rx="4" fill="#238636"/>
+    <text x="575" y="355" fill="#ffffff" font-family="sans-serif" font-size="11">✓ Bash</text>
+    <rect x="650" y="335" width="80" height="30" rx="4" fill="#238636"/>
+    <text x="665" y="355" fill="#ffffff" font-family="sans-serif" font-size="11">✓ Zsh</text>
+    <rect x="740" y="335" width="80" height="30" rx="4" fill="#238636"/>
+    <text x="755" y="355" fill="#ffffff" font-family="sans-serif" font-size="11">✓ Fish</text>
+    
+    <!-- Feature 6: Shortcuts -->
+    <rect x="1040" y="220" width="480" height="180" rx="12" fill="#161b22"/>
+    <rect x="1040" y="220" width="480" height="60" rx="12" fill="#21262d"/>
+    <text x="1064" y="260" fill="#c9d1d9" font-family="sans-serif" font-size="16" font-weight="600">Custom Shortcuts</text>
+    <text x="1064" y="300" fill="#8b949e" font-family="sans-serif" font-size="13">Configure keyboard shortcuts your way</text>
+    <rect x="1064" y="320" width="432" height="60" rx="8" fill="#0d1117"/>
+    <rect x="1080" y="335" width="140" height="30" rx="4" fill="#21262d"/>
+    <text x="1100" y="355" fill="#c9d1d9" font-family="monospace" font-size="11">Ctrl + T</text>
+    <text x="1230" y="355" fill="#8b949e" font-family="sans-serif" font-size="11">New Tab</text>
+    <rect x="1320" y="335" width="140" height="30" rx="4" fill="#21262d"/>
+    <text x="1340" y="355" fill="#c9d1d9" font-family="monospace" font-size="11">Ctrl + W</text>
+    <text x="1470" y="355" fill="#8b949e" font-family="sans-serif" font-size="11">Close Tab</text>
+  </g>
+  
+  <!-- Placeholder text -->
+  <text x="960" y="800" fill="#484f58" font-family="sans-serif" font-size="24" text-anchor="middle">FEATURES SHOWCASE</text>
+  <text x="960" y="840" fill="#484f58" font-family="sans-serif" font-size="16" text-anchor="middle">Replace this placeholder with your actual screenshot</text>
+</svg>

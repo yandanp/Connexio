@@ -45,6 +45,9 @@ nul
 # OpenCode / Claude session files (optional - comment out if you want to track these)
 .opencode
 
+# BMAD Framework (development methodology - not needed in repo)
+_bmad/
+_bmad-output/
 
 # Tauri signing keys (PRIVATE - NEVER COMMIT)
 .tauri-key

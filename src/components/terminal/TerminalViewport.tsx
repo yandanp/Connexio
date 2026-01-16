@@ -155,25 +155,60 @@ export function TerminalViewport({
     }
   }, [activeThemeId]);
 
-  // Update terminal font size when setting changes - instant without re-render
+  // Update terminal font size when setting changes - with proper debounce for WebGL
   useEffect(() => {
     const term = terminalRef.current;
     const fitAddon = fitAddonRef.current;
-    if (term) {
-      term.options.fontSize = fontSize;
-      // Refit terminal after font size change to recalculate dimensions
-      if (fitAddon) {
-        fitAddon.fit();
-        // Also resize PTY to match new dimensions
-        const ptyId = ptyIdRef.current;
-        if (ptyId) {
-          const { rows, cols } = term;
-          resizePty(ptyId, rows, cols).catch((e) => {
-            console.error("Failed to resize PTY after font change:", e);
-          });
+    const webglAddon = webglAddonRef.current;
+
+    if (!term) return;
+
+    // Set font size immediately
+    term.options.fontSize = fontSize;
+
+    // Use requestAnimationFrame to wait for render cycle, then fit
+    // This gives WebGL time to rebuild glyph atlas with new font size
+    const rafId = requestAnimationFrame(() => {
+      // Additional delay for WebGL glyph atlas rebuild
+      const timeoutId = setTimeout(() => {
+        if (fitAddon) {
+          try {
+            fitAddon.fit();
+
+            // Resize PTY to match new dimensions
+            const ptyId = ptyIdRef.current;
+            if (ptyId) {
+              const { rows, cols } = term;
+              resizePty(ptyId, rows, cols).catch((e) => {
+                console.error("Failed to resize PTY after font change:", e);
+              });
+            }
+
+            // Force WebGL to refresh if available
+            if (webglAddon) {
+              try {
+                // Clear texture atlas cache by triggering a refresh
+                term.refresh(0, term.rows - 1);
+              } catch (e) {
+                console.warn("WebGL refresh failed:", e);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to fit terminal after font change:", e);
+          }
         }
+      }, 50); // 50ms delay for WebGL glyph atlas rebuild
+
+      // Store timeout for cleanup
+      (term as any)._fontSizeTimeout = timeoutId;
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      if ((term as any)._fontSizeTimeout) {
+        clearTimeout((term as any)._fontSizeTimeout);
       }
-    }
+    };
   }, [fontSize]);
 
   // Initialize terminal - only run once per shellType/workingDirectory combination
@@ -227,21 +262,37 @@ export function TerminalViewport({
         // Open terminal in container
         term.open(containerRef.current!);
 
-        // Try to load WebGL addon for better performance (NFR-P4: 60 FPS)
-        try {
-          const webglAddon = new WebglAddon();
-          webglAddon.onContextLoss(() => {
-            console.warn("WebGL context lost, falling back to canvas renderer");
-            webglAddon.dispose();
-          });
-          term.loadAddon(webglAddon);
-          webglAddonRef.current = webglAddon;
-        } catch (e) {
-          console.warn("WebGL addon failed to load, using canvas renderer:", e);
-        }
-
-        // Initial fit
+        // Initial fit BEFORE WebGL to establish correct dimensions
         fitAddon.fit();
+
+        // Try to load WebGL addon for better performance (NFR-P4: 60 FPS)
+        // Add delay to prevent flickering - wait for terminal to be fully rendered
+        const webglLoadDelay = setTimeout(() => {
+          if (isCleanedUp) return;
+
+          try {
+            const webglAddon = new WebglAddon();
+            webglAddon.onContextLoss(() => {
+              console.warn("WebGL context lost, falling back to canvas renderer");
+              webglAddon.dispose();
+              webglAddonRef.current = null;
+            });
+            term.loadAddon(webglAddon);
+            webglAddonRef.current = webglAddon;
+
+            // Force a refresh after WebGL loads to prevent initial flicker
+            requestAnimationFrame(() => {
+              if (!isCleanedUp && term) {
+                term.refresh(0, term.rows - 1);
+              }
+            });
+          } catch (e) {
+            console.warn("WebGL addon failed to load, using canvas renderer:", e);
+          }
+        }, 100); // 100ms delay for stable initialization
+
+        // Store for cleanup
+        (term as any)._webglLoadDelay = webglLoadDelay;
 
         terminalRef.current = term;
 
@@ -353,6 +404,14 @@ export function TerminalViewport({
       const ptyId = ptyIdRef.current;
 
       if (term) {
+        // Clear WebGL load delay if still pending
+        if ((term as any)._webglLoadDelay) {
+          clearTimeout((term as any)._webglLoadDelay);
+        }
+        // Clear font size timeout if pending
+        if ((term as any)._fontSizeTimeout) {
+          clearTimeout((term as any)._fontSizeTimeout);
+        }
         // Call stored cleanup functions
         if ((term as any)._connexioCleanup) {
           (term as any)._connexioCleanup();

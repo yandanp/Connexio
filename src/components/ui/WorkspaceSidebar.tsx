@@ -12,17 +12,36 @@
  * - Quick switch with single click (preserves terminal state!)
  * - Create new workspace via popover with color picker
  * - Manage workspaces button
+ * - Drag and drop reordering of workspaces
  */
 
 import { useState, useRef, useEffect } from "react";
 import { Plus, Settings2, Home, Check } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import {
   useSessionStore,
-  useWorkspaces,
   useActiveWorkspaceId,
   WORKSPACE_COLORS,
   type WorkspaceColorId,
+  type WorkspaceSession,
 } from "@/stores";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -119,15 +138,136 @@ function ColorPicker({
   );
 }
 
+/**
+ * Sortable workspace icon component
+ */
+function SortableWorkspaceIcon({
+  workspace,
+  isActive,
+  onSelect,
+}: {
+  workspace: WorkspaceSession;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: workspace.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const initials = getWorkspaceInitials(workspace.name);
+  const color = getWorkspaceColor(workspace.color, workspace.name);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          ref={setNodeRef}
+          style={style}
+          onClick={onSelect}
+          {...attributes}
+          {...listeners}
+          className={cn(
+            "relative w-9 h-9 rounded-lg flex items-center justify-center",
+            "text-xs font-bold text-white",
+            "transition-all duration-150 cursor-grab active:cursor-grabbing",
+            color.bg,
+            isActive
+              ? "ring-2 ring-white ring-offset-2 ring-offset-muted/50 scale-105"
+              : "opacity-60 hover:opacity-100 hover:scale-105",
+            isDragging && "opacity-50 z-50 shadow-lg"
+          )}
+        >
+          {initials}
+          <TabCountBadge count={workspace.tabs.length} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        <p className="font-semibold">{workspace.name}</p>
+        <p className="text-xs opacity-70">
+          {workspace.tabs.length} tab{workspace.tabs.length !== 1 ? "s" : ""}
+        </p>
+        <p className="text-xs opacity-50">Drag to reorder</p>
+        {isActive && <p className="text-xs text-green-400 font-medium">● Active</p>}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * Drag overlay component for workspace (shows while dragging)
+ */
+function WorkspaceDragOverlay({ workspace }: { workspace: WorkspaceSession | null }) {
+  if (!workspace) return null;
+
+  const initials = getWorkspaceInitials(workspace.name);
+  const color = getWorkspaceColor(workspace.color, workspace.name);
+
+  return (
+    <div
+      className={cn(
+        "relative w-9 h-9 rounded-lg flex items-center justify-center",
+        "text-xs font-bold text-white",
+        "ring-2 ring-primary shadow-xl scale-110",
+        color.bg
+      )}
+    >
+      {initials}
+      <TabCountBadge count={workspace.tabs.length} />
+    </div>
+  );
+}
+
 interface WorkspaceSidebarProps {
   className?: string;
 }
 
 export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
-  const workspaces = useWorkspaces();
+  // Use raw workspaces array (not sorted hook) for proper drag ordering
+  const workspaces = useSessionStore((state) => state.workspaces);
   const activeWorkspaceId = useActiveWorkspaceId();
   const defaultSession = useSessionStore((state) => state.defaultSession);
-  const { switchWorkspace, createWorkspace } = useSessionStore();
+  const { switchWorkspace, createWorkspace, reorderWorkspaces } = useSessionStore();
+
+  // Drag state
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Configure sensors for drag detection
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (over && active.id !== over.id) {
+      const oldIndex = workspaces.findIndex((ws) => ws.id === active.id);
+      const newIndex = workspaces.findIndex((ws) => ws.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        reorderWorkspaces(oldIndex, newIndex);
+      }
+    }
+  };
+
+  // Find active workspace for drag overlay
+  const activeWorkspace = activeId ? workspaces.find((ws) => ws.id === activeId) : null;
 
   // Dialog states
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
@@ -181,11 +321,6 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
           className
         )}
       >
-        {/* Header label */}
-        <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
-          WS
-        </div>
-
         {/* Default Session (Home) */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -218,43 +353,34 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
         {/* Divider */}
         {workspaces.length > 0 && <div className="w-6 h-px bg-border my-1" />}
 
-        {/* Workspace Icons */}
-        <div className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide w-full px-1">
-          {workspaces.map((workspace) => {
-            const isActive = workspace.id === activeWorkspaceId;
-            const initials = getWorkspaceInitials(workspace.name);
-            const color = getWorkspaceColor(workspace.color, workspace.name);
+        {/* Workspace Icons with Drag and Drop */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide w-full px-1">
+            <SortableContext
+              items={workspaces.map((ws) => ws.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {workspaces.map((workspace) => (
+                <SortableWorkspaceIcon
+                  key={workspace.id}
+                  workspace={workspace}
+                  isActive={workspace.id === activeWorkspaceId}
+                  onSelect={() => handleSwitchWorkspace(workspace.id)}
+                />
+              ))}
+            </SortableContext>
+          </div>
 
-            return (
-              <Tooltip key={workspace.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleSwitchWorkspace(workspace.id)}
-                    className={cn(
-                      "relative w-9 h-9 rounded-lg flex items-center justify-center",
-                      "text-xs font-bold text-white",
-                      "transition-all duration-150",
-                      color.bg,
-                      isActive
-                        ? "ring-2 ring-white ring-offset-2 ring-offset-muted/50 scale-105"
-                        : "opacity-60 hover:opacity-100 hover:scale-105"
-                    )}
-                  >
-                    {initials}
-                    <TabCountBadge count={workspace.tabs.length} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  <p className="font-semibold">{workspace.name}</p>
-                  <p className="text-xs opacity-70">
-                    {workspace.tabs.length} tab{workspace.tabs.length !== 1 ? "s" : ""}
-                  </p>
-                  {isActive && <p className="text-xs text-green-400 font-medium">● Active</p>}
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
+          {/* Drag overlay - shows the workspace being dragged */}
+          <DragOverlay>
+            <WorkspaceDragOverlay workspace={activeWorkspace ?? null} />
+          </DragOverlay>
+        </DndContext>
 
         {/* Bottom Actions */}
         <div className="flex flex-col items-center gap-1.5 mt-auto pt-2 border-t border-border w-full px-1">

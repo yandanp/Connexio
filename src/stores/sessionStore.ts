@@ -113,6 +113,9 @@ interface SessionActions {
   updateTab: (tabId: string, updates: Partial<TabState>) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
 
+  // Workspace reordering
+  reorderWorkspaces: (fromIndex: number, toIndex: number) => void;
+
   // Getters
   getActiveWorkspace: () => WorkspaceSession;
   getActiveTab: () => TabState | undefined;
@@ -449,6 +452,15 @@ export const useSessionStore = create<SessionStore>()(
             ),
           }));
         }
+      },
+
+      reorderWorkspaces: (fromIndex, toIndex) => {
+        set((state) => {
+          const newWorkspaces = [...state.workspaces];
+          const [removed] = newWorkspaces.splice(fromIndex, 1);
+          newWorkspaces.splice(toIndex, 0, removed);
+          return { workspaces: newWorkspaces };
+        });
       },
 
       // Getters

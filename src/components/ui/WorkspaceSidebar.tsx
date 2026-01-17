@@ -1,13 +1,13 @@
 /**
- * WorkspaceSidebar - Icon Rail style workspace switcher
+ * WorkspaceSidebar - Expandable workspace switcher
  *
  * Named Workspaces feature (v1.2 - Session-based)
  *
  * Features:
- * - Compact icon rail (48px width)
- * - Visual workspace icons with initials + tab count badge
+ * - Collapsible sidebar (48px collapsed, 200px expanded)
+ * - Hover to expand, click pin to keep expanded
+ * - Visual workspace icons with full names when expanded
  * - Custom color selection for workspaces
- * - Tooltip on hover with workspace name
  * - Active workspace highlighted
  * - Quick switch with single click (preserves terminal state!)
  * - Create new workspace via popover with color picker
@@ -16,7 +16,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Plus, Settings2, Home, Check } from "lucide-react";
+import { Plus, Settings2, Home, Check, PanelLeftClose, PanelLeft } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -46,48 +46,34 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WorkspaceManagerDialog } from "@/components/ui";
+import {
+  getWorkspaceColor,
+  getWorkspaceInitials,
+  MAX_WORKSPACE_NAME_LENGTH,
+  DRAG_ACTIVATION_DISTANCE,
+} from "@/lib/workspace-utils";
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const SIDEBAR_COLLAPSED_WIDTH = 56; // px
+const SIDEBAR_EXPANDED_WIDTH = 200; // px
+const HOVER_EXPAND_DELAY = 300; // ms delay before expanding on hover
+
+// =============================================================================
+// COMPONENTS
+// =============================================================================
 
 /**
- * Get initials from workspace name (max 2 chars)
+ * Tab count badge component - adapts to collapsed/expanded state
  */
-function getWorkspaceInitials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
-
-/**
- * Generate a consistent color based on workspace name (fallback)
- */
-function getWorkspaceColorFallback(name: string): (typeof WORKSPACE_COLORS)[number] {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return WORKSPACE_COLORS[Math.abs(hash) % WORKSPACE_COLORS.length];
-}
-
-/**
- * Get workspace color by ID or generate from name
- */
-function getWorkspaceColor(
-  colorId: WorkspaceColorId | undefined,
-  name: string
-): (typeof WORKSPACE_COLORS)[number] {
-  if (colorId) {
-    const found = WORKSPACE_COLORS.find((c) => c.id === colorId);
-    if (found) return found;
-  }
-  return getWorkspaceColorFallback(name);
-}
-
-/**
- * Tab count badge component
- */
-function TabCountBadge({ count }: { count: number }) {
+function TabCountBadge({ count, expanded }: { count: number; expanded: boolean }) {
   if (count === 0) return null;
+
+  if (expanded) {
+    return <span className="text-xs text-muted-foreground tabular-nums">{count}</span>;
+  }
 
   return (
     <span
@@ -139,15 +125,17 @@ function ColorPicker({
 }
 
 /**
- * Sortable workspace icon component
+ * Sortable workspace item component - adapts to collapsed/expanded state
  */
 function SortableWorkspaceIcon({
   workspace,
   isActive,
+  isExpanded,
   onSelect,
 }: {
   workspace: WorkspaceSession;
   isActive: boolean;
+  isExpanded: boolean;
   onSelect: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -162,6 +150,49 @@ function SortableWorkspaceIcon({
   const initials = getWorkspaceInitials(workspace.name);
   const color = getWorkspaceColor(workspace.color, workspace.name);
 
+  // Expanded state - show full name
+  if (isExpanded) {
+    return (
+      <button
+        ref={setNodeRef}
+        style={style}
+        onClick={onSelect}
+        {...attributes}
+        {...listeners}
+        className={cn(
+          "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
+          "transition-all duration-150 cursor-grab active:cursor-grabbing",
+          "text-left",
+          isActive
+            ? "bg-primary/10 border border-primary/30"
+            : "hover:bg-accent border border-transparent",
+          isDragging && "opacity-50 z-50 shadow-lg"
+        )}
+      >
+        {/* Color indicator */}
+        <div
+          className={cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+            "text-xs font-bold text-white",
+            color.bg
+          )}
+        >
+          {initials}
+        </div>
+
+        {/* Name and tab count */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium text-sm truncate">{workspace.name}</span>
+            <TabCountBadge count={workspace.tabs.length} expanded />
+          </div>
+          {isActive && <span className="text-xs text-primary">● Active</span>}
+        </div>
+      </button>
+    );
+  }
+
+  // Collapsed state - show icon only with tooltip
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -172,18 +203,18 @@ function SortableWorkspaceIcon({
           {...attributes}
           {...listeners}
           className={cn(
-            "relative w-9 h-9 rounded-lg flex items-center justify-center",
+            "relative w-10 h-10 rounded-lg flex items-center justify-center",
             "text-xs font-bold text-white",
             "transition-all duration-150 cursor-grab active:cursor-grabbing",
             color.bg,
             isActive
-              ? "ring-2 ring-white ring-offset-2 ring-offset-muted/50 scale-105"
-              : "opacity-60 hover:opacity-100 hover:scale-105",
+              ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-105"
+              : "opacity-70 hover:opacity-100 hover:scale-105",
             isDragging && "opacity-50 z-50 shadow-lg"
           )}
         >
           {initials}
-          <TabCountBadge count={workspace.tabs.length} />
+          <TabCountBadge count={workspace.tabs.length} expanded={false} />
         </button>
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={8}>
@@ -191,7 +222,6 @@ function SortableWorkspaceIcon({
         <p className="text-xs opacity-70">
           {workspace.tabs.length} tab{workspace.tabs.length !== 1 ? "s" : ""}
         </p>
-        <p className="text-xs opacity-50">Drag to reorder</p>
         {isActive && <p className="text-xs text-green-400 font-medium">● Active</p>}
       </TooltipContent>
     </Tooltip>
@@ -201,26 +231,58 @@ function SortableWorkspaceIcon({
 /**
  * Drag overlay component for workspace (shows while dragging)
  */
-function WorkspaceDragOverlay({ workspace }: { workspace: WorkspaceSession | null }) {
+function WorkspaceDragOverlay({
+  workspace,
+  isExpanded,
+}: {
+  workspace: WorkspaceSession | null;
+  isExpanded: boolean;
+}) {
   if (!workspace) return null;
 
   const initials = getWorkspaceInitials(workspace.name);
   const color = getWorkspaceColor(workspace.color, workspace.name);
 
+  if (isExpanded) {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-3 px-3 py-2 rounded-lg",
+          "bg-background border-2 border-primary shadow-xl"
+        )}
+      >
+        <div
+          className={cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+            "text-xs font-bold text-white",
+            color.bg
+          )}
+        >
+          {initials}
+        </div>
+        <span className="font-medium text-sm">{workspace.name}</span>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "relative w-9 h-9 rounded-lg flex items-center justify-center",
+        "relative w-10 h-10 rounded-lg flex items-center justify-center",
         "text-xs font-bold text-white",
         "ring-2 ring-primary shadow-xl scale-110",
         color.bg
       )}
     >
       {initials}
-      <TabCountBadge count={workspace.tabs.length} />
+      <TabCountBadge count={workspace.tabs.length} expanded={false} />
     </div>
   );
 }
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 interface WorkspaceSidebarProps {
   className?: string;
@@ -233,6 +295,12 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
   const defaultSession = useSessionStore((state) => state.defaultSession);
   const { switchWorkspace, createWorkspace, reorderWorkspaces } = useSessionStore();
 
+  // Sidebar expansion state
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -240,7 +308,7 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px movement before drag starts
+        distance: DRAG_ACTIVATION_DISTANCE,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -278,6 +346,31 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
   const [newColor, setNewColor] = useState<WorkspaceColorId>("blue");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Handle hover expand/collapse
+  const handleMouseEnter = () => {
+    if (isPinned) return;
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(true);
+    }, HOVER_EXPAND_DELAY);
+  };
+
+  const handleMouseLeave = () => {
+    if (isPinned) return;
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsExpanded(false);
+  };
+
+  // Toggle pin state
+  const togglePin = () => {
+    setIsPinned(!isPinned);
+    if (!isPinned) {
+      setIsExpanded(true);
+    }
+  };
+
   // Focus input when popover opens
   useEffect(() => {
     if (createPopoverOpen && inputRef.current) {
@@ -292,6 +385,15 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
       setNewColor("blue");
     }
   }, [createPopoverOpen]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSwitchWorkspace = (workspaceId: string | null) => {
     switchWorkspace(workspaceId);
@@ -312,46 +414,121 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
     }
   };
 
+  const currentWidth = isExpanded || isPinned ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
+
   return (
     <TooltipProvider delayDuration={100}>
       <div
+        ref={sidebarRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{ width: currentWidth }}
         className={cn(
-          "w-12 flex flex-col items-center py-2 gap-1.5",
+          "flex flex-col py-2",
           "bg-muted/50 border-r border-border",
+          "transition-all duration-200 ease-in-out",
           className
         )}
       >
+        {/* Header with pin toggle */}
+        {(isExpanded || isPinned) && (
+          <div className="flex items-center justify-between px-3 mb-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Workspaces
+            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={togglePin}
+                  className={cn(
+                    "p-1 rounded hover:bg-accent transition-colors",
+                    isPinned ? "text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  {isPinned ? (
+                    <PanelLeftClose className="h-4 w-4" />
+                  ) : (
+                    <PanelLeft className="h-4 w-4" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {isPinned ? "Unpin sidebar" : "Pin sidebar open"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
         {/* Default Session (Home) */}
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <div className={cn("px-2", isExpanded || isPinned ? "px-2" : "flex justify-center")}>
+          {isExpanded || isPinned ? (
             <button
               onClick={() => handleSwitchWorkspace(null)}
               className={cn(
-                "relative w-9 h-9 rounded-lg flex items-center justify-center",
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
                 "transition-all duration-150",
+                "text-left",
                 activeWorkspaceId === null
-                  ? "bg-primary text-primary-foreground ring-2 ring-white ring-offset-2 ring-offset-muted/50"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "bg-primary/10 border border-primary/30"
+                  : "hover:bg-accent border border-transparent"
               )}
             >
-              <Home className="h-4 w-4" />
-              <TabCountBadge count={defaultSession.tabs.length} />
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                  activeWorkspaceId === null
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                <Home className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-sm">Default</span>
+                  <TabCountBadge count={defaultSession.tabs.length} expanded />
+                </div>
+                {activeWorkspaceId === null && (
+                  <span className="text-xs text-primary">● Active</span>
+                )}
+              </div>
             </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={8}>
-            <p className="font-semibold">Default Session</p>
-            <p className="text-xs opacity-70">
-              {defaultSession.tabs.length} tab{defaultSession.tabs.length !== 1 ? "s" : ""} ·
-              Unsaved
-            </p>
-            {activeWorkspaceId === null && (
-              <p className="text-xs text-green-400 font-medium">● Active</p>
-            )}
-          </TooltipContent>
-        </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleSwitchWorkspace(null)}
+                  className={cn(
+                    "relative w-10 h-10 rounded-lg flex items-center justify-center",
+                    "transition-all duration-150",
+                    activeWorkspaceId === null
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
+                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  <Home className="h-4 w-4" />
+                  <TabCountBadge count={defaultSession.tabs.length} expanded={false} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                <p className="font-semibold">Default Session</p>
+                <p className="text-xs opacity-70">
+                  {defaultSession.tabs.length} tab{defaultSession.tabs.length !== 1 ? "s" : ""}
+                </p>
+                {activeWorkspaceId === null && (
+                  <p className="text-xs text-green-400 font-medium">● Active</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
 
         {/* Divider */}
-        {workspaces.length > 0 && <div className="w-6 h-px bg-border my-1" />}
+        {workspaces.length > 0 && (
+          <div className={cn("my-2", isExpanded || isPinned ? "mx-3" : "mx-auto w-6")}>
+            <div className="h-px bg-border" />
+          </div>
+        )}
 
         {/* Workspace Icons with Drag and Drop */}
         <DndContext
@@ -360,7 +537,12 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide w-full px-1">
+          <div
+            className={cn(
+              "flex-1 flex flex-col gap-1 overflow-y-auto scrollbar-hide",
+              isExpanded || isPinned ? "px-2" : "items-center px-2"
+            )}
+          >
             <SortableContext
               items={workspaces.map((ws) => ws.id)}
               strategy={verticalListSortingStrategy}
@@ -370,6 +552,7 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
                   key={workspace.id}
                   workspace={workspace}
                   isActive={workspace.id === activeWorkspaceId}
+                  isExpanded={isExpanded || isPinned}
                   onSelect={() => handleSwitchWorkspace(workspace.id)}
                 />
               ))}
@@ -378,35 +561,57 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
 
           {/* Drag overlay - shows the workspace being dragged */}
           <DragOverlay>
-            <WorkspaceDragOverlay workspace={activeWorkspace ?? null} />
+            <WorkspaceDragOverlay
+              workspace={activeWorkspace ?? null}
+              isExpanded={isExpanded || isPinned}
+            />
           </DragOverlay>
         </DndContext>
 
         {/* Bottom Actions */}
-        <div className="flex flex-col items-center gap-1.5 mt-auto pt-2 border-t border-border w-full px-1">
+        <div
+          className={cn(
+            "flex flex-col gap-1 mt-auto pt-2 border-t border-border",
+            isExpanded || isPinned ? "px-2" : "items-center px-2"
+          )}
+        >
           {/* Create Workspace Button with Popover */}
           <Popover open={createPopoverOpen} onOpenChange={setCreatePopoverOpen}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button
-                    className={cn(
-                      "w-9 h-9 rounded-lg flex items-center justify-center",
-                      "bg-green-600 hover:bg-green-500 text-white",
-                      "transition-all duration-150 hover:scale-105"
-                    )}
-                  >
-                    <Plus className="h-5 w-5" />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              {!createPopoverOpen && (
-                <TooltipContent side="right" sideOffset={8}>
-                  <p className="font-semibold">New Workspace</p>
-                  <p className="text-xs opacity-70">Create fresh workspace with 1 tab</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
+            {isExpanded || isPinned ? (
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
+                    "bg-green-600 hover:bg-green-500 text-white",
+                    "transition-all duration-150"
+                  )}
+                >
+                  <Plus className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm font-medium">New Workspace</span>
+                </button>
+              </PopoverTrigger>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center",
+                        "bg-green-600 hover:bg-green-500 text-white",
+                        "transition-all duration-150 hover:scale-105"
+                      )}
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                {!createPopoverOpen && (
+                  <TooltipContent side="right" sideOffset={8}>
+                    <p className="font-semibold">New Workspace</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            )}
 
             <PopoverContent side="right" align="end" className="w-64 p-3">
               <div className="space-y-4">
@@ -423,6 +628,7 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="e.g., Project Alpha"
+                  maxLength={MAX_WORKSPACE_NAME_LENGTH}
                   className={cn(
                     "w-full h-9 px-3 text-sm rounded-md",
                     "bg-background border border-input",
@@ -468,24 +674,39 @@ export function WorkspaceSidebar({ className }: WorkspaceSidebarProps) {
 
           {/* Manage Workspaces Button */}
           {workspaces.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
+            <>
+              {isExpanded || isPinned ? (
                 <button
                   onClick={() => setManageDialogOpen(true)}
                   className={cn(
-                    "w-9 h-9 rounded-lg flex items-center justify-center",
-                    "text-muted-foreground hover:text-foreground",
-                    "hover:bg-accent transition-all duration-150"
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
+                    "text-muted-foreground hover:text-foreground hover:bg-accent",
+                    "transition-all duration-150"
                   )}
                 >
-                  <Settings2 className="h-4 w-4" />
+                  <Settings2 className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm">Manage</span>
                 </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                <p className="font-semibold">Manage Workspaces</p>
-                <p className="text-xs opacity-70">Rename, delete, organize</p>
-              </TooltipContent>
-            </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setManageDialogOpen(true)}
+                      className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center",
+                        "text-muted-foreground hover:text-foreground",
+                        "hover:bg-accent transition-all duration-150"
+                      )}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>
+                    <p className="font-semibold">Manage Workspaces</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </>
           )}
         </div>
 

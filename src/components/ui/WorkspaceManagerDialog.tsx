@@ -8,10 +8,21 @@
  * - Rename, change color, duplicate, delete workspaces
  * - Switch to workspace
  * - View workspace details
+ * - Confirmation dialog for destructive actions
  */
 
 import { useState } from "react";
-import { Settings2, Pencil, Trash2, Copy, FolderOpen, Terminal, Check, X } from "lucide-react";
+import {
+  Settings2,
+  Pencil,
+  Trash2,
+  Copy,
+  FolderOpen,
+  Terminal,
+  Check,
+  X,
+  AlertTriangle,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +42,12 @@ import {
 import type { WorkspaceSession } from "@/stores";
 import { getShellDisplayName } from "@/types/terminal.types";
 import { cn } from "@/lib/utils";
+import {
+  getWorkspaceColor,
+  getWorkspaceInitials,
+  formatWorkspaceDate,
+  MAX_WORKSPACE_NAME_LENGTH,
+} from "@/lib/workspace-utils";
 
 interface WorkspaceManagerDialogProps {
   open: boolean;
@@ -38,35 +55,65 @@ interface WorkspaceManagerDialogProps {
 }
 
 /**
- * Format date for display
+ * Delete confirmation dialog component
  */
-function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+function DeleteConfirmDialog({
+  workspace,
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  workspace: WorkspaceSession | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}) {
+  if (!workspace) return null;
 
-/**
- * Get workspace color by ID or generate from name (fallback)
- */
-function getWorkspaceColor(
-  colorId: WorkspaceColorId | undefined,
-  name: string
-): (typeof WORKSPACE_COLORS)[number] {
-  if (colorId) {
-    const found = WORKSPACE_COLORS.find((c) => c.id === colorId);
-    if (found) return found;
-  }
-  // Fallback: hash-based color
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return WORKSPACE_COLORS[Math.abs(hash) % WORKSPACE_COLORS.length];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            Delete Workspace
+          </DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete <strong>"{workspace.name}"</strong>?
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4">
+          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <p className="text-sm text-destructive font-medium mb-2">
+              This action cannot be undone!
+            </p>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>• {workspace.tabs.length} tab(s) will be closed</li>
+              <li>• All terminal sessions will be terminated</li>
+              <li>• Command history in these tabs will be lost</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              onConfirm();
+              onOpenChange(false);
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Workspace
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 /**
@@ -189,7 +236,7 @@ function WorkspaceRow({
               color.bg
             )}
           >
-            {workspace.name.slice(0, 2).toUpperCase()}
+            {getWorkspaceInitials(workspace.name)}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -202,6 +249,7 @@ function WorkspaceRow({
                   onKeyDown={handleKeyDown}
                   onBlur={handleSaveEdit}
                   autoFocus
+                  maxLength={MAX_WORKSPACE_NAME_LENGTH}
                   className="flex-1 h-7 px-2 text-sm rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -236,7 +284,7 @@ function WorkspaceRow({
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {workspace.tabs.length} tab{workspace.tabs.length !== 1 ? "s" : ""} · Updated{" "}
-                  {formatDate(workspace.updatedAt)}
+                  {formatWorkspaceDate(workspace.updatedAt)}
                 </div>
               </>
             )}
@@ -326,7 +374,7 @@ function WorkspaceRow({
             </ul>
           )}
           <div className="mt-2 text-xs text-muted-foreground">
-            Created: {formatDate(workspace.createdAt)}
+            Created: {formatWorkspaceDate(workspace.createdAt)}
           </div>
         </div>
       )}
@@ -345,45 +393,73 @@ export function WorkspaceManagerDialog({ open, onOpenChange }: WorkspaceManagerD
     deleteWorkspace,
   } = useSessionStore();
 
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<WorkspaceSession | null>(null);
+
   const handleSwitch = (id: string) => {
     switchWorkspace(id);
     onOpenChange(false);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5" />
-            Manage Workspaces
-          </DialogTitle>
-          <DialogDescription>View, edit, and organize your workspaces.</DialogDescription>
-        </DialogHeader>
+  const handleDeleteRequest = (workspace: WorkspaceSession) => {
+    setWorkspaceToDelete(workspace);
+    setDeleteConfirmOpen(true);
+  };
 
-        <div className="flex-1 overflow-y-auto py-4 space-y-2">
-          {workspaces.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">No workspaces yet.</p>
-              <p className="text-xs mt-1">Click the green + button in the sidebar to create one.</p>
-            </div>
-          ) : (
-            workspaces.map((workspace) => (
-              <WorkspaceRow
-                key={workspace.id}
-                workspace={workspace}
-                isActive={workspace.id === activeWorkspaceId}
-                onSwitch={() => handleSwitch(workspace.id)}
-                onRename={(name) => renameWorkspace(workspace.id, name)}
-                onColorChange={(color) => setWorkspaceColor(workspace.id, color)}
-                onDuplicate={() => duplicateWorkspace(workspace.id)}
-                onDelete={() => deleteWorkspace(workspace.id)}
-              />
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+  const handleDeleteConfirm = () => {
+    if (workspaceToDelete) {
+      deleteWorkspace(workspaceToDelete.id);
+      setWorkspaceToDelete(null);
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              Manage Workspaces
+            </DialogTitle>
+            <DialogDescription>View, edit, and organize your workspaces.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4 space-y-2">
+            {workspaces.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                <p className="text-sm">No workspaces yet.</p>
+                <p className="text-xs mt-1">
+                  Click the green + button in the sidebar to create one.
+                </p>
+              </div>
+            ) : (
+              workspaces.map((workspace) => (
+                <WorkspaceRow
+                  key={workspace.id}
+                  workspace={workspace}
+                  isActive={workspace.id === activeWorkspaceId}
+                  onSwitch={() => handleSwitch(workspace.id)}
+                  onRename={(name) => renameWorkspace(workspace.id, name)}
+                  onColorChange={(color) => setWorkspaceColor(workspace.id, color)}
+                  onDuplicate={() => duplicateWorkspace(workspace.id)}
+                  onDelete={() => handleDeleteRequest(workspace)}
+                />
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <DeleteConfirmDialog
+        workspace={workspaceToDelete}
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={handleDeleteConfirm}
+      />
+    </>
   );
 }

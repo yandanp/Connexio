@@ -52,6 +52,11 @@ _bmad-output/
 # Tauri signing keys (PRIVATE - NEVER COMMIT)
 .tauri-key
 
+# Environment variables (PRIVATE - NEVER COMMIT)
+.env
+.env.local
+.env*.local
+
 # Marketing landing page (separate project)
 connexio-marketing/
 

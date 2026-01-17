@@ -28,6 +28,69 @@ import { useActiveThemeId, getXtermTheme, useSettingsStore } from "@/stores";
 import { THEMES } from "@/lib/themes";
 import type { ShellType, PtyOutputPayload, PtyExitPayload } from "@/types/terminal.types";
 
+// =============================================================================
+// CONSTANTS - Extracted from magic numbers for maintainability
+// =============================================================================
+
+/** Delay for WebGL glyph atlas rebuild after font size change (ms) */
+const WEBGL_FONT_REBUILD_DELAY_MS = 50;
+
+/** Delay before loading WebGL addon to prevent flickering (ms) - CURRENTLY UNUSED, WebGL disabled */
+// const WEBGL_LOAD_DELAY_MS = 100;
+
+/** Delay to wait for Tauri context to be ready (ms) */
+const TAURI_READY_DELAY_MS = 200;
+
+/** Debounce delay for window resize events (ms) */
+const RESIZE_DEBOUNCE_MS = 100;
+
+/** Time threshold for detecting double Ctrl+C press (ms) */
+const DOUBLE_CTRL_C_THRESHOLD_MS = 500;
+
+/** Maximum number of buffered output payloads before PTY ID is known */
+const MAX_EARLY_OUTPUT_BUFFER_SIZE = 100;
+
+/** Default scrollback buffer size (lines) - NFR-P9 requirement */
+const DEFAULT_SCROLLBACK_LINES = 10000;
+
+// =============================================================================
+// TYPE-SAFE TERMINAL EXTRAS - Replaces (term as any) anti-pattern
+// =============================================================================
+
+/**
+ * Extra data associated with a Terminal instance.
+ * Uses WeakMap for automatic garbage collection when Terminal is disposed.
+ */
+interface TerminalExtras {
+  fontSizeTimeout?: ReturnType<typeof setTimeout>;
+  webglLoadDelay?: ReturnType<typeof setTimeout>;
+  cleanup?: () => void;
+}
+
+/** WeakMap to store terminal extras without polluting Terminal prototype */
+const terminalExtrasMap = new WeakMap<Terminal, TerminalExtras>();
+
+/** Get or create extras for a terminal instance */
+function getTerminalExtras(term: Terminal): TerminalExtras {
+  let extras = terminalExtrasMap.get(term);
+  if (!extras) {
+    extras = {};
+    terminalExtrasMap.set(term, extras);
+  }
+  return extras;
+}
+
+/** Clear all timeouts stored in terminal extras */
+function clearTerminalExtras(term: Terminal): void {
+  const extras = terminalExtrasMap.get(term);
+  if (extras) {
+    if (extras.fontSizeTimeout) clearTimeout(extras.fontSizeTimeout);
+    if (extras.webglLoadDelay) clearTimeout(extras.webglLoadDelay);
+    if (extras.cleanup) extras.cleanup();
+    terminalExtrasMap.delete(term);
+  }
+}
+
 export interface TerminalViewportProps {
   /** Shell type to spawn */
   shellType?: ShellType;
@@ -198,16 +261,17 @@ export function TerminalViewport({
             console.error("Failed to fit terminal after font change:", e);
           }
         }
-      }, 50); // 50ms delay for WebGL glyph atlas rebuild
+      }, WEBGL_FONT_REBUILD_DELAY_MS);
 
-      // Store timeout for cleanup
-      (term as any)._fontSizeTimeout = timeoutId;
+      // Store timeout for cleanup using type-safe WeakMap
+      getTerminalExtras(term).fontSizeTimeout = timeoutId;
     });
 
     return () => {
       cancelAnimationFrame(rafId);
-      if ((term as any)._fontSizeTimeout) {
-        clearTimeout((term as any)._fontSizeTimeout);
+      const extras = terminalExtrasMap.get(term);
+      if (extras?.fontSizeTimeout) {
+        clearTimeout(extras.fontSizeTimeout);
       }
     };
   }, [fontSize]);
@@ -229,7 +293,7 @@ export function TerminalViewport({
     const initTerminal = async () => {
       // Wait a bit for Tauri to be ready
       if (!isTauri()) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, TAURI_READY_DELAY_MS));
 
         if (!isTauri()) {
           console.warn("[Terminal] Not running in Tauri context");
@@ -250,7 +314,7 @@ export function TerminalViewport({
           fontSize: initialFontSizeRef.current,
           fontFamily: '"JetBrains Mono", "Cascadia Code", "Consolas", monospace',
           theme: getXtermTheme(initialTheme.terminal),
-          scrollback: 10000, // NFR-P9: 10,000+ lines
+          scrollback: DEFAULT_SCROLLBACK_LINES,
           allowTransparency: true,
           allowProposedApi: true,
         });
@@ -266,34 +330,37 @@ export function TerminalViewport({
         // Initial fit BEFORE WebGL to establish correct dimensions
         fitAddon.fit();
 
-        // Try to load WebGL addon for better performance (NFR-P4: 60 FPS)
-        // Add delay to prevent flickering - wait for terminal to be fully rendered
-        const webglLoadDelay = setTimeout(() => {
-          if (isCleanedUp) return;
+        // DISABLED: WebGL addon causes rendering artifacts (characters "sticking")
+        // during scrolling with long output (e.g., OpenCode sessions).
+        // Issue: WebGL texture atlas corruption when buffer is large + rapid scroll.
+        // TODO: Re-enable with smart fallback in v1.1 (switch to Canvas on heavy output)
+        // See: https://github.com/xtermjs/xterm.js/issues/2790
+        //
+        // Original code (NFR-P4: 60 FPS target):
+        // const webglLoadDelay = setTimeout(() => {
+        //   if (isCleanedUp) return;
+        //   try {
+        //     const webglAddon = new WebglAddon();
+        //     webglAddon.onContextLoss(() => {
+        //       console.warn("WebGL context lost, falling back to canvas renderer");
+        //       webglAddon.dispose();
+        //       webglAddonRef.current = null;
+        //     });
+        //     term.loadAddon(webglAddon);
+        //     webglAddonRef.current = webglAddon;
+        //     requestAnimationFrame(() => {
+        //       if (!isCleanedUp && term) {
+        //         term.refresh(0, term.rows - 1);
+        //       }
+        //     });
+        //   } catch (e) {
+        //     console.warn("WebGL addon failed to load, using canvas renderer:", e);
+        //   }
+        // }, WEBGL_LOAD_DELAY_MS);
+        // getTerminalExtras(term).webglLoadDelay = webglLoadDelay;
 
-          try {
-            const webglAddon = new WebglAddon();
-            webglAddon.onContextLoss(() => {
-              console.warn("WebGL context lost, falling back to canvas renderer");
-              webglAddon.dispose();
-              webglAddonRef.current = null;
-            });
-            term.loadAddon(webglAddon);
-            webglAddonRef.current = webglAddon;
-
-            // Force a refresh after WebGL loads to prevent initial flicker
-            requestAnimationFrame(() => {
-              if (!isCleanedUp && term) {
-                term.refresh(0, term.rows - 1);
-              }
-            });
-          } catch (e) {
-            console.warn("WebGL addon failed to load, using canvas renderer:", e);
-          }
-        }, 100); // 100ms delay for stable initialization
-
-        // Store for cleanup
-        (term as any)._webglLoadDelay = webglLoadDelay;
+        // Using Canvas renderer instead - more stable for long sessions
+        console.log("[Terminal] Using Canvas renderer (WebGL disabled for stability)");
 
         terminalRef.current = term;
 
@@ -301,7 +368,7 @@ export function TerminalViewport({
         const { rows, cols } = term;
 
         // CRITICAL: Set up event listeners BEFORE spawning PTY to avoid race condition
-        // Buffer to collect early output before ptyId is known
+        // Buffer to collect early output before ptyId is known (with size limit to prevent unbounded growth)
         let pendingPtyId: string | null = null;
         const earlyOutputBuffer: string[] = [];
 
@@ -326,8 +393,12 @@ export function TerminalViewport({
               }
             }
           } else if (!pendingPtyId) {
-            // Buffer output received before we know our ptyId
-            earlyOutputBuffer.push(JSON.stringify(payload));
+            // Buffer output received before we know our ptyId (with size limit)
+            if (earlyOutputBuffer.length < MAX_EARLY_OUTPUT_BUFFER_SIZE) {
+              earlyOutputBuffer.push(JSON.stringify(payload));
+            } else {
+              console.warn("[Terminal] Early output buffer full, dropping output");
+            }
           }
         });
 
@@ -404,7 +475,6 @@ export function TerminalViewport({
 
         // Track last Ctrl+C time for double-press force kill
         let lastCtrlCTime = 0;
-        const DOUBLE_PRESS_THRESHOLD = 500; // ms
 
         // Custom key event handler to ensure control keys are properly handled
         term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
@@ -448,7 +518,7 @@ export function TerminalViewport({
 
               if (currentPtyId) {
                 // Check for double Ctrl+C (within threshold) - kill child processes only
-                if (now - lastCtrlCTime < DOUBLE_PRESS_THRESHOLD) {
+                if (now - lastCtrlCTime < DOUBLE_CTRL_C_THRESHOLD_MS) {
                   console.log("[Terminal] Double Ctrl+C - killing child processes");
                   killChildProcesses(currentPtyId)
                     .then((count) => {
@@ -513,8 +583,8 @@ export function TerminalViewport({
           onTitleChangeRef.current?.(title);
         });
 
-        // Store cleanup functions
-        (term as any)._connexioCleanup = () => {
+        // Store cleanup functions using type-safe WeakMap
+        getTerminalExtras(term).cleanup = () => {
           unlistenOutput?.();
           unlistenExit?.();
         };
@@ -540,18 +610,8 @@ export function TerminalViewport({
       const ptyId = ptyIdRef.current;
 
       if (term) {
-        // Clear WebGL load delay if still pending
-        if ((term as any)._webglLoadDelay) {
-          clearTimeout((term as any)._webglLoadDelay);
-        }
-        // Clear font size timeout if pending
-        if ((term as any)._fontSizeTimeout) {
-          clearTimeout((term as any)._fontSizeTimeout);
-        }
-        // Call stored cleanup functions
-        if ((term as any)._connexioCleanup) {
-          (term as any)._connexioCleanup();
-        }
+        // Use type-safe clearTerminalExtras to clean up all stored data
+        clearTerminalExtras(term);
         term.dispose();
       }
 
@@ -595,7 +655,7 @@ export function TerminalViewport({
 
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(handleResize, 100);
+      resizeTimeout = setTimeout(handleResize, RESIZE_DEBOUNCE_MS);
     };
 
     window.addEventListener("resize", debouncedResize);

@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-action@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Connexio ${{ github.ref_name }}"
+          releaseBody: |
+            See the [CHANGELOG](https://github.com/yandanp/Connexio/blob/main/CHANGELOG.md) for details.
+
+            ## Installation
+
+            ### Windows Installer (Recommended)
+            Download and run `Connexio_x.x.x_x64-setup.exe` (NSIS installer)
+
+            ### MSI Installer
+            Download and run `Connexio_x.x.x_x64_en-US.msi`
+
+            ### Portable
+            Download `Connexio_x.x.x_x64-portable.zip`, extract, and run `Connexio.exe`
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

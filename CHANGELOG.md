@@ -5,7 +5,30 @@ All notable changes to Connexio will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.1] - 2025-01-17
+
+### Fixed
+
+- **Ctrl+C now properly stops running processes** - Double Ctrl+C (within 500ms) kills child processes without restarting the shell
+- **CSH process termination** - Fixed Ctrl+C and Ctrl+Shift+K for CSH shell by implementing recursive descendant process killing
+- **Terminal no longer restarts after stopping a process** - Shell stays alive, only child processes are terminated
+- **Title bar no longer shows [exited]** - Fixed hasExited flag reset after shell respawn
+- **Auto-respawn shell** - When a process exits or is killed, the shell automatically respawns in the same tab
+
+### Added
+
+- `kill_child_processes` command - Kills all descendant processes (children, grandchildren, etc.) without killing the parent shell
+- Recursive process tree traversal using Windows ToolHelp32 API for finding all descendant processes
+
+### Changed
+
+- Ctrl+Shift+K now kills child processes instead of the entire PTY session
+- Double Ctrl+C behavior improved to only kill running commands, not the shell itself
+- Single Ctrl+C sends ETX (0x03) to PTY for graceful interrupt
+
+---
+
+## [0.3.0] - 2025-01-16
 
 ### Added
 
@@ -107,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/yandanp/connexio/compare/v0.2.3...HEAD
+[0.3.1]: https://github.com/yandanp/connexio/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/yandanp/connexio/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/yandanp/connexio/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/yandanp/connexio/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/yandanp/connexio/compare/v0.2.0...v0.2.1

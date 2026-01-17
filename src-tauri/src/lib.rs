@@ -16,8 +16,8 @@ pub mod pty;
 use cli::{CliArgs, StartupConfig};
 use commands::pty_commands::PtyState;
 use commands::{
-    get_pty_info, kill_pty, list_pty_sessions, resize_pty, spawn_default_shell, spawn_shell,
-    write_pty,
+    get_pty_info, kill_pty, kill_child_processes, list_pty_sessions, resize_pty, 
+    spawn_default_shell, spawn_shell, write_pty, send_interrupt,
 };
 use pty::PtyManager;
 
@@ -73,9 +73,11 @@ pub fn run() {
             write_pty,
             resize_pty,
             kill_pty,
+            kill_child_processes,
             get_pty_info,
             list_pty_sessions,
             spawn_default_shell,
+            send_interrupt,
             // CLI commands
             get_startup_config,
             clear_startup_config,

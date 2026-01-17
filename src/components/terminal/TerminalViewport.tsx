@@ -21,6 +21,7 @@ import {
   onPtyOutput,
   onPtyExit,
   killPty,
+  killChildProcesses,
   isTauri,
 } from "@/lib/tauri";
 import { useActiveThemeId, getXtermTheme, useSettingsStore } from "@/stores";
@@ -330,13 +331,53 @@ export function TerminalViewport({
           }
         });
 
-        // Register GLOBAL exit listener
-        unlistenExit = await onPtyExit((payload: PtyExitPayload) => {
+        // Register GLOBAL exit listener with auto-respawn
+        unlistenExit = await onPtyExit(async (payload: PtyExitPayload) => {
           if (pendingPtyId && payload.ptyId === pendingPtyId) {
+            // Skip if component is cleaned up
+            if (isCleanedUp) return;
+
             term.write(
               `\r\n\x1b[90m[Process exited with code ${payload.exitCode ?? "unknown"}]\x1b[0m\r\n`
             );
             onExitRef.current?.(payload.exitCode);
+
+            // Auto-respawn a new shell
+            try {
+              term.write("\x1b[90m[Restarting shell...]\x1b[0m\r\n\r\n");
+
+              const newPtyId = await spawnDefaultShell(
+                shellType,
+                initialWorkingDirectoryRef.current
+              );
+              pendingPtyId = newPtyId;
+              ptyIdRef.current = newPtyId;
+
+              // Resize new PTY to match current terminal dimensions
+              const { rows: currentRows, cols: currentCols } = term;
+              await resizePty(newPtyId, currentRows, currentCols);
+
+              // Reset title to shell type (remove any [exited] suffix)
+              const shellName =
+                shellType === "csh"
+                  ? "CSH"
+                  : shellType === "powershell"
+                    ? "PowerShell"
+                    : shellType === "cmd"
+                      ? "Command Prompt"
+                      : shellType === "wsl"
+                        ? "WSL"
+                        : shellType === "gitbash"
+                          ? "Git Bash"
+                          : "Terminal";
+              onTitleChangeRef.current?.(shellName);
+
+              console.log("[Terminal] Shell respawned with new PTY ID:", newPtyId);
+              onReadyRef.current?.(newPtyId);
+            } catch (e) {
+              console.error("[Terminal] Failed to respawn shell:", e);
+              term.write(`\r\n\x1b[1;31m[Failed to restart shell: ${e}]\x1b[0m\r\n`);
+            }
           }
         });
 
@@ -361,9 +402,104 @@ export function TerminalViewport({
         // Resize PTY to match terminal dimensions
         await resizePty(ptyId, rows, cols);
 
+        // Track last Ctrl+C time for double-press force kill
+        let lastCtrlCTime = 0;
+        const DOUBLE_PRESS_THRESHOLD = 500; // ms
+
+        // Custom key event handler to ensure control keys are properly handled
+        term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+          // Only handle keydown events
+          if (event.type !== "keydown") {
+            return true;
+          }
+
+          // Ctrl+Shift+K - Force Kill Child Processes
+          if (event.ctrlKey && event.shiftKey && (event.key === "k" || event.key === "K")) {
+            const currentPtyId = ptyIdRef.current;
+            if (currentPtyId) {
+              console.log("[Terminal] Ctrl+Shift+K - killing child processes");
+              killChildProcesses(currentPtyId)
+                .then((count) => console.log(`[Terminal] Killed ${count} child process(es)`))
+                .catch((e) => console.error("[Terminal] Failed to kill child processes:", e));
+            }
+            return false;
+          }
+
+          // Allow browser copy/paste shortcuts with Shift
+          if (event.ctrlKey && event.shiftKey) {
+            if (event.key === "C" || event.key === "V") {
+              return false; // Let browser handle Ctrl+Shift+C/V for copy/paste
+            }
+          }
+
+          // For Ctrl+C - copy if selection, send interrupt, or force kill on double-press
+          if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) {
+            if (event.key === "c" || event.key === "C") {
+              // Check if there's a selection - if so, copy to clipboard
+              const selection = term.getSelection();
+              if (selection && selection.length > 0) {
+                navigator.clipboard.writeText(selection).catch(console.error);
+                term.clearSelection();
+                return false;
+              }
+
+              const now = Date.now();
+              const currentPtyId = ptyIdRef.current;
+
+              if (currentPtyId) {
+                // Check for double Ctrl+C (within threshold) - kill child processes only
+                if (now - lastCtrlCTime < DOUBLE_PRESS_THRESHOLD) {
+                  console.log("[Terminal] Double Ctrl+C - killing child processes");
+                  killChildProcesses(currentPtyId)
+                    .then((count) => {
+                      if (count > 0) {
+                        console.log(`[Terminal] Killed ${count} child process(es)`);
+                      } else {
+                        // No child processes found, send another \x03
+                        console.log("[Terminal] No child processes found, sending Ctrl+C again");
+                        writePty(currentPtyId, "\x03").catch(console.error);
+                      }
+                    })
+                    .catch((e) => console.error("[Terminal] Failed to kill child processes:", e));
+                  lastCtrlCTime = 0;
+                  return false;
+                }
+
+                // Single Ctrl+C - send \x03 to PTY
+                // This works for most programs, but some Windows programs (like ping) may not respond
+                lastCtrlCTime = now;
+                writePty(currentPtyId, "\x03").catch(console.error);
+              }
+              return false;
+            }
+          }
+
+          // For Ctrl+V, handle paste manually
+          if (event.ctrlKey && !event.shiftKey && (event.key === "v" || event.key === "V")) {
+            navigator.clipboard
+              .readText()
+              .then((text) => {
+                if (text && ptyIdRef.current) {
+                  writePty(ptyIdRef.current, text).catch(console.error);
+                }
+              })
+              .catch(console.error);
+            return false;
+          }
+
+          // Let xterm handle all other keys
+          return true;
+        });
+
         // Handle terminal input -> PTY
         term.onData(async (data) => {
           if (ptyIdRef.current) {
+            // Debug log for control characters
+            if (data.length === 1 && data.charCodeAt(0) < 32) {
+              console.log(
+                `[Terminal] onData received control char: 0x${data.charCodeAt(0).toString(16).padStart(2, "0")} (Ctrl+${String.fromCharCode(data.charCodeAt(0) + 64)})`
+              );
+            }
             try {
               await writePty(ptyIdRef.current, data);
             } catch (e) {

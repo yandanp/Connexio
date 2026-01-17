@@ -32,10 +32,37 @@ pub async fn write_pty(
     data: String,
     state: State<'_, PtyState>,
 ) -> Result<(), String> {
+    let bytes = data.as_bytes();
+    
+    // Debug log for control characters
+    if bytes.len() == 1 && bytes[0] < 32 {
+        log::info!("[write_pty] Sending control character: 0x{:02X} (Ctrl+{}) to PTY {}", 
+            bytes[0], 
+            (bytes[0] + 64) as char,
+            &pty_id[..8]);
+    }
+    
     state
         .0
-        .write(&pty_id, data.as_bytes())
+        .write(&pty_id, bytes)
         .map_err(|e| e.to_string())
+}
+
+/// Send interrupt signal (Ctrl+C) to a PTY session
+/// This is a dedicated command that uses Windows API on Windows
+#[tauri::command]
+pub async fn send_interrupt(
+    pty_id: String,
+    state: State<'_, PtyState>,
+) -> Result<(), String> {
+    log::info!("[send_interrupt] Sending interrupt to PTY {}", &pty_id[..8.min(pty_id.len())]);
+    
+    // Use the PTY manager's send_ctrl_c which uses Windows API
+    state.0.send_ctrl_c(&pty_id).map_err(|e| e.to_string())?;
+    
+    log::info!("[send_interrupt] Interrupt sent to PTY {}", &pty_id[..8.min(pty_id.len())]);
+    
+    Ok(())
 }
 
 /// Resize a PTY session
@@ -62,6 +89,22 @@ pub async fn kill_pty(
         .0
         .kill(&pty_id)
         .map_err(|e| e.to_string())
+}
+
+/// Kill child processes of a PTY session (not the shell itself)
+/// Returns the number of child processes killed
+#[tauri::command]
+pub async fn kill_child_processes(
+    pty_id: String,
+    state: State<'_, PtyState>,
+) -> Result<u32, String> {
+    log::info!("[kill_child_processes] Killing child processes of PTY {}", &pty_id[..8.min(pty_id.len())]);
+    
+    let count = state.0.kill_child_processes(&pty_id).map_err(|e| e.to_string())?;
+    
+    log::info!("[kill_child_processes] Killed {} child processes", count);
+    
+    Ok(count)
 }
 
 /// Get information about a PTY session

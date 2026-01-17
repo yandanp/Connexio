@@ -164,10 +164,10 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeTabId, tabs, addTab, defaultShell, nextTab, prevTab, goToTab, removeTab]);
 
-  // Handle terminal ready - link PTY ID to tab
+  // Handle terminal ready - link PTY ID to tab (also resets exit state for respawned shells)
   const handleTerminalReady = useCallback(
     (tabId: string) => (ptyId: string) => {
-      updateTab(tabId, { ptyId, isLoading: false });
+      updateTab(tabId, { ptyId, isLoading: false, hasExited: false, exitCode: undefined });
     },
     [updateTab]
   );

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Connexio",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "identifier": "com.connexio.terminal",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -29,18 +29,13 @@
   },
   "plugins": {
     "updater": {
-      "endpoints": [
-        "https://github.com/yandanp/Connexio/releases/latest/download/latest.json"
-      ],
+      "endpoints": ["https://github.com/yandanp/Connexio/releases/latest/download/latest.json"],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDAxODExNjBFRjJFMURERUYKUldUdjNlSHlEaGFCQVFiWm51ekEzUTNkQk0xVzEvNnU0cS9zUHFOWkU2RWYvWkZrKy9mSy9ncUkK"
     }
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "msi",
-      "nsis"
-    ],
+    "targets": ["msi", "nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -59,9 +54,7 @@
         "headerImage": null,
         "sidebarImage": null,
         "installMode": "currentUser",
-        "languages": [
-          "English"
-        ],
+        "languages": ["English"],
         "displayLanguageSelector": false,
         "installerHooks": "nsis/installer-hooks.nsh"
       },

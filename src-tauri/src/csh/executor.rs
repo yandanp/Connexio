@@ -200,8 +200,20 @@ impl Executor {
         stdout_redirects: &[crate::csh::ast::Redirect],
         background: bool,
     ) -> ExitStatus {
-        let mut cmd = ProcessCommand::new(name);
-        cmd.args(args);
+        // On Windows, run ALL external commands through cmd.exe /c
+        // This lets Windows handle PATH resolution, PATHEXT, and script execution
+        #[cfg(windows)]
+        let (actual_command, actual_args) = {
+            let mut cmd_args = vec!["/c".to_string(), name.to_string()];
+            cmd_args.extend(args.iter().cloned());
+            ("cmd.exe".to_string(), cmd_args)
+        };
+        
+        #[cfg(not(windows))]
+        let (actual_command, actual_args) = (name.to_string(), args.to_vec());
+        
+        let mut cmd = ProcessCommand::new(&actual_command);
+        cmd.args(&actual_args);
 
         // Set environment
         cmd.envs(self.env.get_exports());
@@ -322,8 +334,19 @@ impl Executor {
                 .map(|arg| self.env.expand_variables(arg))
                 .collect();
 
-            let mut process = ProcessCommand::new(&expanded_name);
-            process.args(&expanded_args);
+            // On Windows, run ALL external commands through cmd.exe /c
+            #[cfg(windows)]
+            let (actual_command, actual_args) = {
+                let mut cmd_args = vec!["/c".to_string(), expanded_name.clone()];
+                cmd_args.extend(expanded_args.iter().cloned());
+                ("cmd.exe".to_string(), cmd_args)
+            };
+            
+            #[cfg(not(windows))]
+            let (actual_command, actual_args) = (expanded_name.clone(), expanded_args.clone());
+
+            let mut process = ProcessCommand::new(&actual_command);
+            process.args(&actual_args);
             process.envs(self.env.get_exports());
             process.current_dir(self.env.cwd());
 

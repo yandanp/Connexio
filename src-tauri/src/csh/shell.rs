@@ -349,7 +349,8 @@ impl Shell {
             print!("\x1b[0m\r\n");
             print!("\x1b[1;33mConnexio Shell\x1b[0m v{} ({})\r\n", version, date);
             print!("Type \x1b[1;32mhelp\x1b[0m for available commands.\r\n");
-            print!("\x1b[90mTab completion and history navigation enabled.\x1b[0m\r\n\r\n");
+            print!("\x1b[90mTab completion and history navigation enabled.\x1b[0m\r\n");
+            print!("\x1b[90mTip: Use Ctrl+Shift+K to force kill a running process.\x1b[0m\r\n\r\n");
         } else {
             print!("CSH - Connexio Shell v{} ({})\r\n", version, date);
             print!("Type 'help' for available commands.\r\n\r\n");

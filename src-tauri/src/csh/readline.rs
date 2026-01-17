@@ -716,8 +716,36 @@ impl LineEditor {
         Ok(())
     }
 
+    /// Get the last line of the prompt (for redrawing without duplicating multi-line prompts)
+    fn get_prompt_last_line(&self) -> &str {
+        // Find the last newline in the prompt and return everything after it
+        if let Some(pos) = self.prompt.rfind('\n') {
+            &self.prompt[pos + 1..]
+        } else {
+            &self.prompt
+        }
+    }
+    
+    /// Count how many lines the prompt spans
+    fn get_prompt_line_count(&self) -> usize {
+        self.prompt.matches('\n').count() + 1
+    }
+
     fn redraw_line(&self, stdout: &mut Stdout) -> io::Result<()> {
-        write!(stdout, "\r\x1b[K{}{}", self.prompt, self.buffer)?;
+        // For history navigation, we only need to redraw the current input line
+        // The first line of the prompt (status bar) should stay unchanged
+        // 
+        // Strategy:
+        // 1. Go to start of current line with \r
+        // 2. Clear only the current line with \x1b[K (not \x1b[J which clears everything below)
+        // 3. Print only the last line of prompt (e.g., "❯ ") and the buffer
+        
+        let prompt_last_line = self.get_prompt_last_line();
+        
+        // \r = go to start of line, \x1b[K = clear from cursor to end of LINE (not screen)
+        write!(stdout, "\r\x1b[K{}{}", prompt_last_line, self.buffer)?;
+        
+        // Position cursor correctly within the buffer
         let char_count = self.buffer.chars().count();
         let cursor_offset = char_count - self.cursor;
         if cursor_offset > 0 {

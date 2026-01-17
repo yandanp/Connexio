@@ -1,6 +1,6 @@
 [package]
 name = "connexio"
-version = "0.3.0"
+version = "0.3.1"
 description = "Modern Windows terminal with session persistence"
 authors = ["yandanp"]
 edition = "2021"
@@ -58,3 +58,12 @@ crossterm = "0.28"     # Raw terminal input, cross-platform readline
 terminal_size = "0.4"  # Detect terminal dimensions for grid layout
 unicode-width = "0.2"  # Proper character width for alignment
 atty = "0.2"           # Detect if running in a terminal
+
+# Windows-specific dependencies for console control and process management
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_System_Console",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_Foundation"
+] }

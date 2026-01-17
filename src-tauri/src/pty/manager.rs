@@ -137,6 +137,9 @@ struct PtySession {
     master: Box<dyn MasterPty + Send>,
     /// Flag to signal the reader thread to stop
     should_stop: Arc<Mutex<bool>>,
+    /// Process ID of the shell (for killing child processes on Windows)
+    #[cfg(windows)]
+    process_id: Option<u32>,
 }
 
 /// Manages all active PTY sessions
@@ -189,6 +192,10 @@ impl PtyManager {
             .spawn_command(cmd)
             .context("Failed to spawn shell process")?;
 
+        // Get process ID for killing child processes on Windows
+        #[cfg(windows)]
+        let process_id = child.process_id();
+
         log::info!("Shell process spawned successfully");
 
         // Generate unique session ID
@@ -217,6 +224,8 @@ impl PtyManager {
             writer,
             master: pair.master,
             should_stop,
+            #[cfg(windows)]
+            process_id,
         };
 
         {
@@ -411,6 +420,110 @@ impl PtyManager {
         log::debug!("Resized PTY {} to {}x{}", pty_id, cols, rows);
 
         Ok(())
+    }
+
+    /// Send Ctrl+C interrupt to a PTY session
+    /// Writes ETX (0x03) to the PTY - ConPTY handles the signal propagation
+    #[cfg(windows)]
+    pub fn send_ctrl_c(&self, pty_id: &str) -> Result<()> {
+        log::info!("Sending Ctrl+C (ETX) to PTY {}", &pty_id[..8.min(pty_id.len())]);
+        // Write ETX (0x03) to the PTY - ConPTY translates this to CTRL_C_EVENT
+        self.write(pty_id, &[0x03])
+    }
+    
+    /// Send Ctrl+C interrupt (non-Windows fallback)
+    #[cfg(not(windows))]
+    pub fn send_ctrl_c(&self, pty_id: &str) -> Result<()> {
+        // On Unix, just write \x03
+        self.write(pty_id, &[0x03])
+    }
+
+    /// Kill child processes of the shell (not the shell itself)
+    /// This is useful for stopping a running command without killing the shell
+    /// Recursively kills all descendant processes (children, grandchildren, etc.)
+    #[cfg(windows)]
+    pub fn kill_child_processes(&self, pty_id: &str) -> Result<u32> {
+        use windows::Win32::System::Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW,
+            PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+        };
+        use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+        use windows::Win32::Foundation::CloseHandle;
+        use std::collections::HashSet;
+
+        let sessions = self.sessions.lock();
+        let session = sessions.get(pty_id).context("PTY session not found")?;
+        
+        let shell_pid = session.process_id.context("No process ID available")?;
+        log::info!("Looking for descendant processes of shell PID {}", shell_pid);
+        
+        // Collect all processes first
+        let mut all_processes: Vec<(u32, u32)> = Vec::new(); // (pid, parent_pid)
+        
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+                .context("Failed to create process snapshot")?;
+            
+            let mut entry = PROCESSENTRY32W {
+                dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+                ..Default::default()
+            };
+            
+            if Process32FirstW(snapshot, &mut entry).is_ok() {
+                loop {
+                    all_processes.push((entry.th32ProcessID, entry.th32ParentProcessID));
+                    
+                    if Process32NextW(snapshot, &mut entry).is_err() {
+                        break;
+                    }
+                }
+            }
+            
+            let _ = CloseHandle(snapshot);
+        }
+        
+        // Find all descendant PIDs recursively
+        let mut descendants: HashSet<u32> = HashSet::new();
+        let mut to_check: Vec<u32> = vec![shell_pid];
+        
+        while let Some(parent_pid) = to_check.pop() {
+            for &(pid, ppid) in &all_processes {
+                if ppid == parent_pid && pid != shell_pid && !descendants.contains(&pid) {
+                    descendants.insert(pid);
+                    to_check.push(pid); // Check this PID's children too
+                }
+            }
+        }
+        
+        log::info!("Found {} descendant processes: {:?}", descendants.len(), descendants);
+        
+        // Kill all descendants (in reverse order - children first, then parents)
+        let mut killed_count = 0u32;
+        let mut pids_to_kill: Vec<u32> = descendants.into_iter().collect();
+        pids_to_kill.sort_by(|a, b| b.cmp(a)); // Sort descending to kill children first
+        
+        for pid in pids_to_kill {
+            unsafe {
+                if let Ok(handle) = OpenProcess(PROCESS_TERMINATE, false, pid) {
+                    if TerminateProcess(handle, 1).is_ok() {
+                        killed_count += 1;
+                        log::info!("Terminated descendant process PID {}", pid);
+                    }
+                    let _ = CloseHandle(handle);
+                }
+            }
+        }
+        
+        log::info!("Killed {} descendant processes", killed_count);
+        Ok(killed_count)
+    }
+
+    /// Kill child processes (non-Windows fallback - just send SIGINT)
+    #[cfg(not(windows))]
+    pub fn kill_child_processes(&self, pty_id: &str) -> Result<u32> {
+        // On Unix, sending \x03 usually works, so just do that
+        self.write(pty_id, &[0x03])?;
+        Ok(0)
     }
 
     /// Kill a PTY session

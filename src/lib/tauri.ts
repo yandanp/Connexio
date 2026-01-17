@@ -82,6 +82,27 @@ export async function killPty(ptyId: string): Promise<void> {
 }
 
 /**
+ * Kill child processes of a PTY session (not the shell itself)
+ * This stops the currently running command without terminating the shell
+ *
+ * @param ptyId - The PTY session ID
+ * @returns Number of child processes killed
+ */
+export async function killChildProcesses(ptyId: string): Promise<number> {
+  return invoke<number>("kill_child_processes", { ptyId });
+}
+
+/**
+ * Send interrupt signal (Ctrl+C) to a PTY session
+ * This tries multiple methods to interrupt the running process
+ *
+ * @param ptyId - The PTY session ID
+ */
+export async function sendInterrupt(ptyId: string): Promise<void> {
+  return invoke<void>("send_interrupt", { ptyId });
+}
+
+/**
  * Get information about a PTY session
  *
  * @param ptyId - The PTY session ID

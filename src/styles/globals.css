@@ -144,6 +144,22 @@
   background-color: var(--terminal-background);
 }
 
+/* Ensure xterm.js viewport can scroll properly */
+.terminal-viewport .xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.terminal-viewport .xterm-viewport {
+  /* Allow scrolling in xterm viewport */
+  overflow-y: auto !important;
+}
+
+/* Ensure xterm screen fills the container */
+.terminal-viewport .xterm-screen {
+  height: 100%;
+}
+
 /* Smooth theme transitions (optional, can be disabled for instant) */
 .theme-transition,
 .theme-transition * {

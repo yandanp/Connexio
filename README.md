@@ -34,7 +34,17 @@ Get the latest release from [GitHub Releases](https://github.com/yandanp/Connexi
 
 ## 🖼️ Screenshots
 
-_Coming soon_
+### Home Workspace
+
+![Home Workspace](docs/images/Home%20workspace.png)
+
+### Theme System
+
+![Theme System](docs/images/Theme%20system.png)
+
+### Auto Update
+
+![Auto Update](docs/images/Auto%20update%20version.png)
 
 ## 🔧 System Requirements
 

@@ -60,3 +60,5 @@ RELEASE.md
 
 # Local scripts (personal automation)
 scripts/
+*.bat
+*.ps1

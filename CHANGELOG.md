@@ -14,17 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Terminal no longer restarts after stopping a process** - Shell stays alive, only child processes are terminated
 - **Title bar no longer shows [exited]** - Fixed hasExited flag reset after shell respawn
 - **Auto-respawn shell** - When a process exits or is killed, the shell automatically respawns in the same tab
+- **Mouse scroll not working** - Fixed terminal viewport scroll by adding proper CSS overflow handling
+- **Prompt duplicating on history navigation** - Fixed `redraw_line()` in CSH to only redraw the last line of multi-line prompts
+- **npm/bun/artisan/composer not working in CSH** - Fixed external command execution by running ALL commands through `cmd.exe /c` on Windows
 
 ### Added
 
 - `kill_child_processes` command - Kills all descendant processes (children, grandchildren, etc.) without killing the parent shell
 - Recursive process tree traversal using Windows ToolHelp32 API for finding all descendant processes
+- Windows API features: `Win32_System_Threading`, `Win32_System_Diagnostics_ToolHelp`
 
 ### Changed
 
 - Ctrl+Shift+K now kills child processes instead of the entire PTY session
 - Double Ctrl+C behavior improved to only kill running commands, not the shell itself
 - Single Ctrl+C sends ETX (0x03) to PTY for graceful interrupt
+- Improved release script with flexible version handling and `--build-only` flag
 
 ---
 

@@ -59,6 +59,4 @@ connexio-marketing/
 RELEASE.md
 
 # Local scripts (personal automation)
-scripts/download-stats.ps1
-scripts/setup-scheduled-task.ps1
-scripts/.download-stats-cache.json
+scripts/

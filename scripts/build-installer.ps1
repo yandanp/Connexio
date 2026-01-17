@@ -59,7 +59,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Cargo not found. Install Rust from https://rustup.rs" -ForegroundColor Red
     exit 1
 }
-Write-Host "  ✓ Cargo: $cargoVersion" -ForegroundColor DarkGray
+Write-Host "  [OK] Cargo: $cargoVersion" -ForegroundColor DarkGray
 
 # Check for Node.js
 $nodeVersion = & node --version 2>&1
@@ -67,7 +67,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Node.js not found." -ForegroundColor Red
     exit 1
 }
-Write-Host "  ✓ Node.js: $nodeVersion" -ForegroundColor DarkGray
+Write-Host "  [OK] Node.js: $nodeVersion" -ForegroundColor DarkGray
 
 # Check for WiX if building MSI
 if ($buildTargets -contains "msi") {
@@ -79,7 +79,7 @@ if ($buildTargets -contains "msi") {
         Write-Host "Or install via: winget install WixToolset.WixToolset" -ForegroundColor Yellow
         Write-Host ""
     } else {
-        Write-Host "  ✓ WiX Toolset found" -ForegroundColor DarkGray
+        Write-Host "  [OK] WiX Toolset found" -ForegroundColor DarkGray
     }
 }
 
@@ -106,7 +106,7 @@ if ($buildTargets -contains "nsis") {
         Write-Host "Or install via: winget install NSIS.NSIS" -ForegroundColor Yellow
         Write-Host ""
     } else {
-        Write-Host "  ✓ NSIS found" -ForegroundColor DarkGray
+        Write-Host "  [OK] NSIS found" -ForegroundColor DarkGray
     }
 }
 
@@ -138,7 +138,7 @@ if ($buildTargets -contains "msi") {
     foreach ($file in $msiFiles) {
         $artifacts += $file
         $size = [math]::Round($file.Length / 1MB, 2)
-        Write-Host "  ✓ MSI: $($file.Name) ($size MB)" -ForegroundColor Green
+        Write-Host "  [OK] MSI: $($file.Name) ($size MB)" -ForegroundColor Green
     }
 }
 
@@ -147,12 +147,12 @@ if ($buildTargets -contains "nsis") {
     foreach ($file in $nsisFiles) {
         $artifacts += $file
         $size = [math]::Round($file.Length / 1MB, 2)
-        Write-Host "  ✓ NSIS: $($file.Name) ($size MB)" -ForegroundColor Green
+        Write-Host "  [OK] NSIS: $($file.Name) ($size MB)" -ForegroundColor Green
     }
 }
 
 if ($artifacts.Count -eq 0) {
-    Write-Host "  ⚠ No installer artifacts found!" -ForegroundColor Yellow
+    Write-Host "  [WARN] No installer artifacts found!" -ForegroundColor Yellow
     Write-Host "  Check: $releaseDir" -ForegroundColor Yellow
 }
 
@@ -167,7 +167,7 @@ if (!(Test-Path $OutputDir)) {
 foreach ($file in $artifacts) {
     $destPath = Join-Path $OutputDir $file.Name
     Copy-Item -Path $file.FullName -Destination $destPath -Force
-    Write-Host "  → $destPath" -ForegroundColor DarkGray
+    Write-Host "  -> $destPath" -ForegroundColor DarkGray
 }
 
 Write-Host ""
@@ -192,9 +192,9 @@ Write-Host ""
 foreach ($file in $artifacts) {
     $size = [math]::Round($file.Length / 1MB, 2)
     if ($size -lt 15) {
-        Write-Host "  ✓ $($file.Name) is within spec (< 15 MB)" -ForegroundColor Green
+        Write-Host "  [OK] $($file.Name) is within spec (< 15 MB)" -ForegroundColor Green
     } else {
-        Write-Host "  ⚠ $($file.Name) exceeds spec (> 15 MB)" -ForegroundColor Yellow
+        Write-Host "  [WARN] $($file.Name) exceeds spec (> 15 MB)" -ForegroundColor Yellow
     }
 }
 Write-Host ""

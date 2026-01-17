@@ -5,6 +5,44 @@ All notable changes to Connexio will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-01-17
+
+### Added
+
+- **Expandable Workspace Sidebar** - Hover to expand sidebar from 56px to 200px, showing full workspace names
+  - Pin button to keep sidebar expanded permanently
+  - Full workspace names visible when expanded (no more guessing from initials!)
+  - Tab count displayed inline when expanded
+  - Active workspace indicator
+  - Smooth 200ms transition animation
+- **Delete Confirmation Dialog** - Prevents accidental workspace deletion
+  - Shows warning about tabs that will be closed
+  - Lists consequences before confirming
+- **Shared Workspace Utilities** - New `src/lib/workspace-utils.ts` with reusable functions
+  - `getWorkspaceInitials()` - Extract initials from workspace name
+  - `getWorkspaceColor()` - Get or generate workspace color
+  - `validateWorkspaceName()` - Input validation
+  - `formatWorkspaceDate()` - Date formatting
+
+### Fixed
+
+- **Terminal scroll rendering artifacts** - Disabled WebGL renderer to fix characters "sticking" during scroll
+  - Affects long output sessions (e.g., OpenCode with large context)
+  - Canvas renderer provides stable rendering without visual glitches
+  - Bundle size reduced by ~110KB as bonus
+- **Memory leak in terminal output buffer** - Added `MAX_EARLY_OUTPUT_BUFFER_SIZE` limit
+
+### Changed
+
+- **Workspace name input validation** - Maximum 50 characters enforced
+- **Code quality improvements in TerminalViewport**
+  - Replaced `(term as any)` with type-safe WeakMap pattern
+  - Extracted magic numbers to named constants with documentation
+  - Simplified cleanup logic with `clearTerminalExtras()` function
+- **Sidebar width** - Increased collapsed width from 48px to 56px for better touch targets
+
+---
+
 ## [0.3.1] - 2025-01-17
 
 ### Fixed

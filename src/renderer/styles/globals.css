@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Syntax highlighting — custom theme aligned with Connexio dark palette */
+.hljs-line .hljs-comment,
+.hljs-line .hljs-quote {
+	color: #6b7280;
+	font-style: italic;
+}
+.hljs-line .hljs-keyword,
+.hljs-line .hljs-selector-tag,
+.hljs-line .hljs-meta-keyword {
+	color: #c084fc;
+}
+.hljs-line .hljs-string,
+.hljs-line .hljs-regexp,
+.hljs-line .hljs-template-tag,
+.hljs-line .hljs-template-variable {
+	color: #86efac;
+}
+.hljs-line .hljs-number,
+.hljs-line .hljs-literal {
+	color: #fbbf24;
+}
+.hljs-line .hljs-title,
+.hljs-line .hljs-title.function_,
+.hljs-line .hljs-name,
+.hljs-line .hljs-section {
+	color: #60a5fa;
+}
+.hljs-line .hljs-attr,
+.hljs-line .hljs-attribute,
+.hljs-line .hljs-variable,
+.hljs-line .hljs-property {
+	color: #93c5fd;
+}
+.hljs-line .hljs-type,
+.hljs-line .hljs-built_in,
+.hljs-line .hljs-builtin-name,
+.hljs-line .hljs-class .hljs-title {
+	color: #fdba74;
+}
+.hljs-line .hljs-params,
+.hljs-line .hljs-symbol {
+	color: #f472b6;
+}
+.hljs-line .hljs-tag,
+.hljs-line .hljs-selector-attr,
+.hljs-line .hljs-selector-class,
+.hljs-line .hljs-selector-id,
+.hljs-line .hljs-selector-pseudo {
+	color: #f87171;
+}
+.hljs-line .hljs-doctag,
+.hljs-line .hljs-meta {
+	color: #9ca3af;
+}
+.hljs-line .hljs-deletion {
+	color: #fca5a5;
+}
+.hljs-line .hljs-addition {
+	color: #86efac;
+}
+.hljs-line .hljs-emphasis {
+	font-style: italic;
+}
+.hljs-line .hljs-strong {
+	font-weight: 600;
+}
+
+
+:root {
+	--bg-primary: #0f1117;
+	--bg-secondary: #161822;
+	--bg-tertiary: #1e2030;
+	--border-color: #2a2d3e;
+	--accent-color: #7c3aed;
+	--accent-hover: #6d28d9;
+	--text-primary: #e2e8f0;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	background-color: var(--bg-primary);
+	color: var(--text-primary);
+	overflow: hidden;
+	height: 100vh;
+	width: 100vw;
+}
+
+#root {
+	height: 100vh;
+	width: 100vw;
+}
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--border-color);
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+}
+
+.titlebar-drag {
+	-webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+	-webkit-app-region: no-drag;
+}
+
+.terminal-container .xterm {
+	padding: 8px;
+	height: 100%;
+}
+
+.terminal-container .xterm-viewport {
+	overflow-y: auto !important;
+}
+
+.terminal-container .xterm-screen {
+	height: 100%;
+}
+
+/* Stable layout for terminal — prevent external reflows from triggering resize */
+.terminal-container {
+	contain: layout;
+	overflow: hidden;
+	position: relative;
+}
+
+/* Drag & Drop tab styles */
+[draggable="true"] {
+	transition: opacity 0.15s ease;
+}
+
+[draggable="true"]:active {
+	opacity: 0.6;
+}
+
+[draggable="true"].dragging {
+	opacity: 0.4;
+}
+
+/* Notification toast animation */
+@keyframes slide-up {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-slide-up {
+	animation: slide-up 0.25s ease-out;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* Modal fade-in */
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+

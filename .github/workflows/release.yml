@@ -1,0 +1,263 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+      changelog: ${{ steps.changelog.outputs.notes }}
+      release_id: ${{ steps.release.outputs.releaseId }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check release type
+        id: check
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ "$TAG" =~ -(dev|alpha|beta|rc) ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^$TAG$" | head -1)
+
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          FEATURES=""
+          FIXES=""
+          OTHER=""
+
+          while IFS= read -r line; do
+            if [[ "$line" == feat:* ]] || [[ "$line" == feat\(*\):* ]]; then
+              FEATURES="$FEATURES\n- ${line}"
+            elif [[ "$line" == fix:* ]] || [[ "$line" == fix\(*\):* ]]; then
+              FIXES="$FIXES\n- ${line}"
+            elif [[ "$line" == ci:* ]] || [[ "$line" == chore:* ]] || [[ "$line" == release:* ]]; then
+              :
+            elif [ -n "$line" ]; then
+              OTHER="$OTHER\n- $line"
+            fi
+          done <<< "$(git log $PREV_TAG..$TAG --pretty=format:'%s' --no-merges)"
+
+          NOTES=""
+          if [ -n "$FEATURES" ]; then
+            NOTES="$NOTES## ✨ New Features\n$FEATURES\n\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            NOTES="$NOTES## 🐛 Bug Fixes\n$FIXES\n\n"
+          fi
+          if [ -n "$OTHER" ]; then
+            NOTES="$NOTES## 📦 Other Changes\n$OTHER\n\n"
+          fi
+
+          NOTES="$NOTES---\n**Full Changelog:** [\`$PREV_TAG...$TAG\`](https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG)"
+
+          echo -e "$NOTES" > release_notes.md
+
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "notes<<$EOF" >> "$GITHUB_OUTPUT"
+          cat release_notes.md >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        id: release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_BODY: ${{ steps.changelog.outputs.notes }}
+          IS_PRERELEASE: ${{ steps.check.outputs.is_prerelease }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tagName = context.ref.replace('refs/tags/', '')
+            const releaseName = `Connexio ${tagName}`
+            const releaseBody = process.env.RELEASE_BODY || ''
+            const prerelease = process.env.IS_PRERELEASE === 'true'
+
+            let release
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName,
+              })
+              release = await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: existing.data.id,
+                tag_name: tagName,
+                name: releaseName,
+                body: releaseBody,
+                draft: existing.data.draft,
+                prerelease,
+              })
+            } catch (error) {
+              if (error.status !== 404) throw error
+              release = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                name: releaseName,
+                body: releaseBody,
+                draft: true,
+                prerelease,
+              })
+            }
+
+            core.setOutput('releaseId', String(release.data.id))
+
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            runner: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc --bundles nsis
+
+          - platform: linux-x64
+            runner: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            args: --target x86_64-unknown-linux-gnu
+
+          - platform: macos-aarch64
+            runner: macos-latest
+            rust_target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.runner == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build and publish release artifacts
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: "Connexio ${{ needs.prepare.outputs.tag }}"
+          releaseBody: ${{ needs.prepare.outputs.changelog }}
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          releaseDraft: true
+          prerelease: ${{ needs.prepare.outputs.is_prerelease }}
+          tauriScript: npm run tauri
+          args: ${{ matrix.args }}
+
+  publish:
+    name: Publish Release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_BODY: ${{ needs.prepare.outputs.changelog }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const releaseId = Number(process.env.RELEASE_ID)
+            const tagName = process.env.TAG
+            const version = process.env.VERSION
+            const prerelease = process.env.IS_PRERELEASE === 'true'
+            const releaseName = `Connexio ${tagName}`
+
+            let body = process.env.RELEASE_BODY || ''
+
+            if (prerelease) {
+              body = `⚠️ **This is a pre-release build for testing purposes.**\n> Not recommended for general use. Please report issues you find.\n\n${body}`
+            }
+
+            body += `\n\n### 📥 Downloads\n`
+            body += `| Platform | File |\n|----------|------|\n`
+            body += `| Windows (installer) | \`Connexio_${version}_x64-setup.exe\` |\n`
+            body += `| macOS (Apple Silicon) | \`Connexio_${version}_aarch64.dmg\` |\n`
+            body += `| Linux (AppImage) | \`Connexio_${version}_amd64.AppImage\` |\n`
+            body += `| Linux (Debian) | \`Connexio_${version}_amd64.deb\` |\n`
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              tag_name: tagName,
+              name: releaseName,
+              body: body,
+              draft: false,
+              prerelease: prerelease,
+              make_latest: prerelease ? 'false' : 'true',
+            })
+
+            core.info(`Published release: ${releaseName}`)

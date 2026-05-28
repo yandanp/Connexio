@@ -9,6 +9,7 @@ import ShellPicker from "./ShellPicker";
 import SourcePanel from "./SourcePanel";
 import SSHPanel from "./SSHPanel";
 import TaskPanel from "./TaskPanel";
+import type { SSHConnection } from "../../shared/types";
 import TerminalLayer from "./TerminalLayer";
 import WebPreview from "./WebPreview";
 import WorkspaceTab from "./WorkspaceTab";
@@ -22,6 +23,8 @@ export default function Workspace() {
 		workspaceTabs,
 		activeTabIds,
 		openTerminalTab,
+		openCommandTerminalTab,
+		openSshTerminalTab,
 		openEditorTab,
 		closeTerminalTab,
 		setActiveTerminalTab,
@@ -221,18 +224,9 @@ export default function Workspace() {
 		}
 	};
 
-	// SSH connect — open new tab with SSH command
-	const handleSSHConnect = async (command: string, label: string) => {
-		await openTerminalTab(activeProjectId, label);
-		// Wait a tick for the new tab to be created, then write the SSH command
-		setTimeout(() => {
-			const updatedTabs =
-				useProjectStore.getState().workspaceTabs[activeProjectId] || [];
-			const newTab = updatedTabs[updatedTabs.length - 1];
-			if (newTab?.terminalId) {
-				window.connexio.terminal.write(newTab.terminalId, `${command}\r`);
-			}
-		}, 500);
+	// SSH connect — use the integrated SSH backend so saved credentials work.
+	const handleSSHConnect = async (connection: SSHConnection, label: string, password?: string) => {
+		await openSshTerminalTab(activeProjectId, label, connection, password);
 	};
 
 	// Close tab with confirmation

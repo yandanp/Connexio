@@ -17,6 +17,9 @@ import type {
 	Project,
 	Session,
 	SSHConnection,
+	SSHConnectionTestResult,
+	SSHKnownHost,
+	SFTPEntry,
 	WorkspaceState,
 	GitStatus,
 	TaskScript,
@@ -82,6 +85,12 @@ export const terminal = {
 			throw e;
 		}
 	},
+
+	createCommand: async (projectPath: string, command: string[], context?: TerminalContext): Promise<string> =>
+		invoke("terminal_create_command", { projectPath, command, context: context || null }),
+
+	createSsh: async (connection: SSHConnection, password?: string, cols?: number, rows?: number): Promise<string> =>
+		invoke("terminal_create_ssh", { connection, password: password || null, cols: cols || null, rows: rows || null }),
 
 	write: (id: string, data: string): Promise<void> =>
 		invoke("terminal_write", { id, data }),
@@ -199,6 +208,51 @@ export const ssh = {
 
 	buildCommand: (connection: SSHConnection): Promise<string> =>
 		invoke("ssh_build_command", { connection }),
+
+	buildCommandArgs: (connection: SSHConnection): Promise<string[]> =>
+		invoke("ssh_build_command_args", { connection }),
+
+	testConnection: (connection: SSHConnection, password?: string): Promise<SSHConnectionTestResult> =>
+		invoke("ssh_test_connection", { connection, password: password || null }),
+
+	setSecret: (key: string, value: string): Promise<void> =>
+		invoke("ssh_secret_set", { key, value }),
+
+	getSecret: (key: string): Promise<string | null> =>
+		invoke("ssh_secret_get", { key }),
+
+	deleteSecret: (key: string): Promise<void> =>
+		invoke("ssh_secret_delete", { key }),
+
+	listKnownHosts: (): Promise<SSHKnownHost[]> =>
+		invoke("ssh_known_hosts_list"),
+
+	trustHost: (host: string, port: number, fingerprintSha256: string): Promise<void> =>
+		invoke("ssh_trust_host", { host, port, fingerprintSha256 }),
+
+	forgetHost: (host: string, port: number): Promise<void> =>
+		invoke("ssh_forget_host", { host, port }),
+
+	sftpList: (connection: SSHConnection, path: string, password?: string): Promise<SFTPEntry[]> =>
+		invoke("ssh_sftp_list", { connection, path, password: password || null }),
+
+	sftpRead: (connection: SSHConnection, path: string, password?: string): Promise<string> =>
+		invoke("ssh_sftp_read", { connection, path, password: password || null }),
+
+	sftpWrite: (connection: SSHConnection, path: string, content: string, password?: string): Promise<void> =>
+		invoke("ssh_sftp_write", { connection, path, content, password: password || null }),
+
+	sftpMkdir: (connection: SSHConnection, path: string, password?: string): Promise<void> =>
+		invoke("ssh_sftp_mkdir", { connection, path, password: password || null }),
+
+	sftpDelete: (connection: SSHConnection, path: string, isDir: boolean, password?: string): Promise<void> =>
+		invoke("ssh_sftp_delete", { connection, path, isDir, password: password || null }),
+
+	sftpRename: (connection: SSHConnection, oldPath: string, newPath: string, password?: string): Promise<void> =>
+		invoke("ssh_sftp_rename", { connection, oldPath, newPath, password: password || null }),
+
+	forgetOpenSSHHost: (host: string, port: number): Promise<string> =>
+		invoke("ssh_forget_openssh_host", { host, port }),
 
 	selectKey: async (): Promise<string | null> => {
 		const selected = await open({

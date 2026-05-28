@@ -136,15 +136,78 @@ export interface PinnedCommand {
 }
 
 // SSH Connection
+export type SSHAuthMethod = "password" | "key" | "agent";
+export type SSHSecretProvider = "keychain" | "vault";
+export type SSHTunnelType = "local" | "remote" | "dynamic";
+
+export interface SSHSecretRef {
+	provider: SSHSecretProvider;
+	key: string;
+}
+
+export interface SSHIdentity {
+	id: string;
+	name: string;
+	username?: string;
+	privateKeyPath?: string;
+	privateKeySecretRef?: SSHSecretRef;
+	passphraseSecretRef?: SSHSecretRef;
+}
+
+export interface SSHTunnelConfig {
+	id: string;
+	tunnelType: SSHTunnelType;
+	name?: string;
+	localHost?: string;
+	localPort?: number;
+	remoteHost?: string;
+	remotePort?: number;
+	autoStart?: boolean;
+}
+
+export type SSHHostTrustStatus = "unknown" | "trusted" | "changed";
+
+export interface SSHKnownHost {
+	host: string;
+	port: number;
+	fingerprintSha256: string;
+	trustedAt: string;
+}
+
+export interface SSHConnectionTestResult {
+	success: boolean;
+	message: string;
+	fingerprintSha256?: string;
+	authenticated: boolean;
+	hostTrust: SSHHostTrustStatus;
+}
+
+export interface SFTPEntry {
+	name: string;
+	path: string;
+	isDir: boolean;
+	size?: number;
+	modifiedTime?: number;
+}
+
 export interface SSHConnection {
 	id: string;
 	name: string;
 	host: string;
 	port: number;
 	username: string;
-	authMethod: "password" | "key";
+	authMethod: SSHAuthMethod;
 	privateKeyPath?: string;
 	color?: string;
+	folder?: string;
+	tags?: string[];
+	notes?: string;
+	identityId?: string;
+	passwordSecretRef?: SSHSecretRef;
+	passphraseSecretRef?: SSHSecretRef;
+	startupCommands?: string[];
+	keepAliveSecs?: number;
+	tunnels?: SSHTunnelConfig[];
 }
 
 export interface GitStatus {

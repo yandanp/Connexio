@@ -31,6 +31,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 uuid = { version = "1", features = ["v4"] }
 tauri-plugin-updater = "2"
 discord-rich-presence = "1"
+ssh2 = "0.9"
+keyring = { version = "3", features = ["windows-native"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.59", features = [

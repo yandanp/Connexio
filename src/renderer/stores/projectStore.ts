@@ -334,6 +334,8 @@ interface ProjectStore {
 	moveProjectToGroup: (projectId: string, newGroup: string) => Promise<void>;
 
 	openTerminalTab: (projectId: string, label?: string, shell?: string) => Promise<void>;
+	openCommandTerminalTab: (projectId: string, label: string, command: string[]) => Promise<void>;
+	openSshTerminalTab: (projectId: string, label: string, connection: import("../../shared/types").SSHConnection, password?: string) => Promise<void>;
 	openEditorTab: (projectId: string, filePath: string, lineNumber?: number) => void;
 	openPreviewTab: (projectId: string, url?: string) => void;
 	closeTerminalTab: (projectId: string, tabId: string) => void;
@@ -498,6 +500,52 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		}
 
 		const newTab: TerminalTab = { id: newTabId, label: tabLabel, shell, terminalId };
+		set({
+			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
+			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
+		});
+		get().persistWorkspace();
+	},
+
+	openCommandTerminalTab: async (projectId: string, label: string, command: string[]) => {
+		const { projects, workspaceTabs, activeTabIds } = get();
+		const project = projects.find((p) => p.id === projectId);
+		if (!project) return;
+
+		const existingTabs = workspaceTabs[projectId] || [];
+		const newTabId = uuid();
+
+		let terminalId: string;
+		try {
+			terminalId = await window.connexio.terminal.createCommand(project.path, command, {
+				projectId, projectName: project.name, tabId: newTabId, tabLabel: label,
+			});
+		} catch (e) {
+			console.error("[Connexio] Failed to create command terminal:", e);
+			return;
+		}
+
+		const newTab: TerminalTab = { id: newTabId, label, terminalId };
+		set({
+			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
+			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
+		});
+		get().persistWorkspace();
+	},
+
+	openSshTerminalTab: async (projectId: string, label: string, connection: import("../../shared/types").SSHConnection, password?: string) => {
+		const { workspaceTabs, activeTabIds } = get();
+		const existingTabs = workspaceTabs[projectId] || [];
+		let terminalId: string;
+		try {
+			terminalId = await window.connexio.terminal.createSsh(connection, password, 80, 24);
+		} catch (e) {
+			console.error("[Connexio] Failed to create SSH terminal:", e);
+			window.alert(String(e));
+			return;
+		}
+
+		const newTab: TerminalTab = { id: uuid(), label, terminalId };
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },

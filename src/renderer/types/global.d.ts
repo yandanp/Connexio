@@ -11,6 +11,22 @@ interface ConnexioAPI {
 				tabLabel: string;
 			},
 		) => Promise<string>;
+		createCommand: (
+			projectPath: string,
+			command: string[],
+			context?: {
+				projectId: string;
+				projectName: string;
+				tabId: string;
+				tabLabel: string;
+			},
+		) => Promise<string>;
+		createSsh: (
+			connection: import("../../shared/types").SSHConnection,
+			password?: string,
+			cols?: number,
+			rows?: number,
+		) => Promise<string>;
 		write: (id: string, data: string) => Promise<void>;
 		resize: (id: string, cols: number, rows: number) => Promise<void>;
 		close: (id: string) => Promise<void>;
@@ -84,6 +100,53 @@ interface ConnexioAPI {
 		buildCommand: (
 			connection: import("../../shared/types").SSHConnection,
 		) => Promise<string>;
+		buildCommandArgs: (
+			connection: import("../../shared/types").SSHConnection,
+		) => Promise<string[]>;
+		testConnection: (
+			connection: import("../../shared/types").SSHConnection,
+			password?: string,
+		) => Promise<import("../../shared/types").SSHConnectionTestResult>;
+		setSecret: (key: string, value: string) => Promise<void>;
+		getSecret: (key: string) => Promise<string | null>;
+		deleteSecret: (key: string) => Promise<void>;
+		listKnownHosts: () => Promise<import("../../shared/types").SSHKnownHost[]>;
+		trustHost: (host: string, port: number, fingerprintSha256: string) => Promise<void>;
+		forgetHost: (host: string, port: number) => Promise<void>;
+		sftpList: (
+			connection: import("../../shared/types").SSHConnection,
+			path: string,
+			password?: string,
+		) => Promise<import("../../shared/types").SFTPEntry[]>;
+		sftpRead: (
+			connection: import("../../shared/types").SSHConnection,
+			path: string,
+			password?: string,
+		) => Promise<string>;
+		sftpWrite: (
+			connection: import("../../shared/types").SSHConnection,
+			path: string,
+			content: string,
+			password?: string,
+		) => Promise<void>;
+		sftpMkdir: (
+			connection: import("../../shared/types").SSHConnection,
+			path: string,
+			password?: string,
+		) => Promise<void>;
+		sftpDelete: (
+			connection: import("../../shared/types").SSHConnection,
+			path: string,
+			isDir: boolean,
+			password?: string,
+		) => Promise<void>;
+		sftpRename: (
+			connection: import("../../shared/types").SSHConnection,
+			oldPath: string,
+			newPath: string,
+			password?: string,
+		) => Promise<void>;
+		forgetOpenSSHHost: (host: string, port: number) => Promise<string>;
 		selectKey: () => Promise<string | null>;
 		keyExists: (keyPath: string) => Promise<boolean>;
 	};

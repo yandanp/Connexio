@@ -1,5 +1,5 @@
 import { Bot, Check, Copy, FileText, History, Play, Plus, Save, Send, Settings, Square, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAIStore, type AIMessage, type AIProviderConfig, type AIProviderType } from "../../stores/aiStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -94,11 +94,19 @@ export default function AIChatPanel() {
 	const [showHistory, setShowHistory] = useState(false);
 	const [includeFile, setIncludeFile] = useState(true);
 	const [includeTerminal, setIncludeTerminal] = useState(false);
+	const scrollRef = useRef<HTMLDivElement>(null);
 	const endRef = useRef<HTMLDivElement>(null);
 	const activeProvider = config.providers.find((p) => p.id === config.activeProviderId);
 	const sessions = activeProjectId ? getChatSessionsForProject(activeProjectId) : [];
 
-	useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+	useLayoutEffect(() => {
+		const scrollEl = scrollRef.current;
+		if (!scrollEl) return;
+		const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+		if (distanceFromBottom < 80) {
+			scrollEl.scrollTop = scrollEl.scrollHeight;
+		}
+	}, [messages]);
 	useEffect(() => { if (activeProjectId && messages.length > 0 && !isLoading) saveChatSession(activeProjectId); }, [activeProjectId, messages.length, isLoading, saveChatSession]);
 
 	const send = async () => {
@@ -130,7 +138,7 @@ export default function AIChatPanel() {
 			<div className="flex items-center gap-0.5"><button onClick={() => setShowHistory(!showHistory)} className="p-1 rounded hover:bg-connexio-bg-tertiary" title="History" type="button"><History size={11} className="text-connexio-text-muted" /></button><button onClick={newChat} className="p-1 rounded hover:bg-connexio-bg-tertiary" title="New chat" type="button"><Plus size={11} className="text-connexio-text-muted" /></button><button onClick={clearMessages} className="p-1 rounded hover:bg-connexio-bg-tertiary" title="Clear" type="button"><Trash2 size={11} className="text-connexio-text-muted" /></button><button onClick={() => setShowSettings(true)} className="p-1 rounded hover:bg-connexio-bg-tertiary" title="Settings" type="button"><Settings size={11} className="text-connexio-text-muted" /></button></div>
 		</div>
 		{showHistory && <div className="border-b border-connexio-border max-h-36 overflow-y-auto bg-connexio-bg-secondary/70">{sessions.length === 0 ? <div className="px-3 py-2 text-[11px] text-connexio-text-muted">No saved chats</div> : sessions.slice().reverse().map((s) => <div key={s.id} className="flex items-center gap-1 px-2 py-1 hover:bg-connexio-bg-tertiary"><button onClick={() => { loadChatSession(s.id); setShowHistory(false); }} className="flex-1 text-left text-[11px] text-connexio-text truncate" type="button">{s.title}</button><button onClick={() => deleteChatSession(s.id)} className="p-0.5 rounded hover:bg-red-500/10" type="button"><X size={10} className="text-red-400" /></button></div>)}</div>}
-		<div className="flex-1 overflow-y-auto">{messages.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-center px-4"><Bot size={24} className="text-connexio-text-muted mb-2" /><p className="text-[11px] text-connexio-text-muted">Ask about your project, active file, terminal commands, or debugging issues.</p></div> : <>{messages.map((msg) => <MessageBubble key={msg.id} message={msg} onRun={runCommand} onInsert={insertCode} />)}<div ref={endRef} /></>}</div>
+		<div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">{messages.length === 0 ? <div className="flex flex-col items-center justify-center h-full text-center px-4"><Bot size={24} className="text-connexio-text-muted mb-2" /><p className="text-[11px] text-connexio-text-muted">Ask about your project, active file, terminal commands, or debugging issues.</p></div> : <>{messages.map((msg) => <MessageBubble key={msg.id} message={msg} onRun={runCommand} onInsert={insertCode} />)}<div ref={endRef} /></>}</div>
 		<div className="border-t border-connexio-border p-2"><div className="flex items-center gap-2 mb-1.5 text-[10px] text-connexio-text-muted"><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={includeFile} onChange={(e) => setIncludeFile(e.target.checked)} className="w-3 h-3" />Active file</label><label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={includeTerminal} onChange={(e) => setIncludeTerminal(e.target.checked)} className="w-3 h-3" />Terminal</label></div><div className="flex items-end gap-1.5 bg-connexio-bg-tertiary rounded-lg px-2 py-1.5"><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Ask AI..." rows={1} className="flex-1 bg-transparent text-[12px] text-connexio-text placeholder:text-connexio-text-muted outline-none resize-none max-h-[100px]" />{isLoading ? <button onClick={stopStreaming} className="p-1 rounded hover:bg-red-500/20" type="button"><Square size={12} className="text-red-400" /></button> : <button onClick={send} disabled={!input.trim()} className="p-1 rounded hover:bg-connexio-accent/20 disabled:opacity-30" type="button"><Send size={12} className="text-connexio-accent" /></button>}</div></div>
 	</div>;
 }

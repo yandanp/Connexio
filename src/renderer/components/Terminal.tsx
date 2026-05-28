@@ -101,11 +101,11 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			.readText()
 			.then((text) => {
 				if (text && !disposedRef.current) {
-					window.connexio.terminal.write(terminalId, text);
+					xtermRef.current?.paste(text);
 				}
 			})
 			.catch(() => {});
-	}, [terminalId]);
+	}, []);
 
 	const closeContextMenu = useCallback(() => {
 		setContextMenu(null);
@@ -117,13 +117,35 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 		try {
 			const el = containerRef.current;
 			if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
+			const xterm = xtermRef.current;
 			const fitAddon = fitAddonRef.current;
-			if (!fitAddon) return;
+			if (!xterm || !fitAddon) return;
+
+			const nextDims = fitAddon.proposeDimensions();
+			if (!nextDims || nextDims.cols <= 0 || nextDims.rows <= 0) return;
+
+			const currentCols = xterm.cols;
+			const currentRows = xterm.rows;
+			if (currentCols === nextDims.cols && currentRows === nextDims.rows) return;
+
+			const buffer = xterm.buffer.active;
+			const viewportY = buffer.viewportY;
+			const distanceFromBottom = buffer.baseY - viewportY;
+			const shouldStickToBottom = distanceFromBottom <= Math.max(2, currentRows);
+
 			fitAddon.fit();
-			const dims = fitAddon.proposeDimensions();
-			if (dims && dims.cols > 0 && dims.rows > 0) {
-				window.connexio.terminal.resize(terminalId, dims.cols, dims.rows);
-			}
+			window.connexio.terminal.resize(terminalId, nextDims.cols, nextDims.rows);
+
+			requestAnimationFrame(() => {
+				if (disposedRef.current || xtermRef.current !== xterm) return;
+				if (shouldStickToBottom) {
+					xterm.scrollToBottom();
+					return;
+				}
+
+				const maxViewportY = xterm.buffer.active.baseY;
+				xterm.scrollToLine(Math.min(viewportY, maxViewportY));
+			});
 		} catch (_e) {
 			// ignore — terminal may be mid-dispose
 		}
@@ -197,7 +219,7 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 				// No image — paste text normally
 				const text = await invoke<string | null>("clipboard_read_text");
 				if (text) {
-					window.connexio.terminal.write(terminalId, text);
+					xtermRef.current?.paste(text);
 				}
 			} catch {
 				window.connexio.terminal.write(terminalId, "\x16");

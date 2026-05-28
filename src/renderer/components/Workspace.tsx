@@ -442,7 +442,7 @@ export default function Workspace() {
 			<div className="flex flex-1 overflow-hidden">
 				{/* Terminal / Editor / Preview Area */}
 				<div
-					className="flex-1 relative overflow-hidden flex flex-col"
+					className="flex-1 min-w-0 relative overflow-hidden flex flex-col"
 					data-file-drop-zone=""
 					onDragOver={(e) => {
 						if (e.dataTransfer.types.includes("application/connexio-file") || e.dataTransfer.types.includes("Files")) {
@@ -509,7 +509,7 @@ export default function Workspace() {
 				{showSidePanel && (
 					<div
 						ref={panelRef}
-						className="bg-connexio-bg-secondary border-l border-connexio-border flex flex-col relative overflow-hidden"
+						className="bg-connexio-bg-secondary border-l border-connexio-border flex flex-col flex-shrink-0 relative overflow-hidden"
 						style={{ width: panelWidth }}
 					>
 						{/* Resize handle */}

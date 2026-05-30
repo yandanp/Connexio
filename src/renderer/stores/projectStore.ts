@@ -306,8 +306,12 @@ export interface TerminalTab {
 	label: string;
 	shell?: string;
 	terminalId: string | null;
-	type?: "terminal" | "editor" | "preview";
+	type?: "terminal" | "editor" | "preview" | "remoteEditor" | "sshManager" | "sftp";
 	filePath?: string;
+	remoteConnection?: import("../../shared/types").SSHConnection;
+	remotePath?: string;
+	remoteContent?: string;
+	sftpConnection?: import("../../shared/types").SSHConnection;
 	splitLayout?: SplitLayout;
 }
 
@@ -337,7 +341,10 @@ interface ProjectStore {
 	openCommandTerminalTab: (projectId: string, label: string, command: string[]) => Promise<void>;
 	openSshTerminalTab: (projectId: string, label: string, connection: import("../../shared/types").SSHConnection, password?: string) => Promise<void>;
 	openEditorTab: (projectId: string, filePath: string, lineNumber?: number) => void;
+	openRemoteEditorTab: (projectId: string, connection: import("../../shared/types").SSHConnection, remotePath: string, content: string, activate?: boolean) => void;
 	openPreviewTab: (projectId: string, url?: string) => void;
+	openSSHManagerTab: (projectId: string) => void;
+	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => void;
 	closeTerminalTab: (projectId: string, tabId: string) => void;
 	setActiveTerminalTab: (projectId: string, tabId: string) => void;
 	renameTerminalTab: (projectId: string, tabId: string, newLabel: string) => void;
@@ -581,6 +588,49 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		}
 	},
 
+	openRemoteEditorTab: (projectId: string, connection: import("../../shared/types").SSHConnection, remotePath: string, content: string, activate = true) => {
+		const { workspaceTabs, activeTabIds } = get();
+		const existingTabs = workspaceTabs[projectId] || [];
+		const existing = existingTabs.find((t) => t.type === "remoteEditor" && t.remoteConnection?.id === connection.id && t.remotePath === remotePath);
+		if (existing) {
+			if (activate) set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
+			return;
+		}
+		const fileName = remotePath.replace(/\\/g, "/").split("/").pop() || "remote";
+		const newTab: TerminalTab = { id: uuid(), label: `ssh: ${fileName}`, type: "remoteEditor", filePath: `ssh://${connection.id}${remotePath}`, remoteConnection: connection, remotePath, remoteContent: content, terminalId: null };
+		set({
+			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
+			activeTabIds: activate ? { ...activeTabIds, [projectId]: newTab.id } : activeTabIds,
+		});
+		get().persistWorkspace();
+	},
+
+	openSSHManagerTab: (projectId: string) => {
+		const { workspaceTabs, activeTabIds } = get();
+		const existingTabs = workspaceTabs[projectId] || [];
+		const existing = existingTabs.find((t) => t.type === "sshManager");
+		if (existing) {
+			set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
+			return;
+		}
+		const newTab: TerminalTab = { id: uuid(), label: "SSH Manager", type: "sshManager", terminalId: null };
+		set({ workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] }, activeTabIds: { ...activeTabIds, [projectId]: newTab.id } });
+		get().persistWorkspace();
+	},
+
+	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => {
+		const { workspaceTabs, activeTabIds } = get();
+		const existingTabs = workspaceTabs[projectId] || [];
+		const existing = existingTabs.find((t) => t.type === "sftp" && t.sftpConnection?.id === connection.id);
+		if (existing) {
+			set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
+			return;
+		}
+		const newTab: TerminalTab = { id: uuid(), label: `SFTP: ${connection.name}`, type: "sftp", sftpConnection: connection, terminalId: null };
+		set({ workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] }, activeTabIds: { ...activeTabIds, [projectId]: newTab.id } });
+		get().persistWorkspace();
+	},
+
 	openPreviewTab: (projectId: string, url?: string) => {
 		const { workspaceTabs, activeTabIds } = get();
 		const existingTabs = workspaceTabs[projectId] || [];
@@ -616,6 +666,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			}
 		} else if (tab?.terminalId) {
 			window.connexio.terminal.close(tab.terminalId);
+		}
+
+		// Signal editors to abort any in-flight operations (e.g. remote save)
+		if (tab?.type === "editor" || tab?.type === "remoteEditor") {
+			window.dispatchEvent(new CustomEvent("connexio:editor-tab-destroyed", { detail: { tabId, filePath: tab.filePath } }));
 		}
 
 		const newTabs = tabs.filter((t) => t.id !== tabId);
@@ -1045,8 +1100,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			const { activeProjectId, workspaceTabs, activeTabIds } = get();
 			const projectTabs: Record<string, WorkspaceTabState[]> = {};
 			for (const [projectId, tabs] of Object.entries(workspaceTabs)) {
-				if (tabs.length > 0) {
-					projectTabs[projectId] = tabs.map((t) => {
+				const persistableTabs = tabs.filter((t) => t.type !== "remoteEditor" && t.type !== "sftp");
+				if (persistableTabs.length > 0) {
+					projectTabs[projectId] = persistableTabs.map((t) => {
 						const state: WorkspaceTabState = { id: t.id, label: t.label, shell: t.shell, type: t.type, filePath: t.filePath };
 						if (t.splitLayout) {
 							state.splitTree = serializeNode(t.splitLayout.root, t.shell) as any;
@@ -1073,8 +1129,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 		const projectTabs: Record<string, WorkspaceTabState[]> = {};
 		for (const [projectId, tabs] of Object.entries(workspaceTabs)) {
-			if (tabs.length > 0) {
-				projectTabs[projectId] = tabs.map((t) => {
+			const persistableTabs = tabs.filter((t) => t.type !== "remoteEditor" && t.type !== "sftp");
+			if (persistableTabs.length > 0) {
+				projectTabs[projectId] = persistableTabs.map((t) => {
 					const state: WorkspaceTabState = { id: t.id, label: t.label, shell: t.shell, type: t.type, filePath: t.filePath };
 					if (t.splitLayout) {
 						state.splitTree = serializeNode(t.splitLayout.root, t.shell) as any;

@@ -1,6 +1,6 @@
 import { Bot, Columns2, FolderTree, GitBranch, Globe, ListTodo, PanelRightClose, Rows2, Server } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useProjectStore } from "../stores/projectStore";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useProjectStore, type TerminalTab } from "../stores/projectStore";
 import { AIChatPanel } from "./ai";
 import ConfirmDialog from "./ConfirmDialog";
 import { CodeEditor } from "./editor";
@@ -8,6 +8,8 @@ import { FileExplorer } from "./explorer";
 import ShellPicker from "./ShellPicker";
 import SourcePanel from "./SourcePanel";
 import SSHPanel from "./SSHPanel";
+import SSHManagerPanel from "./SSHManagerPanel";
+import { SFTPBrowser } from "./SSHManagerPanel";
 import TaskPanel from "./TaskPanel";
 import type { SSHConnection } from "../../shared/types";
 import TerminalLayer from "./TerminalLayer";
@@ -26,6 +28,9 @@ export default function Workspace() {
 		openCommandTerminalTab,
 		openSshTerminalTab,
 		openEditorTab,
+		openRemoteEditorTab,
+		openSSHManagerTab,
+		openSftpTab,
 		closeTerminalTab,
 		setActiveTerminalTab,
 		renameTerminalTab,
@@ -107,6 +112,10 @@ export default function Workspace() {
 			const currentActiveTabId = state.activeTabIds[projId];
 			if (!currentActiveTabId) return;
 			const currentTab = currentTabs.find((t) => t.id === currentActiveTabId);
+
+			if (currentTab?.type === "remoteEditor") {
+				return;
+			}
 
 			// Ctrl+Shift+D = Split Right (new terminal pane)
 			if (e.ctrlKey && e.shiftKey && e.key === "D") {
@@ -230,7 +239,26 @@ export default function Workspace() {
 	};
 
 	// Close tab with confirmation
+	// Editor/remoteEditor tabs: if dirty, show unsaved-changes dialog; otherwise close directly.
+	// Terminal tabs: always confirm (running processes).
+	// Other types (sshManager, sftp, preview): close directly.
 	const handleCloseTab = (tabId: string) => {
+		const tab = tabs.find((t) => t.id === tabId);
+		if (!tab) return;
+		if (tab.type === "sshManager" || tab.type === "sftp" || tab.type === "preview") {
+			closeTerminalTab(activeProjectId, tabId);
+			return;
+		}
+		if (tab.type === "editor" || tab.type === "remoteEditor") {
+			if (dirtyTabs.has(tabId)) {
+				// Let the editor's internal unsaved-changes dialog handle it
+				window.dispatchEvent(new CustomEvent("connexio:editor-request-close", { detail: { filePath: tab.filePath } }));
+			} else {
+				closeTerminalTab(activeProjectId, tabId);
+			}
+			return;
+		}
+		// Terminal tabs — confirm running processes
 		setCloseConfirmTabId(tabId);
 	};
 
@@ -486,6 +514,48 @@ export default function Workspace() {
 						</div>
 					))}
 
+					{/* Remote editor tab */}
+					{activeTab?.type === "remoteEditor" && activeTab.filePath && activeTab.remoteConnection && activeTab.remotePath && (
+						<div className="flex-1 min-h-0">
+							<RemoteEditorWrapper
+								key={activeTab.id}
+								tab={activeTab}
+								onClose={() => closeTerminalTab(activeProjectId, activeTab.id)}
+								onDirtyChange={(dirty) => {
+									setDirtyTabs((prev) => {
+										const next = new Set(prev);
+										if (dirty) next.add(activeTab.id);
+										else next.delete(activeTab.id);
+										return next;
+									});
+								}}
+							/>
+						</div>
+					)}
+
+					{/* SSH manager tab */}
+					{activeTab?.type === "sshManager" && (
+						<div className="flex-1 min-h-0 bg-connexio-bg text-connexio-text">
+							<SSHManagerPanel
+								projectId={activeProjectId}
+								onConnect={handleSSHConnect}
+								onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
+							/>
+						</div>
+					)}
+
+					{/* SFTP tabs — persist all, hide inactive to preserve state */}
+					{tabs.filter((t) => t.type === "sftp" && t.sftpConnection).map((tab) => (
+						<div
+							key={`sftp-${tab.id}`}
+							className={activeTabId === tab.id ? "flex-1 min-h-0 bg-connexio-bg text-connexio-text" : "hidden"}
+						>
+							<SFTPBrowser
+								connection={tab.sftpConnection!}
+							/>
+						</div>
+					))}
+
 					{/* Preview tab (shown when active tab is preview type) */}
 					{activeTab?.type === "preview" && (
 						<div className="flex-1 min-h-0">
@@ -494,7 +564,7 @@ export default function Workspace() {
 					)}
 
 					{/* Terminal/Split area (hidden only when pure editor or preview is active) */}
-					<div className={(activeTab?.type === "editor" && !activeTab?.splitLayout) || activeTab?.type === "preview" ? "hidden" : "flex-1 min-h-0 relative"} data-terminal-layer-container="">
+					<div className={((activeTab?.type === "editor" || activeTab?.type === "remoteEditor" || activeTab?.type === "sshManager" || activeTab?.type === "sftp") && !activeTab?.splitLayout) || activeTab?.type === "preview" ? "hidden" : "flex-1 min-h-0 relative"} data-terminal-layer-container="">
 						<TerminalLayer />
 					</div>
 				</div>
@@ -618,6 +688,8 @@ export default function Workspace() {
 								<SSHPanel
 									projectId={activeProjectId}
 									onConnect={handleSSHConnect}
+									onOpenManager={() => openSSHManagerTab(activeProjectId)}
+									onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
 								/>
 							)}
 						</div>
@@ -635,5 +707,55 @@ export default function Workspace() {
 				/>
 			)}
 		</div>
+	);
+}
+
+// === Remote Editor Wrapper ===
+// Stabilizes loadContent/saveContent references to prevent CodeEditor re-mount loops
+function RemoteEditorWrapper({ tab, onClose, onDirtyChange }: {
+	tab: TerminalTab;
+	onClose: () => void;
+	onDirtyChange: (dirty: boolean) => void;
+}) {
+	const { workspaceTabs, activeProjectId } = useProjectStore();
+
+	// Stable loadContent — only recreated when tab.id changes
+	const loadContent = useCallback(async () => {
+		return tab.remoteContent || "";
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tab.id]);
+
+	// Stable saveContent — uses refs internally
+	const tabRef = useRef(tab);
+	tabRef.current = tab;
+
+	const saveContent = useCallback(async (content: string) => {
+		const currentTab = tabRef.current;
+		const conn = currentTab.remoteConnection!;
+		const ref = conn.authMethod === "key" ? conn.passphraseSecretRef : conn.passwordSecretRef;
+		const password = ref?.key ? await window.connexio.ssh.getSecret(ref.key) : null;
+		if (conn.authMethod !== "agent" && !password) {
+			throw new Error("Saved SSH secret is required to save this remote file. Reopen SFTP and save the password/passphrase first.");
+		}
+		await window.connexio.ssh.sftpWrite(conn, currentTab.remotePath!, content, password || undefined);
+		// Update store immutably
+		const store = useProjectStore.getState();
+		const projId = store.activeProjectId;
+		if (projId) {
+			const tabs = store.workspaceTabs[projId] || [];
+			const updated = tabs.map((t) => t.id === currentTab.id ? { ...t, remoteContent: content } : t);
+			useProjectStore.setState({ workspaceTabs: { ...store.workspaceTabs, [projId]: updated } });
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tab.id]);
+
+	return (
+		<CodeEditor
+			filePath={tab.filePath!}
+			loadContent={loadContent}
+			saveContent={saveContent}
+			onClose={onClose}
+			onDirtyChange={onDirtyChange}
+		/>
 	);
 }

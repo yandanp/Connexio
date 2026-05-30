@@ -49,6 +49,8 @@ interface Props {
 	onClose: () => void;
 	/** Called when dirty state changes — used by parent to show tab indicator */
 	onDirtyChange?: (dirty: boolean) => void;
+	loadContent?: () => Promise<string>;
+	saveContent?: (content: string) => Promise<void>;
 }
 
 function getLanguageExtension(filePath: string) {
@@ -66,7 +68,7 @@ function getLanguageExtension(filePath: string) {
 	}
 }
 
-export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) {
+export default function CodeEditor({ filePath, onClose, onDirtyChange, loadContent, saveContent }: Props) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const themeCompartment = useRef(new Compartment());
@@ -79,6 +81,10 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 	const originalContentRef = useRef("");
 	const filePathRef = useRef(filePath);
 	filePathRef.current = filePath;
+	const loadContentRef = useRef(loadContent);
+	loadContentRef.current = loadContent;
+	const saveContentRef = useRef(saveContent);
+	saveContentRef.current = saveContent;
 	const { currentTheme } = useThemeStore();
 
 	const editorTheme = useMemo(() => buildEditorTheme(currentTheme), [currentTheme]);
@@ -101,10 +107,14 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 		setSaving(true);
 		setError(null);
 		try {
-			await invoke("explorer_write_file", {
-				filePath: filePathRef.current,
-				content,
-			});
+			if (saveContentRef.current) {
+				await saveContentRef.current(content);
+			} else {
+				await invoke("explorer_write_file", {
+					filePath: filePathRef.current,
+					content,
+				});
+			}
 			originalContentRef.current = content;
 			setDirty(false);
 			setSaveStatus("Saved ✓");
@@ -120,7 +130,10 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 		if (isDirty) {
 			setShowCloseConfirm(true);
 		} else {
-			onClose();
+			const close = onClose;
+			viewRef.current?.destroy();
+			viewRef.current = null;
+			setTimeout(close, 0);
 		}
 	};
 
@@ -204,7 +217,35 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 		return () => window.removeEventListener("connexio:editor-goto-line", handler);
 	}, [filePath]);
 
+	// Listen for external close requests (e.g. tab X button when dirty)
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail?.filePath !== filePath) return; // not for us
+			// Trigger our internal close flow which shows unsaved dialog if dirty
+			handleClose();
+		};
+		window.addEventListener("connexio:editor-request-close", handler);
+		return () => window.removeEventListener("connexio:editor-request-close", handler);
+	}, [filePath]);
+
+	// Listen for tab destruction — abort any in-flight operations and clean up
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail?.filePath !== filePath) return;
+			// Force destroy editor immediately without save
+			if (viewRef.current) {
+				viewRef.current.destroy();
+				viewRef.current = null;
+			}
+		};
+		window.addEventListener("connexio:editor-tab-destroyed", handler);
+		return () => window.removeEventListener("connexio:editor-tab-destroyed", handler);
+	}, [filePath]);
+
 	// Load file and create editor — only depends on filePath (NOT theme)
+	// loadContent is accessed via ref to avoid re-triggering on every render
 	useEffect(() => {
 		if (!containerRef.current) return;
 		if (viewRef.current) {
@@ -215,7 +256,8 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 
 		let destroyed = false;
 
-		invoke<string>("explorer_read_file", { filePath })
+		const contentLoader = loadContentRef.current || (() => invoke<string>("explorer_read_file", { filePath }));
+		contentLoader()
 			.then((content) => {
 				if (destroyed || !containerRef.current) return;
 				originalContentRef.current = content;
@@ -251,7 +293,7 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 				viewRef.current = null;
 			}
 		};
-	}, [filePath]); // NO editorTheme dependency — theme updates handled separately
+	}, [filePath]); // NO editorTheme or loadContent dependency — both handled via refs
 
 	// Update theme in-place without destroying editor (preserves content + undo)
 	useEffect(() => {
@@ -319,9 +361,12 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 						<p className="text-xs text-connexio-text-secondary mb-4">
 							"{fileName}" has unsaved changes. Save before closing?
 						</p>
+						{saving && (
+							<p className="text-[10px] text-connexio-accent mb-3 animate-pulse">Saving to remote server...</p>
+						)}
 						<div className="flex items-center justify-end gap-2">
 							<button
-								onClick={() => { setShowCloseConfirm(false); onClose(); }}
+								onClick={() => { const close = onClose; setShowCloseConfirm(false); viewRef.current?.destroy(); viewRef.current = null; setTimeout(close, 0); }}
 								className="px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-500/10 rounded transition-colors"
 								type="button"
 							>
@@ -329,17 +374,34 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange }: Props) 
 							</button>
 							<button
 								onClick={() => setShowCloseConfirm(false)}
-								className="px-3 py-1.5 text-[11px] text-connexio-text-muted hover:bg-connexio-bg-tertiary rounded transition-colors"
+								disabled={saving}
+								className="px-3 py-1.5 text-[11px] text-connexio-text-muted hover:bg-connexio-bg-tertiary rounded transition-colors disabled:opacity-40"
 								type="button"
 							>
 								Cancel
 							</button>
 							<button
-								onClick={async () => { await saveRef.current(); setShowCloseConfirm(false); onClose(); }}
-								className="px-3 py-1.5 text-[11px] font-medium bg-connexio-accent text-white rounded hover:bg-connexio-accent-hover transition-colors"
+								onClick={async () => {
+									const close = onClose;
+									// Race save against a timeout to prevent indefinite hang
+									const savePromise = saveRef.current();
+									const timeoutPromise = new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 15000));
+									const result = await Promise.race([savePromise.then(() => "done" as const), timeoutPromise]);
+									if (result === "timeout") {
+										setError("Save timed out. Click Discard to close without saving, or try again.");
+										setSaving(false);
+										return;
+									}
+									setShowCloseConfirm(false);
+									viewRef.current?.destroy();
+									viewRef.current = null;
+									setTimeout(close, 0);
+								}}
+								disabled={saving}
+								className="px-3 py-1.5 text-[11px] font-medium bg-connexio-accent text-white rounded hover:bg-connexio-accent-hover transition-colors disabled:opacity-60"
 								type="button"
 							>
-								Save & Close
+								{saving ? "Saving..." : "Save & Close"}
 							</button>
 						</div>
 					</div>

@@ -257,7 +257,7 @@ jobs:
               body: body,
               draft: false,
               prerelease: prerelease,
-              make_latest: prerelease ? 'false' : 'true',
+              make_latest: 'true',
             })
 
             core.info(`Published release: ${releaseName}`)

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.2-dev.1] — 2026-05-31 (Pre-release)
+
+> ⚠️ **Dev build** — Integrated SSH, sidebar polish, browser improvements, and updater validation.
+
+### ✨ New Features & Improvements
+
+- **Integrated SSH** — Improved SSH terminal connection and session management
+- **Sidebar polish** — Navigation refinements and visual consistency
+- **Browser improvements** — Enhanced web preview experience
+
+### 🔧 Infrastructure
+
+- Auto-update validation release (testing updater from `0.4.1-dev.1` → `0.4.2-dev.1`)
+- Version sync across `package.json`, `tauri.conf.json`, and `Cargo.toml`
+
+---
+
 ## [0.4.0-dev.1] — 2026-05-19 (Pre-release)
 
 > ⚠️ **Dev build** — Tauri v2 migration. Not recommended for general use yet.

@@ -323,11 +323,13 @@ pub fn terminal_create_ssh(
     let cols = cols.unwrap_or(80).max(1);
     let rows = rows.unwrap_or(24).max(1);
     let session = crate::modules::ssh::ssh_connect_session(&connection, password.as_deref())?;
+    let _ = app.emit("terminal:ssh-status", (&id, "authenticated"));
     let mut channel = session.channel_session().map_err(|e| format!("Failed to open SSH channel: {}", e))?;
     channel
         .request_pty("xterm-256color", None, Some((cols as u32, rows as u32, 0, 0)))
         .map_err(|e| format!("Failed to request SSH PTY: {}", e))?;
     channel.shell().map_err(|e| format!("Failed to start SSH shell: {}", e))?;
+    let _ = app.emit("terminal:ssh-status", (&id, "shell-started"));
     session.set_blocking(false);
 
     let channel = Arc::new(Mutex::new(channel));

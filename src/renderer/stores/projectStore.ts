@@ -329,6 +329,7 @@ interface ProjectStore {
 	loadProjects: () => Promise<void>;
 	addProject: (name: string, path: string, group: string) => Promise<void>;
 	deleteProject: (id: string) => Promise<void>;
+	renameProject: (id: string, name: string) => Promise<void>;
 	setActiveProject: (id: string) => void;
 	setSearchQuery: (query: string) => void;
 	toggleSidebar: () => void;
@@ -336,6 +337,7 @@ interface ProjectStore {
 
 	reorderProjects: (fromId: string, toId: string) => Promise<void>;
 	moveProjectToGroup: (projectId: string, newGroup: string) => Promise<void>;
+	renameProjectGroup: (oldGroup: string, newGroup: string) => Promise<void>;
 
 	openTerminalTab: (projectId: string, label?: string, shell?: string) => Promise<void>;
 	openCommandTerminalTab: (projectId: string, label: string, command: string[]) => Promise<void>;
@@ -348,6 +350,7 @@ interface ProjectStore {
 	closeTerminalTab: (projectId: string, tabId: string) => void;
 	setActiveTerminalTab: (projectId: string, tabId: string) => void;
 	renameTerminalTab: (projectId: string, tabId: string, newLabel: string) => void;
+	updatePreviewTabUrl: (projectId: string, tabId: string, url: string) => void;
 	reorderTabs: (projectId: string, fromIndex: number, toIndex: number) => void;
 
 	// Split actions
@@ -438,6 +441,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		get().persistWorkspace();
 	},
 
+	renameProject: async (id: string, name: string) => {
+		const trimmed = name.trim();
+		if (!trimmed) return;
+		const { projects } = get();
+		const project = projects.find((p) => p.id === id);
+		if (!project || project.name === trimmed) return;
+		const updated = { ...project, name: trimmed };
+		await window.connexio.project.update(updated);
+		set({ projects: projects.map((p) => (p.id === id ? updated : p)) });
+	},
+
 	setActiveProject: (id: string) => {
 		const { activeProjectId, projects, isRestoring } = get();
 		if (activeProjectId === id) return;
@@ -479,10 +493,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	moveProjectToGroup: async (projectId: string, newGroup: string) => {
 		const { projects } = get();
 		const project = projects.find((p) => p.id === projectId);
-		if (!project || project.group === newGroup) return;
-		const updated = { ...project, group: newGroup };
+		const group = newGroup.trim() || "default";
+		if (!project || project.group === group) return;
+		const updated = { ...project, group };
 		await window.connexio.project.update(updated);
 		set({ projects: projects.map((p) => (p.id === projectId ? updated : p)) });
+	},
+
+	renameProjectGroup: async (oldGroup: string, newGroup: string) => {
+		const group = newGroup.trim() || "default";
+		if (oldGroup === group) return;
+		const { projects } = get();
+		const affected = projects.filter((p) => (p.group || "default") === oldGroup);
+		if (affected.length === 0) return;
+		const updatedProjects = projects.map((project) =>
+			(project.group || "default") === oldGroup ? { ...project, group } : project,
+		);
+		await Promise.all(affected.map((project) => window.connexio.project.update({ ...project, group })));
+		set({ projects: updatedProjects });
 	},
 
 	// === Tab Actions ===
@@ -691,6 +719,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		const { workspaceTabs } = get();
 		const tabs = workspaceTabs[projectId] || [];
 		set({ workspaceTabs: { ...workspaceTabs, [projectId]: tabs.map((t) => t.id === tabId ? { ...t, label: newLabel } : t) } });
+		get().persistWorkspace();
+	},
+
+	updatePreviewTabUrl: (projectId: string, tabId: string, url: string) => {
+		const { workspaceTabs } = get();
+		const tabs = workspaceTabs[projectId] || [];
+		set({ workspaceTabs: { ...workspaceTabs, [projectId]: tabs.map((t) => t.id === tabId ? { ...t, filePath: url } : t) } });
 		get().persistWorkspace();
 	},
 

@@ -121,6 +121,8 @@ pub fn run() {
             modules::ssh::ssh_trust_host,
             modules::ssh::ssh_forget_host,
             modules::ssh::ssh_sftp_list,
+            modules::ssh::ssh_sftp_download,
+            modules::ssh::ssh_sftp_upload,
             modules::ssh::ssh_sftp_read,
             modules::ssh::ssh_sftp_write,
             modules::ssh::ssh_sftp_mkdir,

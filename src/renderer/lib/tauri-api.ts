@@ -236,6 +236,12 @@ export const ssh = {
 	sftpList: (connection: SSHConnection, path: string, password?: string): Promise<SFTPEntry[]> =>
 		invoke("ssh_sftp_list", { connection, path, password: password || null }),
 
+	sftpDownload: (connection: SSHConnection, remotePath: string, localPath: string, password?: string): Promise<void> =>
+		invoke("ssh_sftp_download", { connection, remotePath, localPath, password: password || null }),
+
+	sftpUpload: (connection: SSHConnection, localPath: string, remotePath: string, password?: string): Promise<void> =>
+		invoke("ssh_sftp_upload", { connection, localPath, remotePath, password: password || null }),
+
 	sftpRead: (connection: SSHConnection, path: string, password?: string): Promise<string> =>
 		invoke("ssh_sftp_read", { connection, path, password: password || null }),
 

@@ -118,6 +118,18 @@ interface ConnexioAPI {
 			path: string,
 			password?: string,
 		) => Promise<import("../../shared/types").SFTPEntry[]>;
+		sftpDownload: (
+			connection: import("../../shared/types").SSHConnection,
+			remotePath: string,
+			localPath: string,
+			password?: string,
+		) => Promise<void>;
+		sftpUpload: (
+			connection: import("../../shared/types").SSHConnection,
+			localPath: string,
+			remotePath: string,
+			password?: string,
+		) => Promise<void>;
 		sftpRead: (
 			connection: import("../../shared/types").SSHConnection,
 			path: string,

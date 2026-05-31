@@ -34,6 +34,7 @@ export default function Workspace() {
 		closeTerminalTab,
 		setActiveTerminalTab,
 		renameTerminalTab,
+		updatePreviewTabUrl,
 		reorderTabs,
 		splitTerminal,
 	} = useProjectStore();
@@ -559,7 +560,12 @@ export default function Workspace() {
 					{/* Preview tab (shown when active tab is preview type) */}
 					{activeTab?.type === "preview" && (
 						<div className="flex-1 min-h-0">
-							<WebPreview onClose={() => closeTerminalTab(activeProjectId, activeTab.id)} />
+							<WebPreview
+								onClose={() => closeTerminalTab(activeProjectId, activeTab.id)}
+								initialUrl={activeTab.filePath}
+								projectPath={project.path}
+								onUrlChange={(url) => updatePreviewTabUrl(activeProjectId, activeTab.id, url)}
+							/>
 						</div>
 					)}
 

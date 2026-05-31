@@ -8,7 +8,7 @@ interface TabProps {
 	index: number;
 	canClose: boolean;
 	isDirty?: boolean;
-	tabType?: "terminal" | "editor" | "preview";
+	tabType?: "terminal" | "editor" | "preview" | "remoteEditor" | "sshManager" | "sftp";
 	onSelect: () => void;
 	onClose: () => void;
 	onRename: (newLabel: string) => void;

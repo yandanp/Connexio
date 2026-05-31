@@ -22,6 +22,12 @@ pub struct AppSettings {
     pub scrollback: u32,
     pub copy_on_select: bool,
     pub webgl_renderer: bool,
+    #[serde(default = "default_ui_font_size")]
+    pub ui_font_size: String,
+}
+
+fn default_ui_font_size() -> String {
+    "default".to_string()
 }
 
 impl Default for AppSettings {
@@ -35,6 +41,7 @@ impl Default for AppSettings {
             scrollback: 1000,
             copy_on_select: false,
             webgl_renderer: true,
+            ui_font_size: "default".to_string(),
         }
     }
 }

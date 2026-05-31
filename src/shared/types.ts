@@ -88,6 +88,7 @@ export interface AppSettings {
 	scrollback: number;
 	copyOnSelect: boolean;
 	webglRenderer: boolean;
+	uiFontSize: "small" | "default" | "large";
 }
 
 export interface ShellInfo {
@@ -101,7 +102,7 @@ export interface WorkspaceTabState {
 	id: string;
 	label: string;
 	shell?: string;
-	type?: "terminal" | "editor" | "preview";
+	type?: "terminal" | "editor" | "preview" | "remoteEditor" | "sshManager" | "sftp";
 	filePath?: string;
 	// Split persistence (recursive tree)
 	splitTree?: {

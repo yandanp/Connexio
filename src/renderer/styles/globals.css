@@ -196,3 +196,47 @@ body {
 	}
 }
 
+/* UI Font Size Scaling */
+:root {
+	--ui-font-size: 13px;
+}
+
+[data-ui-size="small"] {
+	--ui-font-size: 11px;
+}
+
+[data-ui-size="default"] {
+	--ui-font-size: 13px;
+}
+
+[data-ui-size="large"] {
+	--ui-font-size: 15px;
+}
+
+/* Apply UI font size to sidebar and panel text */
+[data-ui-size="large"] .text-xs {
+	font-size: 14px;
+}
+[data-ui-size="large"] .text-\[10px\] {
+	font-size: 12px;
+}
+[data-ui-size="large"] .text-\[11px\] {
+	font-size: 13px;
+}
+[data-ui-size="large"] .text-\[13px\] {
+	font-size: 15px;
+}
+[data-ui-size="large"] .text-\[9px\] {
+	font-size: 11px;
+}
+
+[data-ui-size="small"] .text-xs {
+	font-size: 11px;
+}
+[data-ui-size="small"] .text-\[13px\] {
+	font-size: 12px;
+}
+[data-ui-size="small"] .text-\[11px\] {
+	font-size: 10px;
+}
+

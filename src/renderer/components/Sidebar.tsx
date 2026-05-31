@@ -138,7 +138,7 @@ export default function Sidebar() {
 			<div className="w-64 bg-connexio-bg-secondary border-r border-connexio-border flex flex-col">
 				{/* Header */}
 				<div className="flex items-center justify-between px-3 py-2 border-b border-connexio-border">
-					<span className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
+					<span className="text-[11px] font-semibold text-connexio-text-secondary uppercase tracking-wider">
 						Projects
 					</span>
 					<div className="flex items-center gap-1">
@@ -166,13 +166,13 @@ export default function Sidebar() {
 				{/* Search */}
 				<div className="px-3 py-2">
 					<div className="flex items-center gap-2 px-2 py-1.5 rounded bg-connexio-bg-tertiary border border-connexio-border">
-						<Search size={12} className="text-connexio-text-muted" />
+						<Search size={13} className="text-connexio-text-muted" />
 						<input
 							type="text"
 							placeholder="Search projects..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="bg-transparent text-xs text-connexio-text outline-none flex-1 placeholder:text-connexio-text-muted"
+							className="bg-transparent text-[13px] text-connexio-text outline-none flex-1 placeholder:text-connexio-text-muted"
 						/>
 					</div>
 				</div>
@@ -202,10 +202,10 @@ export default function Sidebar() {
 										className="text-connexio-text-muted"
 									/>
 								)}
-								<span className="text-xs font-medium text-connexio-text-secondary capitalize">
+								<span className="text-[13px] font-medium text-connexio-text-secondary capitalize">
 									{group}
 								</span>
-								<span className="text-[10px] text-connexio-text-muted ml-auto">
+								<span className="text-[11px] text-connexio-text-muted ml-auto">
 									{items.length}
 								</span>
 							</button>
@@ -257,7 +257,7 @@ export default function Sidebar() {
 														: "text-connexio-text-muted flex-shrink-0"
 												}
 											/>
-											<span className="text-xs text-connexio-text truncate flex-1">
+											<span className="text-[13px] text-connexio-text truncate flex-1">
 												{project.name}
 											</span>
 											<button

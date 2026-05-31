@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	scrollback: 1000,
 	copyOnSelect: false,
 	webglRenderer: true,
+	uiFontSize: "default",
 };
 
 function clampScrollback(value: number): number {
@@ -159,6 +160,8 @@ export default function SettingsModal() {
 								themes={themes}
 								currentThemeId={currentTheme?.id || ""}
 								onThemeChange={setTheme}
+								settings={effectiveSettings}
+								onChange={handleChange}
 							/>
 						)}
 						{activeTab === "notifications" && <NotificationsSettings />}
@@ -382,16 +385,46 @@ function AppearanceSettings({
 	themes,
 	currentThemeId,
 	onThemeChange,
+	settings,
+	onChange,
 }: {
 	themes: import("../../shared/types").AppTheme[];
 	currentThemeId: string;
 	onThemeChange: (themeId: string) => void;
+	settings: AppSettings;
+	onChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }) {
 	return (
 		<div className="space-y-4">
 			<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
 				Appearance
 			</h3>
+
+			{/* UI Font Size */}
+			<div>
+				<label className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
+					UI Font Size
+				</label>
+				<div className="flex gap-2">
+					{(["small", "default", "large"] as const).map((size) => (
+						<button
+							key={size}
+							onClick={() => onChange("uiFontSize", size)}
+							className={`flex-1 px-3 py-2 text-xs rounded border transition-colors capitalize ${
+								(settings.uiFontSize || "default") === size
+									? "border-connexio-accent bg-connexio-accent/10 text-connexio-accent"
+									: "border-connexio-border text-connexio-text-secondary hover:border-connexio-text-muted"
+							}`}
+							type="button"
+						>
+							{size}
+						</button>
+					))}
+				</div>
+				<p className="text-[10px] text-connexio-text-muted mt-1">
+					Adjusts text size across sidebars, panels, and tabs
+				</p>
+			</div>
 
 			{/* Theme */}
 			<div>

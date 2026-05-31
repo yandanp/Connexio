@@ -14,10 +14,16 @@ import { useProjectStore } from "./stores/projectStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useThemeStore } from "./stores/themeStore";
 
+const UI_FONT_SIZE_MAP = {
+	small: "11px",
+	default: "13px",
+	large: "15px",
+} as const;
+
 export default function App() {
 	const { loadProjects, activeProjectId, restoreWorkspace } = useProjectStore();
 	const { loadTheme, loadThemes } = useThemeStore();
-	const { isSettingsOpen, loadSettings, loadShells, discordPresence } = useSettingsStore();
+	const { isSettingsOpen, settings, loadSettings, loadShells, discordPresence } = useSettingsStore();
 	const {
 		loadNotifications,
 		loadSettings: loadNotifSettings,
@@ -27,6 +33,13 @@ export default function App() {
 
 	// Discord Rich Presence
 	useDiscordPresence(discordPresence);
+
+	// Apply UI font size CSS variable
+	useEffect(() => {
+		const size = settings?.uiFontSize || "default";
+		document.documentElement.style.setProperty("--ui-font-size", UI_FONT_SIZE_MAP[size]);
+		document.documentElement.setAttribute("data-ui-size", size);
+	}, [settings?.uiFontSize]);
 
 	useEffect(() => {
 		let mounted = true;

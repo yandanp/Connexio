@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Connexio Remote</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --danger: #f85149;
+            --success: #3fb950;
+            --radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* ─── Login Screen ─── */
+        #login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+            padding: 24px;
+            gap: 24px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: -16px;
+        }
+
+        .pin-input-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .pin-digit {
+            width: 44px;
+            height: 56px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .pin-digit:focus {
+            border-color: var(--accent);
+        }
+
+        .login-btn {
+            width: 100%;
+            max-width: 300px;
+            padding: 14px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .login-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-msg {
+            color: var(--danger);
+            font-size: 13px;
+            min-height: 20px;
+        }
+
+        /* ─── App Screen ─── */
+        #app-screen {
+            display: none;
+            flex-direction: column;
+            height: 100dvh;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .disconnect-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .disconnect-btn:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* Terminal tabs */
+        .terminal-tabs {
+            display: flex;
+            gap: 0;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .terminal-tab {
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .terminal-tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+
+        .no-terminals {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            color: var(--text-muted);
+            gap: 8px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .no-terminals svg {
+            width: 48px;
+            height: 48px;
+            opacity: 0.4;
+        }
+
+        /* Terminal container */
+        #terminal-container {
+            flex: 1;
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        #terminal-container .xterm {
+            height: 100%;
+            padding: 8px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <!-- xterm.js from CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="logo">Connexio <span>Remote</span></div>
+        <p class="subtitle">Enter the PIN shown on your desktop app</p>
+        <div class="pin-input-group">
+            <input class="pin-digit" type="tel" maxlength="1" data-index="0" inputmode="numeric" autocomplete="off">
+            <input class="pin-digit" type="tel" maxlength="1" data-index="1" inputmode="numeric" autocomplete="off">
+            <input class="pin-digit" type="tel" maxlength="1" data-index="2" inputmode="numeric" autocomplete="off">
+            <input class="pin-digit" type="tel" maxlength="1" data-index="3" inputmode="numeric" autocomplete="off">
+            <input class="pin-digit" type="tel" maxlength="1" data-index="4" inputmode="numeric" autocomplete="off">
+            <input class="pin-digit" type="tel" maxlength="1" data-index="5" inputmode="numeric" autocomplete="off">
+        </div>
+        <button class="login-btn" id="login-btn" disabled>Connect</button>
+        <p class="error-msg" id="error-msg"></p>
+    </div>
+
+    <!-- App Screen -->
+    <div id="app-screen">
+        <div class="app-header">
+            <h1><span class="status-dot"></span>Connexio Remote</h1>
+            <button class="disconnect-btn" id="disconnect-btn">Disconnect</button>
+        </div>
+        <div class="terminal-tabs" id="terminal-tabs"></div>
+        <div id="terminal-container">
+            <div class="no-terminals" id="no-terminals">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"/>
+                </svg>
+                <p>No active terminals</p>
+                <p style="font-size: 12px;">Create a terminal from the desktop app</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+    <script>
+    (function() {
+        'use strict';
+
+        const API_BASE = window.location.origin;
+        let token = null;
+        let terminals = [];
+        let activeTermId = null;
+        let ws = null;
+        let xterm = null;
+        let fitAddon = null;
+
+        // ─── DOM ─────────────────────────────────────────────────────────
+        const loginScreen = document.getElementById('login-screen');
+        const appScreen = document.getElementById('app-screen');
+        const loginBtn = document.getElementById('login-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const terminalTabs = document.getElementById('terminal-tabs');
+        const terminalContainer = document.getElementById('terminal-container');
+        const noTerminals = document.getElementById('no-terminals');
+        const pinDigits = document.querySelectorAll('.pin-digit');
+
+        // ─── PIN Input ───────────────────────────────────────────────────
+        pinDigits.forEach((input, idx) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (val && idx < 5) {
+                    pinDigits[idx + 1].focus();
+                }
+                checkPinComplete();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                    pinDigits[idx - 1].focus();
+                }
+                if (e.key === 'Enter') {
+                    loginBtn.click();
+                }
+            });
+
+            // Handle paste
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
+                if (/^\d{6}$/.test(pasted)) {
+                    pinDigits.forEach((d, i) => { d.value = pasted[i]; });
+                    pinDigits[5].focus();
+                    checkPinComplete();
+                }
+            });
+        });
+
+        function checkPinComplete() {
+            const pin = getPin();
+            loginBtn.disabled = pin.length !== 6;
+        }
+
+        function getPin() {
+            return Array.from(pinDigits).map(d => d.value).join('');
+        }
+
+        // ─── Auth ────────────────────────────────────────────────────────
+        loginBtn.addEventListener('click', async () => {
+            const pin = getPin();
+            if (pin.length !== 6) return;
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Connecting...';
+            errorMsg.textContent = '';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin }),
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    token = data.token;
+                    showApp();
+                } else {
+                    errorMsg.textContent = data.error || 'Authentication failed';
+                    pinDigits.forEach(d => { d.value = ''; });
+                    pinDigits[0].focus();
+                }
+            } catch (err) {
+                errorMsg.textContent = 'Connection failed. Is Connexio running?';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Connect';
+            }
+        });
+
+        // ─── App ─────────────────────────────────────────────────────────
+        async function showApp() {
+            loginScreen.style.display = 'none';
+            appScreen.style.display = 'flex';
+            await loadTerminals();
+        }
+
+        disconnectBtn.addEventListener('click', () => {
+            disconnect();
+        });
+
+        function disconnect() {
+            if (ws) { ws.close(); ws = null; }
+            if (xterm) { xterm.dispose(); xterm = null; }
+            token = null;
+            activeTermId = null;
+            terminals = [];
+            appScreen.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            pinDigits.forEach(d => { d.value = ''; });
+            pinDigits[0].focus();
+            errorMsg.textContent = '';
+        }
+
+        // ─── Terminals ───────────────────────────────────────────────────
+        async function loadTerminals() {
+            try {
+                const res = await fetch(`${API_BASE}/api/terminals`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (res.status === 401) {
+                    disconnect();
+                    errorMsg.textContent = 'Session expired. Please reconnect.';
+                    return;
+                }
+
+                terminals = await res.json();
+                renderTabs();
+
+                if (terminals.length > 0 && !activeTermId) {
+                    connectToTerminal(terminals[0].id);
+                }
+            } catch (err) {
+                console.error('Failed to load terminals:', err);
+            }
+        }
+
+        function renderTabs() {
+            if (terminals.length === 0) {
+                terminalTabs.innerHTML = '';
+                noTerminals.style.display = 'flex';
+                return;
+            }
+
+            noTerminals.style.display = 'none';
+            terminalTabs.innerHTML = terminals.map(t => `
+                <div class="terminal-tab ${t.id === activeTermId ? 'active' : ''}" data-id="${t.id}">
+                    ${t.id}
+                </div>
+            `).join('');
+
+            terminalTabs.querySelectorAll('.terminal-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    connectToTerminal(tab.dataset.id);
+                });
+            });
+        }
+
+        function connectToTerminal(termId) {
+            if (ws) { ws.close(); }
+            if (xterm) { xterm.dispose(); }
+
+            activeTermId = termId;
+            renderTabs();
+
+            // Create xterm instance
+            xterm = new window.Terminal({
+                theme: {
+                    background: '#0d1117',
+                    foreground: '#e6edf3',
+                    cursor: '#58a6ff',
+                    selectionBackground: '#264f78',
+                    black: '#484f58',
+                    red: '#ff7b72',
+                    green: '#3fb950',
+                    yellow: '#d29922',
+                    blue: '#58a6ff',
+                    magenta: '#bc8cff',
+                    cyan: '#39c5cf',
+                    white: '#b1bac4',
+                },
+                fontSize: 14,
+                fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+                cursorBlink: true,
+                allowProposedApi: true,
+            });
+
+            fitAddon = new window.FitAddon.FitAddon();
+            xterm.loadAddon(fitAddon);
+
+            // Clear container and mount
+            const container = document.getElementById('terminal-container');
+            container.innerHTML = '';
+            xterm.open(container);
+            fitAddon.fit();
+
+            // Connect WebSocket
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws/terminal/${termId}?token=${encodeURIComponent(token)}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                // Send initial resize
+                const dims = fitAddon.proposeDimensions();
+                if (dims) {
+                    ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+                }
+            };
+
+            ws.onmessage = (event) => {
+                xterm.write(event.data);
+            };
+
+            ws.onclose = () => {
+                xterm.write('\r\n\x1b[90m[Connection closed]\x1b[0m\r\n');
+            };
+
+            ws.onerror = () => {
+                xterm.write('\r\n\x1b[31m[Connection error]\x1b[0m\r\n');
+            };
+
+            // Forward input to WebSocket
+            xterm.onData((data) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'input', data }));
+                }
+            });
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                if (fitAddon && xterm) {
+                    fitAddon.fit();
+                    const dims = fitAddon.proposeDimensions();
+                    if (dims && ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+                    }
+                }
+            });
+        }
+
+        // Auto-refresh terminal list every 5s
+        setInterval(() => {
+            if (token) loadTerminals();
+        }, 5000);
+
+        // Focus first PIN input on load
+        pinDigits[0].focus();
+    })();
+    </script>
+</body>
+</html>

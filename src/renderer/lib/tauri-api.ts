@@ -511,6 +511,24 @@ export const discord = {
 	isConnected: (): Promise<boolean> => invoke("discord_presence_is_connected"),
 };
 
+// ─── Remote Access ───────────────────────────────────────────────────────────
+
+export interface RemoteStatus {
+	isRunning: boolean;
+	port: number;
+	pin: string;
+	localIp: string | null;
+	connectedClients: number;
+}
+
+export const remote = {
+	start: (port?: number): Promise<RemoteStatus> =>
+		invoke("remote_start", { port: port || null }),
+	stop: (): Promise<void> => invoke("remote_stop"),
+	status: (): Promise<RemoteStatus> => invoke("remote_status"),
+	regeneratePin: (): Promise<string> => invoke("remote_regenerate_pin"),
+};
+
 // ─── Combined API (drop-in replacement for window.connexio) ──────────────────
 
 export const connexioApi = {
@@ -528,6 +546,7 @@ export const connexioApi = {
 	updater,
 	notification,
 	discord,
+	remote,
 };
 
 export default connexioApi;

@@ -8,27 +8,27 @@ use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
 
 /// Terminal session entry
-struct PtySession {
-    writer: Box<dyn Write + Send>,
-    master: Box<dyn MasterPty + Send>,
-    cols: u16,
-    rows: u16,
+pub(crate) struct PtySession {
+    pub(crate) writer: Box<dyn Write + Send>,
+    pub(crate) master: Box<dyn MasterPty + Send>,
+    pub(crate) cols: u16,
+    pub(crate) rows: u16,
 }
 
-enum TerminalSession {
+pub(crate) enum TerminalSession {
     Local(PtySession),
     Ssh(SshTerminalSession),
 }
 
-struct SshTerminalSession {
-    channel: Arc<Mutex<Channel>>,
-    cols: u16,
-    rows: u16,
+pub(crate) struct SshTerminalSession {
+    pub(crate) channel: Arc<Mutex<Channel>>,
+    pub(crate) cols: u16,
+    pub(crate) rows: u16,
 }
 
 /// Global PTY manager state
 pub struct PtyManager {
-    sessions: Mutex<HashMap<String, TerminalSession>>,
+    pub(crate) sessions: Mutex<HashMap<String, TerminalSession>>,
     counter: Mutex<u32>,
 }
 

@@ -3,6 +3,7 @@ mod modules;
 use modules::notification::NotificationState;
 use modules::pty::PtyManager;
 use modules::discord::DiscordPresenceState;
+use modules::remote::RemoteAccessState;
 use tauri::Manager;
 
 #[tauri::command]
@@ -28,6 +29,7 @@ pub fn run() {
             app.manage(PtyManager::new());
             app.manage(NotificationState::new());
             app.manage(DiscordPresenceState::new());
+            app.manage(RemoteAccessState::new());
 
             // Start notification TCP server
             modules::notification::start_notification_server(&app.handle());
@@ -169,6 +171,11 @@ pub fn run() {
             modules::discord::discord_presence_disconnect,
             modules::discord::discord_presence_update,
             modules::discord::discord_presence_is_connected,
+            // Remote Access
+            modules::remote::remote_start,
+            modules::remote::remote_stop,
+            modules::remote::remote_status,
+            modules::remote::remote_regenerate_pin,
         ])
         .on_window_event(|window, event| {
             match event {

@@ -2,6 +2,7 @@ import {
 	Bell,
 	CheckCircle2,
 	Download,
+	Globe,
 	Loader2,
 	Monitor,
 	Palette,
@@ -14,12 +15,14 @@ import type { AppSettings } from "../../shared/types";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useThemeStore } from "../stores/themeStore";
 import AIIntegrationsSettings from "./AIIntegrationsSettings";
+import RemoteAccessSettings from "./RemoteAccessSettings";
 
 type SettingsTab =
 	| "general"
 	| "terminal"
 	| "appearance"
 	| "notifications"
+	| "remote"
 	| "about";
 
 const MIN_SCROLLBACK = 500;
@@ -102,6 +105,7 @@ export default function SettingsModal() {
 		{ id: "terminal", label: "Terminal", icon: <Terminal size={14} /> },
 		{ id: "appearance", label: "Appearance", icon: <Palette size={14} /> },
 		{ id: "notifications", label: "Notifications", icon: <Bell size={14} /> },
+		{ id: "remote", label: "Remote Access", icon: <Globe size={14} /> },
 		{ id: "about", label: "About", icon: <Rocket size={14} /> },
 	];
 
@@ -165,6 +169,7 @@ export default function SettingsModal() {
 							/>
 						)}
 						{activeTab === "notifications" && <NotificationsSettings />}
+						{activeTab === "remote" && <RemoteAccessSettings />}
 						{activeTab === "about" && <AboutSettings />}
 					</div>
 				</div>

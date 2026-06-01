@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "connexio"
-version = "0.4.1-dev.1"
+version = "0.4.2-dev.2"
 dependencies = [
  "dirs 5.0.1",
  "discord-rich-presence",

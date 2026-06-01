@@ -128,24 +128,24 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			const currentRows = xterm.rows;
 			if (currentCols === nextDims.cols && currentRows === nextDims.rows) return;
 
+			// Determine if user is "at the bottom" — use a small fixed threshold
+			// to avoid false positives when user has scrolled up within the viewport.
 			const buffer = xterm.buffer.active;
-			const viewportY = buffer.viewportY;
-			const distanceFromBottom = buffer.baseY - viewportY;
-			const shouldStickToBottom = distanceFromBottom <= Math.max(2, currentRows);
+			const distanceFromBottom = buffer.baseY - buffer.viewportY;
+			const shouldStickToBottom = distanceFromBottom <= 3;
 
 			fitAddon.fit();
 			window.connexio.terminal.resize(terminalId, nextDims.cols, nextDims.rows);
 
-			requestAnimationFrame(() => {
-				if (disposedRef.current || xtermRef.current !== xterm) return;
-				if (shouldStickToBottom) {
+			// Only intervene with scroll if user was at the bottom.
+			// xterm.js preserves scroll position internally on resize,
+			// so we should NOT override it when user has scrolled up.
+			if (shouldStickToBottom) {
+				requestAnimationFrame(() => {
+					if (disposedRef.current || xtermRef.current !== xterm) return;
 					xterm.scrollToBottom();
-					return;
-				}
-
-				const maxViewportY = xterm.buffer.active.baseY;
-				xterm.scrollToLine(Math.min(viewportY, maxViewportY));
-			});
+				});
+			}
 		} catch (_e) {
 			// ignore — terminal may be mid-dispose
 		}

@@ -1,6 +1,6 @@
 [package]
 name = "connexio"
-version = "0.4.2-dev.1"
+version = "0.4.2"
 description = "Connexio — Project-based Terminal Manager"
 authors = ["Connexio"]
 edition = "2021"

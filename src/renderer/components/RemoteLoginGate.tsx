@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { isRemoteMode } from "../lib/tauri-shim";
-import { authenticate, isAuthenticated, logout, getInitData } from "../lib/remote-api";
+import { authenticate, isAuthenticated, logout } from "../lib/remote-api";
 
 /**
- * Remote login gate — wraps the app and shows a PIN login screen
- * when accessed from a browser in remote mode.
+ * Remote login gate — shows PIN login when accessed from browser.
+ * After auth, WebSocket connects and state is pushed instantly.
  */
 export default function RemoteLoginGate({
 	children,
@@ -14,12 +14,10 @@ export default function RemoteLoginGate({
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 
-	// If not remote mode, just render children
 	if (!isRemoteMode()) {
 		return <>{children}</>;
 	}
 
-	// Re-check auth on mount (token might be in sessionStorage)
 	useEffect(() => {
 		setAuthed(isAuthenticated());
 	}, []);
@@ -30,8 +28,6 @@ export default function RemoteLoginGate({
 		setError("");
 		try {
 			await authenticate(pin);
-			// Pre-fetch all init data before showing the app
-			await getInitData();
 			setAuthed(true);
 		} catch (err: any) {
 			setError(err.message || "Authentication failed");

@@ -1,5 +1,4 @@
 pub mod server;
-pub mod auth;
-pub mod relay;
+pub mod protocol;
 
 pub use server::*;

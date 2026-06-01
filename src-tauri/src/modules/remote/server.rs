@@ -1,71 +1,91 @@
 use axum::{
-    extract::{ws::WebSocketUpgrade, Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query, State},
+    http::StatusCode,
     response::{Html, IntoResponse, Json},
     routing::{get, post},
     Router,
 };
-use serde::{Deserialize, Serialize};
+use futures_util::{SinkExt, StreamExt};
+use rand::Rng;
+use serde::Deserialize;
 use std::collections::HashMap;
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::{AppHandle, Listener, Manager};
-use tokio::sync::{mpsc::UnboundedSender, Mutex};
-use tower_http::services::ServeDir;
+use tokio::sync::mpsc;
+use tokio::time::{Duration, interval};
+use tower_http::services::{ServeDir, ServeFile};
 
-use super::auth::AuthState;
-use super::relay::handle_terminal_ws;
+use super::protocol::{ClientMessage, ServerMessage};
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEFAULT_PORT: u16 = 9876;
+const PIN_LENGTH: usize = 6;
+const MAX_PIN_ATTEMPTS: u32 = 5;
+const LOCKOUT_SECS: u64 = 300;
+const OUTPUT_BUFFER_INTERVAL_MS: u64 = 16; // 60fps
+const OUTPUT_FLUSH_THRESHOLD: usize = 32768; // flush immediately if buffer > 32KB
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
+/// Per-client sender for multiplexed messages
+type ClientSender = mpsc::UnboundedSender<String>;
+
 pub struct RemoteState {
-    pub auth: AuthState,
-    pub app_handle: Option<AppHandle>,
-    pub port: u16,
-    pub is_running: bool,
-    pub ws_clients: StdMutex<HashMap<String, Vec<UnboundedSender<String>>>>,
+    pin: String,
+    app_handle: Option<AppHandle>,
+    port: u16,
+    is_running: bool,
+    failed_attempts: u32,
+    lockout_until: Option<u64>,
+    /// All connected clients (client_id → sender)
+    clients: HashMap<String, ClientSender>,
+    /// Terminal output buffers: term_id → accumulated output
+    /// Flushed to all clients at 60fps
+    output_buffers: HashMap<String, String>,
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl RemoteState {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
-            auth: AuthState::new(),
+            pin: generate_pin(),
             app_handle: None,
             port: DEFAULT_PORT,
             is_running: false,
-            ws_clients: StdMutex::new(HashMap::new()),
+            failed_attempts: 0,
+            lockout_until: None,
+            clients: HashMap::new(),
+            output_buffers: HashMap::new(),
             shutdown_tx: None,
+        }
+    }
+
+    fn broadcast(&self, msg: &str) {
+        for sender in self.clients.values() {
+            let _ = sender.send(msg.to_string());
         }
     }
 }
 
-/// Managed Tauri state wrapper
+/// Tauri-managed state
 pub struct RemoteAccessState {
-    pub inner: Arc<Mutex<RemoteState>>,
-    /// Cached app handle for fast access without locking
-    pub cached_app: StdMutex<Option<AppHandle>>,
-    /// JWT secret for token verification without locking full state
-    pub jwt_secret: StdMutex<String>,
+    pub inner: Arc<StdMutex<RemoteState>>,
 }
 
 impl RemoteAccessState {
     pub fn new() -> Self {
-        let state = RemoteState::new();
-        let secret = state.auth.secret.clone();
         Self {
-            inner: Arc::new(Mutex::new(state)),
-            cached_app: StdMutex::new(None),
-            jwt_secret: StdMutex::new(secret),
+            inner: Arc::new(StdMutex::new(RemoteState::new())),
         }
     }
 }
 
-// ─── API Types ───────────────────────────────────────────────────────────────
+// ─── Tauri Commands ──────────────────────────────────────────────────────────
 
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteStatusResponse {
     pub is_running: bool,
@@ -75,765 +95,300 @@ pub struct RemoteStatusResponse {
     pub connected_clients: usize,
 }
 
-#[derive(Deserialize)]
-struct AuthRequest {
-    pin: String,
-}
-
-#[derive(Serialize)]
-#[allow(dead_code)]
-struct AuthResponse {
-    token: String,
-}
-
-#[derive(Serialize)]
-#[allow(dead_code)]
-struct ErrorResponse {
-    error: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TerminalInfo {
-    id: String,
-    session_type: String,
-}
-
-#[derive(Deserialize)]
-struct WsQuery {
-    token: String,
-}
-
-// ─── Tauri Commands ──────────────────────────────────────────────────────────
-
 #[tauri::command]
 pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteStatusResponse, String> {
     let state = app.state::<RemoteAccessState>();
-    let mut remote = state.inner.lock().await;
 
-    if remote.is_running {
-        return Err("Remote access server is already running".to_string());
+    {
+        let s = state.inner.lock().unwrap();
+        if s.is_running {
+            return Err("Remote access server is already running".to_string());
+        }
     }
 
     let port = port.unwrap_or(DEFAULT_PORT);
-    remote.port = port;
-    remote.app_handle = Some(app.clone());
 
-    // Cache for fast access
-    *state.cached_app.lock().unwrap() = Some(app.clone());
-    *state.jwt_secret.lock().unwrap() = remote.auth.secret.clone();
+    {
+        let mut s = state.inner.lock().unwrap();
+        s.port = port;
+        s.app_handle = Some(app.clone());
+        s.is_running = true;
+    }
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-    remote.shutdown_tx = Some(shutdown_tx);
+    {
+        let mut s = state.inner.lock().unwrap();
+        s.shutdown_tx = Some(shutdown_tx);
+    }
 
-    let shared_state = state.inner.clone();
+    let shared = state.inner.clone();
 
-    // Listen for terminal:data events and forward to WebSocket clients
-    let ws_state = state.inner.clone();
-    let _listener = app.listen("terminal:data", move |event| {
+    // Start output flush loop (60fps)
+    let flush_state = state.inner.clone();
+    tokio::spawn(async move {
+        let mut tick = interval(Duration::from_millis(OUTPUT_BUFFER_INTERVAL_MS));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tick.tick().await;
+            let mut s = flush_state.lock().unwrap();
+            if !s.is_running {
+                break;
+            }
+            // Flush all terminal output buffers
+            let buffers: Vec<(String, String)> = s.output_buffers
+                .drain()
+                .filter(|(_, data)| !data.is_empty())
+                .collect();
+            for (term_id, data) in buffers {
+                let msg = ServerMessage::Term { id: term_id, data };
+                let json = msg.to_json();
+                s.broadcast(&json);
+            }
+        }
+    });
+
+    // Listen for terminal:data events → buffer output
+    let data_state = state.inner.clone();
+    let _data_listener = app.listen("terminal:data", move |event| {
         let payload = event.payload();
-        // Payload is a tuple (terminal_id, data) serialized as JSON array
-        if let Ok(parsed) = serde_json::from_str::<(String, String)>(payload) {
-            let (term_id, data) = parsed;
-            if let Ok(ws_clients) = ws_state.try_lock() {
-                if let Ok(clients) = ws_clients.ws_clients.lock() {
-                    // Forward to terminal-specific WS clients
-                    if let Some(senders) = clients.get(&term_id) {
-                        for tx in senders {
-                            let _ = tx.send(data.clone());
-                        }
-                    }
-                    // Forward to sync clients (full UI mirror)
-                    if let Some(sync_senders) = clients.get("__sync__") {
-                        let msg = serde_json::json!({
-                            "type": "terminal:data",
-                            "id": term_id,
-                            "data": data
-                        }).to_string();
-                        for tx in sync_senders {
-                            let _ = tx.send(msg.clone());
-                        }
-                    }
-                }
+        if let Ok((term_id, data)) = serde_json::from_str::<(String, String)>(payload) {
+            let mut s = data_state.lock().unwrap();
+            let buffer = s.output_buffers.entry(term_id.clone()).or_default();
+            buffer.push_str(&data);
+            // Flush immediately if buffer is large
+            if buffer.len() > OUTPUT_FLUSH_THRESHOLD {
+                let flushed = std::mem::take(buffer);
+                let msg = ServerMessage::Term { id: term_id, data: flushed };
+                let json = msg.to_json();
+                s.broadcast(&json);
             }
         }
     });
 
     // Listen for terminal:exit events
-    let ws_state_exit = state.inner.clone();
+    let exit_state = state.inner.clone();
     let _exit_listener = app.listen("terminal:exit", move |event| {
         let payload = event.payload();
         if let Ok(term_id) = serde_json::from_str::<String>(payload) {
-            if let Ok(ws_clients) = ws_state_exit.try_lock() {
-                if let Ok(clients) = ws_clients.ws_clients.lock() {
-                    // Notify sync clients
-                    if let Some(sync_senders) = clients.get("__sync__") {
-                        let msg = serde_json::json!({
-                            "type": "terminal:exit",
-                            "id": term_id
-                        }).to_string();
-                        for tx in sync_senders {
-                            let _ = tx.send(msg.clone());
-                        }
-                    }
-                }
-            }
+            let s = exit_state.lock().unwrap();
+            let msg = ServerMessage::TermExit { id: term_id };
+            s.broadcast(&msg.to_json());
         }
     });
 
-    // Start the HTTP/WS server in a background task
+    // Start HTTP/WS server
     tokio::spawn(async move {
-        let app_state = shared_state.clone();
-
-        // Resolve the frontend dist directory
-        // In dev: relative to exe; in production: next to the exe
         let frontend_dir = resolve_frontend_dir();
 
-        let api_routes = Router::new()
+        let app_routes = Router::new()
             .route("/api/auth", post(handle_auth))
-            .route("/api/terminals", get(list_terminals))
-            .route("/api/terminal/create", post(create_terminal_handler))
-            .route("/api/terminal/create-command", post(create_command_handler))
-            .route("/api/terminal/create-ssh", post(create_ssh_handler))
-            .route("/api/terminal/{id}/close", post(close_terminal_handler))
-            .route("/api/projects", get(list_projects).post(add_project))
-            .route("/api/projects/update", post(update_project))
-            .route("/api/projects/reorder", post(reorder_projects))
-            .route("/api/projects/{id}", axum::routing::delete(delete_project))
-            .route("/api/settings", get(get_settings).post(set_settings))
-            .route("/api/settings/shells", get(get_shells))
-            .route("/api/settings/default-shell", get(get_default_shell))
-            .route("/api/workspace", get(get_workspace).post(save_workspace))
-            .route("/api/theme", get(get_theme).post(set_theme))
-            .route("/api/themes", get(list_themes))
-            .route("/api/version", get(get_version))
-            .route("/api/init", get(get_init_data))
-            .route("/ws/terminal/{id}", get(ws_upgrade))
-            .route("/ws/sync", get(ws_sync_upgrade))
-            .with_state(app_state);
+            .route("/ws", get(ws_upgrade))
+            .with_state(shared.clone());
 
-        // Serve frontend static files with fallback to index.html (SPA)
         let router = if frontend_dir.exists() {
-            let serve_dir = ServeDir::new(&frontend_dir)
-                .fallback(tower_http::services::ServeFile::new(frontend_dir.join("index.html")));
-            api_routes.fallback_service(serve_dir)
+            let index = frontend_dir.join("index.html");
+            let serve = ServeDir::new(&frontend_dir).fallback(ServeFile::new(index));
+            app_routes.fallback_service(serve)
         } else {
-            // Fallback: serve embedded minimal UI
-            api_routes.route("/", get(serve_fallback_index))
+            app_routes.route("/", get(serve_fallback))
         };
 
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
             Ok(l) => l,
             Err(e) => {
-                log::error!("Failed to bind remote access server: {}", e);
+                log::error!("Remote server bind failed: {}", e);
                 return;
             }
         };
 
-        log::info!("Remote access server started on port {}", port);
+        log::info!("Remote access server on port {}", port);
 
         axum::serve(listener, router)
-            .with_graceful_shutdown(async {
-                let _ = shutdown_rx.await;
-            })
+            .with_graceful_shutdown(async { let _ = shutdown_rx.await; })
             .await
             .unwrap_or_else(|e| log::error!("Remote server error: {}", e));
 
         log::info!("Remote access server stopped");
     });
 
-    remote.is_running = true;
-
-    let local_ip = local_ip_address::local_ip()
-        .ok()
-        .map(|ip| ip.to_string());
-
-    let connected = remote
-        .ws_clients
-        .lock()
-        .unwrap()
-        .values()
-        .flatten()
-        .filter(|tx| !tx.is_closed())
-        .count();
+    let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
+    let s = state.inner.lock().unwrap();
 
     Ok(RemoteStatusResponse {
         is_running: true,
         port,
-        pin: remote.auth.pin.clone(),
+        pin: s.pin.clone(),
         local_ip,
-        connected_clients: connected,
+        connected_clients: s.clients.len(),
     })
 }
 
 #[tauri::command]
 pub async fn remote_stop(app: AppHandle) -> Result<(), String> {
     let state = app.state::<RemoteAccessState>();
-    let mut remote = state.inner.lock().await;
+    let mut s = state.inner.lock().unwrap();
 
-    if !remote.is_running {
-        return Err("Remote access server is not running".to_string());
+    if !s.is_running {
+        return Err("Server not running".to_string());
     }
 
-    if let Some(tx) = remote.shutdown_tx.take() {
+    if let Some(tx) = s.shutdown_tx.take() {
         let _ = tx.send(());
     }
 
-    remote.is_running = false;
-    remote.ws_clients.lock().unwrap().clear();
-
-    log::info!("Remote access server stopped by user");
+    s.is_running = false;
+    s.clients.clear();
+    s.output_buffers.clear();
     Ok(())
 }
 
 #[tauri::command]
 pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, String> {
     let state = app.state::<RemoteAccessState>();
-    let remote = state.inner.lock().await;
-
-    let local_ip = local_ip_address::local_ip()
-        .ok()
-        .map(|ip| ip.to_string());
-
-    let connected = remote
-        .ws_clients
-        .lock()
-        .unwrap()
-        .values()
-        .flatten()
-        .filter(|tx| !tx.is_closed())
-        .count();
+    let s = state.inner.lock().unwrap();
+    let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
 
     Ok(RemoteStatusResponse {
-        is_running: remote.is_running,
-        port: remote.port,
-        pin: remote.auth.pin.clone(),
+        is_running: s.is_running,
+        port: s.port,
+        pin: s.pin.clone(),
         local_ip,
-        connected_clients: connected,
+        connected_clients: s.clients.len(),
     })
 }
 
 #[tauri::command]
 pub async fn remote_regenerate_pin(app: AppHandle) -> Result<String, String> {
     let state = app.state::<RemoteAccessState>();
-    let mut remote = state.inner.lock().await;
-    remote.auth.regenerate_pin();
-    *state.jwt_secret.lock().unwrap() = remote.auth.secret.clone();
-    Ok(remote.auth.pin.clone())
+    let mut s = state.inner.lock().unwrap();
+    s.pin = generate_pin();
+    s.failed_attempts = 0;
+    s.lockout_until = None;
+    Ok(s.pin.clone())
 }
 
-// ─── Axum Handlers ──────────────────────────────────────────────────────────
+// ─── HTTP Handlers ───────────────────────────────────────────────────────────
 
-/// Resolve the frontend dist directory path
-fn resolve_frontend_dir() -> std::path::PathBuf {
-    // Try relative to executable first (production)
-    if let Ok(exe) = std::env::current_exe() {
-        let exe_dir = exe.parent().unwrap_or(std::path::Path::new("."));
-        // Windows: exe is in the same dir as the frontend
-        let candidate = exe_dir.join("dist").join("renderer");
-        if candidate.exists() {
-            return candidate;
-        }
-        // Dev mode: relative to project root
-        let candidate = exe_dir.join("../../../dist/renderer");
-        if candidate.exists() {
-            return candidate;
-        }
-    }
-    // Fallback: relative to CWD
-    std::path::PathBuf::from("dist/renderer")
+#[derive(Deserialize)]
+struct AuthRequest {
+    pin: String,
 }
 
-async fn serve_fallback_index() -> Html<&'static str> {
-    Html(include_str!("../../../remote-ui/index.html"))
+#[derive(Deserialize)]
+struct WsQueryParams {
+    pin: String,
 }
 
 async fn handle_auth(
-    State(state): State<Arc<Mutex<RemoteState>>>,
+    State(state): State<Arc<StdMutex<RemoteState>>>,
     Json(body): Json<AuthRequest>,
 ) -> impl IntoResponse {
-    let mut remote = state.lock().await;
-    match remote.auth.verify_pin(&body.pin) {
-        Ok(token) => (StatusCode::OK, Json(serde_json::json!({ "token": token }))).into_response(),
-        Err(err) => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": err })),
-        )
-            .into_response(),
+    let mut s = state.lock().unwrap();
+
+    // Check lockout
+    let now = now_secs();
+    if let Some(until) = s.lockout_until {
+        if now < until {
+            return (StatusCode::TOO_MANY_REQUESTS, Json(serde_json::json!({
+                "error": format!("Locked out. Try again in {} seconds.", until - now)
+            }))).into_response();
+        }
+        s.lockout_until = None;
+        s.failed_attempts = 0;
+    }
+
+    if body.pin == s.pin {
+        s.failed_attempts = 0;
+        (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response()
+    } else {
+        s.failed_attempts += 1;
+        if s.failed_attempts >= MAX_PIN_ATTEMPTS {
+            s.lockout_until = Some(now + LOCKOUT_SECS);
+            (StatusCode::TOO_MANY_REQUESTS, Json(serde_json::json!({
+                "error": "Too many attempts. Locked for 5 minutes."
+            }))).into_response()
+        } else {
+            let remaining = MAX_PIN_ATTEMPTS - s.failed_attempts;
+            (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+                "error": format!("Invalid PIN. {} attempts left.", remaining)
+            }))).into_response()
+        }
     }
 }
-
-// ─── Auth middleware helper ──────────────────────────────────────────────────
-
-fn extract_token(headers: &HeaderMap) -> Option<&str> {
-    headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-}
-
-async fn verify_auth(
-    state: &Arc<Mutex<RemoteState>>,
-    headers: &HeaderMap,
-) -> Result<AppHandle, (StatusCode, Json<serde_json::Value>)> {
-    let token = extract_token(headers).ok_or((
-        StatusCode::UNAUTHORIZED,
-        Json(serde_json::json!({ "error": "Unauthorized" })),
-    ))?;
-
-    // Fast path: verify token without async lock
-    let remote = state.lock().await;
-    if !remote.auth.verify_token(token) {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": "Unauthorized" })),
-        ));
-    }
-    remote.app_handle.clone().ok_or((
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(serde_json::json!({ "error": "App not initialized" })),
-    ))
-}
-
-// ─── Terminal Handlers ───────────────────────────────────────────────────────
-
-async fn list_terminals(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let pty_mgr = app.state::<crate::modules::pty::PtyManager>();
-    let sessions = pty_mgr.sessions.lock().unwrap();
-    let terminals: Vec<TerminalInfo> = sessions
-        .keys()
-        .map(|id| TerminalInfo {
-            id: id.clone(),
-            session_type: "local".to_string(),
-        })
-        .collect();
-
-    (StatusCode::OK, Json(serde_json::json!(terminals))).into_response()
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateTerminalRequest {
-    project_path: String,
-    shell: Option<String>,
-    context: Option<crate::modules::pty::TerminalContext>,
-}
-
-async fn create_terminal_handler(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(body): Json<CreateTerminalRequest>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    match crate::modules::pty::terminal_create(app, body.project_path, body.shell, body.context) {
-        Ok(id) => (StatusCode::OK, Json(serde_json::json!(id))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))).into_response(),
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateCommandRequest {
-    project_path: String,
-    command: Vec<String>,
-    context: Option<crate::modules::pty::TerminalContext>,
-}
-
-async fn create_command_handler(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(body): Json<CreateCommandRequest>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    match crate::modules::pty::terminal_create_command(app, body.project_path, body.command, body.context) {
-        Ok(id) => (StatusCode::OK, Json(serde_json::json!(id))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))).into_response(),
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateSshRequest {
-    connection: crate::modules::ssh::SSHConnection,
-    password: Option<String>,
-    cols: Option<u16>,
-    rows: Option<u16>,
-}
-
-async fn create_ssh_handler(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(body): Json<CreateSshRequest>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    match crate::modules::pty::terminal_create_ssh(app, body.connection, body.password, body.cols, body.rows) {
-        Ok(id) => (StatusCode::OK, Json(serde_json::json!(id))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))).into_response(),
-    }
-}
-
-async fn close_terminal_handler(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    match crate::modules::pty::terminal_close(app, id) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!(null))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))).into_response(),
-    }
-}
-
-// ─── Project Handlers ────────────────────────────────────────────────────────
-
-async fn list_projects(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let projects = crate::modules::projects::projects_list(app);
-    (StatusCode::OK, Json(serde_json::json!(projects))).into_response()
-}
-
-async fn add_project(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(project): Json<crate::modules::projects::Project>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let projects = crate::modules::projects::projects_add(app, project);
-    (StatusCode::OK, Json(serde_json::json!(projects))).into_response()
-}
-
-async fn update_project(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(project): Json<crate::modules::projects::Project>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let projects = crate::modules::projects::projects_update(app, project);
-    (StatusCode::OK, Json(serde_json::json!(projects))).into_response()
-}
-
-#[derive(Deserialize)]
-struct ReorderRequest {
-    ids: Vec<String>,
-}
-
-async fn reorder_projects(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(body): Json<ReorderRequest>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let projects = crate::modules::projects::projects_reorder(app, body.ids);
-    (StatusCode::OK, Json(serde_json::json!(projects))).into_response()
-}
-
-async fn delete_project(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let projects = crate::modules::projects::projects_delete(app, id);
-    (StatusCode::OK, Json(serde_json::json!(projects))).into_response()
-}
-
-// ─── Settings Handlers ───────────────────────────────────────────────────────
-
-async fn get_settings(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let s = crate::modules::settings::settings_get(app);
-    (StatusCode::OK, Json(serde_json::json!(s))).into_response()
-}
-
-async fn set_settings(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(settings): Json<crate::modules::settings::AppSettings>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let s = crate::modules::settings::settings_set(app, settings);
-    (StatusCode::OK, Json(serde_json::json!(s))).into_response()
-}
-
-async fn get_shells(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let _ = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let shells = crate::modules::settings::settings_get_shells();
-    (StatusCode::OK, Json(serde_json::json!(shells))).into_response()
-}
-
-async fn get_default_shell(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let shell = crate::modules::settings::settings_get_default_shell(app);
-    (StatusCode::OK, Json(serde_json::json!(shell))).into_response()
-}
-
-// ─── Workspace Handlers ──────────────────────────────────────────────────────
-
-async fn get_workspace(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let ws = crate::modules::workspace::workspace_get_state(app);
-    (StatusCode::OK, Json(serde_json::json!(ws))).into_response()
-}
-
-async fn save_workspace(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(ws_state): Json<crate::modules::workspace::WorkspaceState>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    crate::modules::workspace::workspace_save_state(app, ws_state);
-    (StatusCode::OK, Json(serde_json::json!(null))).into_response()
-}
-
-// ─── Theme Handlers ──────────────────────────────────────────────────────────
-
-async fn get_theme(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let t = crate::modules::theme::theme_get(app);
-    (StatusCode::OK, Json(serde_json::json!(t))).into_response()
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SetThemeRequest {
-    theme_id: String,
-}
-
-async fn set_theme(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-    Json(body): Json<SetThemeRequest>,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    crate::modules::theme::theme_set(app, body.theme_id);
-    (StatusCode::OK, Json(serde_json::json!(null))).into_response()
-}
-
-async fn list_themes(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let _ = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let themes = crate::modules::theme::theme_list();
-    (StatusCode::OK, Json(serde_json::json!(themes))).into_response()
-}
-
-// ─── App Handlers ────────────────────────────────────────────────────────────
-
-async fn get_version(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let _ = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let version = env!("CARGO_PKG_VERSION").to_string();
-    (StatusCode::OK, Json(serde_json::json!(version))).into_response()
-}
-
-/// Batch endpoint: returns projects, settings, workspace, themes, shells in one request
-async fn get_init_data(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let app = match verify_auth(&state, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e.into_response(),
-    };
-
-    let projects = crate::modules::projects::projects_list(app.clone());
-    let settings = crate::modules::settings::settings_get(app.clone());
-    let workspace = crate::modules::workspace::workspace_get_state(app.clone());
-    let theme = crate::modules::theme::theme_get(app.clone());
-    let themes = crate::modules::theme::theme_list();
-    let shells = crate::modules::settings::settings_get_shells();
-    let version = env!("CARGO_PKG_VERSION").to_string();
-
-    (StatusCode::OK, Json(serde_json::json!({
-        "projects": projects,
-        "settings": settings,
-        "workspace": workspace,
-        "theme": theme,
-        "themes": themes,
-        "shells": shells,
-        "version": version,
-    }))).into_response()
-}
-
-// ─── WebSocket Handlers ──────────────────────────────────────────────────────
 
 async fn ws_upgrade(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    Path(id): Path<String>,
-    Query(query): Query<WsQuery>,
+    State(state): State<Arc<StdMutex<RemoteState>>>,
+    Query(params): Query<WsQueryParams>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    let remote = state.lock().await;
-    if !remote.auth.verify_token(&query.token) {
-        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
-    }
-    drop(remote);
-
-    ws.on_upgrade(move |socket| handle_terminal_ws(socket, id, state))
-        .into_response()
-}
-
-/// Sync WebSocket — streams terminal data and state events to remote clients
-async fn ws_sync_upgrade(
-    State(state): State<Arc<Mutex<RemoteState>>>,
-    Query(query): Query<WsQuery>,
-    ws: WebSocketUpgrade,
-) -> impl IntoResponse {
-    let remote = state.lock().await;
-    if !remote.auth.verify_token(&query.token) {
-        return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
-    }
-    drop(remote);
-
-    ws.on_upgrade(move |socket| handle_sync_ws(socket, state))
-        .into_response()
-}
-
-/// Handle the sync WebSocket — broadcasts all terminal data to this client
-async fn handle_sync_ws(
-    socket: axum::extract::ws::WebSocket,
-    state: Arc<Mutex<RemoteState>>,
-) {
-    use futures_util::{SinkExt, StreamExt};
-    use axum::extract::ws::Message;
-
-    let (mut ws_sender, mut ws_receiver) = socket.split();
-
-    // Create a channel for this sync client
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-
-    // Register as a "sync" client that receives ALL terminal data
+    // Verify PIN
     {
-        let remote = state.lock().await;
-        remote
-            .ws_clients
-            .lock()
-            .unwrap()
-            .entry("__sync__".to_string())
-            .or_insert_with(Vec::new)
-            .push(tx);
+        let s = state.lock().unwrap();
+        if params.pin != s.pin {
+            return (StatusCode::UNAUTHORIZED, "Invalid PIN").into_response();
+        }
     }
 
-    // Forward messages to WebSocket
+    ws.on_upgrade(move |socket| handle_ws_client(socket, state))
+        .into_response()
+}
+
+async fn serve_fallback() -> Html<&'static str> {
+    Html(include_str!("../../../remote-ui/index.html"))
+}
+
+// ─── WebSocket Client Handler ────────────────────────────────────────────────
+
+async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>) {
+    let (mut ws_tx, mut ws_rx) = socket.split();
+    let (client_tx, mut client_rx) = mpsc::unbounded_channel::<String>();
+
+    let client_id = uuid::Uuid::new_v4().to_string();
+
+    // Register client & get app handle
+    let app_handle = {
+        let mut s = state.lock().unwrap();
+        s.clients.insert(client_id.clone(), client_tx);
+        s.app_handle.clone()
+    };
+
+    let Some(app) = app_handle else {
+        let _ = ws_tx.send(Message::Text(
+            ServerMessage::Error { req_id: None, error: "Server not ready".into() }.to_json().into()
+        )).await;
+        return;
+    };
+
+    // Send initial state immediately
+    let init_data = gather_init_state(&app);
+    let init_msg = ServerMessage::State { data: init_data };
+    let _ = ws_tx.send(Message::Text(init_msg.to_json().into())).await;
+
+    // Task: forward server messages to WebSocket
     let send_task = tokio::spawn(async move {
-        while let Some(data) = rx.recv().await {
-            if ws_sender.send(Message::Text(data.into())).await.is_err() {
+        while let Some(msg) = client_rx.recv().await {
+            if ws_tx.send(Message::Text(msg.into())).await.is_err() {
                 break;
             }
         }
     });
 
-    // Keep connection alive by reading (handle pings/close)
+    // Task: handle incoming messages from client
+    let recv_state = state.clone();
+    let recv_app = app.clone();
+    let recv_client_id = client_id.clone();
     let recv_task = tokio::spawn(async move {
-        while let Some(Ok(msg)) = ws_receiver.next().await {
-            if matches!(msg, Message::Close(_)) {
-                break;
+        while let Some(Ok(msg)) = ws_rx.next().await {
+            match msg {
+                Message::Text(text) => {
+                    let text_str: &str = &text;
+                    if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
+                        handle_client_message(client_msg, &recv_app, &recv_state, &recv_client_id);
+                    }
+                }
+                Message::Close(_) => break,
+                _ => {}
             }
         }
     });
@@ -842,4 +397,165 @@ async fn handle_sync_ws(
         _ = send_task => {},
         _ = recv_task => {},
     }
+
+    // Cleanup
+    let mut s = state.lock().unwrap();
+    s.clients.remove(&client_id);
+}
+
+fn handle_client_message(
+    msg: ClientMessage,
+    app: &AppHandle,
+    state: &Arc<StdMutex<RemoteState>>,
+    client_id: &str,
+) {
+    let pty = app.state::<crate::modules::pty::PtyManager>();
+
+    match msg {
+        ClientMessage::TermInput { id, data } => {
+            let mut sessions = pty.sessions.lock().unwrap();
+            if let Some(session) = sessions.get_mut(&id) {
+                let _ = write_session(session, data.as_bytes());
+            }
+        }
+        ClientMessage::TermResize { id, cols, rows } => {
+            if cols == 0 || rows == 0 { return; }
+            let mut sessions = pty.sessions.lock().unwrap();
+            if let Some(session) = sessions.get_mut(&id) {
+                let _ = resize_session(session, cols, rows);
+            }
+        }
+        ClientMessage::CmdCreateTerminal { req_id, project_path, shell, context } => {
+            let ctx = context.map(|c| c.into());
+            match crate::modules::pty::terminal_create(app.clone(), project_path, shell, ctx) {
+                Ok(id) => {
+                    let msg = ServerMessage::TermCreated { req_id, id };
+                    send_to_client(state, client_id, &msg.to_json());
+                }
+                Err(e) => {
+                    let msg = ServerMessage::Error { req_id, error: e };
+                    send_to_client(state, client_id, &msg.to_json());
+                }
+            }
+        }
+        ClientMessage::CmdCreateCommand { req_id, project_path, command, context } => {
+            let ctx = context.map(|c| c.into());
+            match crate::modules::pty::terminal_create_command(app.clone(), project_path, command, ctx) {
+                Ok(id) => {
+                    let msg = ServerMessage::TermCreated { req_id, id };
+                    send_to_client(state, client_id, &msg.to_json());
+                }
+                Err(e) => {
+                    let msg = ServerMessage::Error { req_id, error: e };
+                    send_to_client(state, client_id, &msg.to_json());
+                }
+            }
+        }
+        ClientMessage::CmdCloseTerminal { id } => {
+            let _ = crate::modules::pty::terminal_close(app.clone(), id);
+        }
+        ClientMessage::CmdRefresh => {
+            let data = gather_init_state(app);
+            let msg = ServerMessage::State { data };
+            send_to_client(state, client_id, &msg.to_json());
+        }
+    }
+}
+
+fn send_to_client(state: &Arc<StdMutex<RemoteState>>, client_id: &str, msg: &str) {
+    let s = state.lock().unwrap();
+    if let Some(tx) = s.clients.get(client_id) {
+        let _ = tx.send(msg.to_string());
+    }
+}
+
+// ─── State Gathering ─────────────────────────────────────────────────────────
+
+fn gather_init_state(app: &AppHandle) -> serde_json::Value {
+    let projects = crate::modules::projects::projects_list(app.clone());
+    let settings = crate::modules::settings::settings_get(app.clone());
+    let workspace = crate::modules::workspace::workspace_get_state(app.clone());
+    let theme = crate::modules::theme::theme_get(app.clone());
+    let themes = crate::modules::theme::theme_list();
+    let shells = crate::modules::settings::settings_get_shells();
+    let version = env!("CARGO_PKG_VERSION");
+
+    // Get active terminal IDs
+    let pty = app.state::<crate::modules::pty::PtyManager>();
+    let sessions = pty.sessions.lock().unwrap();
+    let terminals: Vec<&String> = sessions.keys().collect();
+
+    serde_json::json!({
+        "projects": projects,
+        "settings": settings,
+        "workspace": workspace,
+        "theme": theme,
+        "themes": themes,
+        "shells": shells,
+        "version": version,
+        "terminals": terminals,
+    })
+}
+
+// ─── PTY Helpers ─────────────────────────────────────────────────────────────
+
+fn write_session(session: &mut crate::modules::pty::TerminalSession, data: &[u8]) -> Result<(), String> {
+    match session {
+        crate::modules::pty::TerminalSession::Local(s) => {
+            s.writer.write_all(data).map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        crate::modules::pty::TerminalSession::Ssh(s) => {
+            let mut ch = s.channel.lock().map_err(|_| "lock poisoned")?;
+            ch.write_all(data).map_err(|e| e.to_string())?;
+            ch.flush().map_err(|e| e.to_string())?;
+            Ok(())
+        }
+    }
+}
+
+fn resize_session(session: &mut crate::modules::pty::TerminalSession, cols: u16, rows: u16) -> Result<(), String> {
+    use portable_pty::PtySize;
+    match session {
+        crate::modules::pty::TerminalSession::Local(s) => {
+            s.master.resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+                .map_err(|e| e.to_string())?;
+            s.cols = cols;
+            s.rows = rows;
+            Ok(())
+        }
+        crate::modules::pty::TerminalSession::Ssh(s) => {
+            let mut ch = s.channel.lock().map_err(|_| "lock poisoned")?;
+            ch.request_pty_size(cols as u32, rows as u32, None, None)
+                .map_err(|e| e.to_string())?;
+            s.cols = cols;
+            s.rows = rows;
+            Ok(())
+        }
+    }
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+fn generate_pin() -> String {
+    let mut rng = rand::thread_rng();
+    format!("{:0>width$}", rng.gen_range(0..10u32.pow(PIN_LENGTH as u32)), width = PIN_LENGTH)
+}
+
+fn resolve_frontend_dir() -> std::path::PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        let dir = exe.parent().unwrap_or(std::path::Path::new("."));
+        let candidate = dir.join("dist").join("renderer");
+        if candidate.exists() { return candidate; }
+        let candidate = dir.join("../../../dist/renderer");
+        if candidate.exists() { return candidate; }
+    }
+    std::path::PathBuf::from("dist/renderer")
+}
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }

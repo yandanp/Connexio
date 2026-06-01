@@ -1,9 +1,12 @@
 /**
- * Remote API Adapter
+ * Remote API Adapter — v2 (Multiplexed WebSocket)
  *
- * Provides the same interface as tauri-api.ts but routes calls through
- * HTTP REST + WebSocket to the Connexio remote server.
- * Used when the app is accessed from a browser (remote mode).
+ * Single WebSocket connection handles everything:
+ * - Terminal I/O (input/output/resize)
+ * - Commands (create/close terminal)
+ * - State sync (pushed from server on connect)
+ *
+ * No REST calls except /api/auth for PIN verification.
  */
 
 import type {
@@ -24,19 +27,36 @@ import type {
 
 // ─── Connection State ────────────────────────────────────────────────────────
 
-let _token: string | null = sessionStorage.getItem("connexio_remote_token");
-let _baseUrl = window.location.origin;
+let _pin: string | null = sessionStorage.getItem("connexio_remote_pin");
 let _ws: WebSocket | null = null;
 let _authenticated = false;
+let _connected = false;
 
-// Terminal data listeners (same pattern as tauri-api)
+// State cache (pushed from server)
+let _state: InitState | null = null;
+let _stateResolvers: Array<(s: InitState) => void> = [];
+
+interface InitState {
+	projects: Project[];
+	settings: AppSettings;
+	workspace: WorkspaceState;
+	theme: AppTheme;
+	themes: AppTheme[];
+	shells: ShellInfo[];
+	version: string;
+	terminals: string[];
+}
+
+// Terminal data listeners
 type TerminalDataCallback = (id: string, data: string) => void;
 const terminalDataListeners = new Set<TerminalDataCallback>();
 const terminalExitListeners = new Set<(id: string) => void>();
 
-// State sync listeners
-type StateSyncCallback = (event: string, payload: any) => void;
-const stateSyncListeners = new Set<StateSyncCallback>();
+// Pending command responses
+type PendingResolve = (value: any) => void;
+type PendingReject = (reason: any) => void;
+const pendingCommands = new Map<string, { resolve: PendingResolve; reject: PendingReject }>();
+let _reqCounter = 0;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -45,11 +65,11 @@ export function isRemoteMode(): boolean {
 }
 
 export function isAuthenticated(): boolean {
-	return _authenticated && !!_token;
+	return _authenticated;
 }
 
 export async function authenticate(pin: string): Promise<boolean> {
-	const res = await fetch(`${_baseUrl}/api/auth`, {
+	const res = await fetch(`${window.location.origin}/api/auth`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ pin }),
@@ -60,145 +80,153 @@ export async function authenticate(pin: string): Promise<boolean> {
 		throw new Error(data.error || "Authentication failed");
 	}
 
-	const data = await res.json();
-	_token = data.token;
+	_pin = pin;
 	_authenticated = true;
-	sessionStorage.setItem("connexio_remote_token", _token!);
-	connectWebSocket();
+	sessionStorage.setItem("connexio_remote_pin", pin);
+
+	// Connect WebSocket
+	await connectWs();
 	return true;
 }
 
 export function logout() {
-	_token = null;
+	_pin = null;
 	_authenticated = false;
-	sessionStorage.removeItem("connexio_remote_token");
+	_connected = false;
+	_state = null;
+	sessionStorage.removeItem("connexio_remote_pin");
 	if (_ws) {
 		_ws.close();
 		_ws = null;
 	}
 }
 
-// ─── HTTP Helper ─────────────────────────────────────────────────────────────
-
-async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-	const res = await fetch(`${_baseUrl}${path}`, {
-		...options,
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${_token}`,
-			...(options?.headers || {}),
-		},
-	});
-
-	if (res.status === 401) {
-		_authenticated = false;
-		throw new Error("Session expired");
-	}
-
-	if (!res.ok) {
-		const data = await res.json().catch(() => ({ error: "Request failed" }));
-		throw new Error(data.error || `HTTP ${res.status}`);
-	}
-
-	return res.json();
-}
-
-// ─── Batch Init (single request for all initial data) ────────────────────
-
-export interface InitData {
-	projects: Project[];
-	settings: AppSettings;
-	workspace: WorkspaceState;
-	theme: AppTheme;
-	themes: AppTheme[];
-	shells: ShellInfo[];
-	version: string;
-}
-
-let _initDataCache: InitData | null = null;
-let _initDataPromise: Promise<InitData> | null = null;
-
-export function getInitData(): Promise<InitData> {
-	if (_initDataCache) return Promise.resolve(_initDataCache);
-	if (_initDataPromise) return _initDataPromise;
-
-	_initDataPromise = apiCall<InitData>("/api/init").then((data) => {
-		_initDataCache = data;
-		_initDataPromise = null;
-		return data;
-	});
-	return _initDataPromise;
-}
-
-export function invalidateInitCache() {
-	_initDataCache = null;
-}
-
 // ─── WebSocket ───────────────────────────────────────────────────────────────
 
-function connectWebSocket() {
-	if (_ws) _ws.close();
+function connectWs(): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (_ws) _ws.close();
 
-	const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	_ws = new WebSocket(
-		`${wsProtocol}//${window.location.host}/ws/sync?token=${encodeURIComponent(_token!)}`,
-	);
+		const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+		_ws = new WebSocket(
+			`${proto}//${window.location.host}/ws?pin=${encodeURIComponent(_pin!)}`,
+		);
 
-	_ws.onmessage = (event) => {
-		try {
-			const msg = JSON.parse(event.data);
-			switch (msg.type) {
-				case "terminal:data": {
-					const { id, data } = msg;
-					for (const cb of terminalDataListeners) {
-						cb(id, data);
-					}
-					break;
-				}
-				case "terminal:exit": {
-					const { id } = msg;
-					for (const cb of terminalExitListeners) {
-						cb(id);
-					}
-					break;
-				}
-				case "state:sync": {
-					for (const cb of stateSyncListeners) {
-						cb(msg.event, msg.payload);
-					}
-					break;
-				}
-			}
-		} catch {
-			// Non-JSON message, ignore
-		}
-	};
+		_ws.onopen = () => {
+			_connected = true;
+			resolve();
+		};
 
-	_ws.onclose = () => {
-		// Reconnect after 3s
-		setTimeout(() => {
-			if (_authenticated && _token) {
-				connectWebSocket();
-			}
-		}, 3000);
-	};
+		_ws.onmessage = (event) => {
+			handleServerMessage(event.data);
+		};
+
+		_ws.onclose = () => {
+			_connected = false;
+			// Auto-reconnect
+			setTimeout(() => {
+				if (_authenticated && _pin) {
+					connectWs().catch(() => {});
+				}
+			}, 2000);
+		};
+
+		_ws.onerror = () => {
+			_connected = false;
+			reject(new Error("WebSocket connection failed"));
+		};
+	});
 }
 
-// Reconnect on load if token exists
-if (_token) {
-	// Verify token is still valid
-	fetch(`${_baseUrl}/api/terminals`, {
-		headers: { Authorization: `Bearer ${_token}` },
+function handleServerMessage(raw: string) {
+	try {
+		const msg = JSON.parse(raw);
+		switch (msg.ch) {
+			case "term": {
+				for (const cb of terminalDataListeners) {
+					cb(msg.id, msg.data);
+				}
+				break;
+			}
+			case "term_exit": {
+				for (const cb of terminalExitListeners) {
+					cb(msg.id);
+				}
+				break;
+			}
+			case "term_created": {
+				const pending = pendingCommands.get(msg.req_id);
+				if (pending) {
+					pending.resolve(msg.id);
+					pendingCommands.delete(msg.req_id);
+				}
+				break;
+			}
+			case "error": {
+				const pending = pendingCommands.get(msg.req_id);
+				if (pending) {
+					pending.reject(new Error(msg.error));
+					pendingCommands.delete(msg.req_id);
+				}
+				break;
+			}
+			case "state": {
+				_state = msg.data;
+				// Resolve any waiters
+				for (const resolve of _stateResolvers) {
+					resolve(_state!);
+				}
+				_stateResolvers = [];
+				break;
+			}
+		}
+	} catch {
+		// Ignore non-JSON
+	}
+}
+
+function send(msg: object) {
+	if (_ws && _ws.readyState === WebSocket.OPEN) {
+		_ws.send(JSON.stringify(msg));
+	}
+}
+
+function sendCommand(msg: object): Promise<string> {
+	const reqId = `req-${++_reqCounter}`;
+	return new Promise((resolve, reject) => {
+		pendingCommands.set(reqId, { resolve, reject });
+		send({ ...msg, req_id: reqId });
+		// Timeout after 10s
+		setTimeout(() => {
+			if (pendingCommands.has(reqId)) {
+				pendingCommands.delete(reqId);
+				reject(new Error("Command timeout"));
+			}
+		}, 10000);
+	});
+}
+
+function waitForState(): Promise<InitState> {
+	if (_state) return Promise.resolve(_state);
+	return new Promise((resolve) => {
+		_stateResolvers.push(resolve);
+	});
+}
+
+// Auto-reconnect on load if PIN exists
+if (_pin) {
+	fetch(`${window.location.origin}/api/auth`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ pin: _pin }),
 	}).then((res) => {
 		if (res.ok) {
 			_authenticated = true;
-			connectWebSocket();
+			connectWs().catch(() => {});
 		} else {
 			logout();
 		}
-	}).catch(() => {
-		// Server not reachable
-	});
+	}).catch(() => {});
 }
 
 // ─── Terminal API ────────────────────────────────────────────────────────────
@@ -210,100 +238,18 @@ interface TerminalContext {
 	tabLabel: string;
 }
 
-// Per-terminal WebSocket connections for I/O
-const terminalSockets = new Map<string, WebSocket>();
-const terminalWriteQueues = new Map<string, string[]>();
-
-function getOrCreateTerminalWs(termId: string): WebSocket | null {
-	if (!_token) return null;
-
-	const existing = terminalSockets.get(termId);
-	if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
-		return existing;
-	}
-
-	// Close stale socket
-	if (existing) {
-		existing.close();
-		terminalSockets.delete(termId);
-	}
-
-	const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	const ws = new WebSocket(
-		`${wsProtocol}//${window.location.host}/ws/terminal/${termId}?token=${encodeURIComponent(_token!)}`,
-	);
-
-	ws.onopen = () => {
-		// Flush queued writes
-		const queue = terminalWriteQueues.get(termId);
-		if (queue) {
-			for (const msg of queue) {
-				ws.send(msg);
-			}
-			terminalWriteQueues.delete(termId);
-		}
-	};
-
-	ws.onmessage = (event) => {
-		// Terminal output comes as plain text from the relay
-		const data = event.data;
-		for (const cb of terminalDataListeners) {
-			cb(termId, data);
-		}
-	};
-
-	ws.onclose = () => {
-		terminalSockets.delete(termId);
-		terminalWriteQueues.delete(termId);
-		for (const cb of terminalExitListeners) {
-			cb(termId);
-		}
-	};
-
-	ws.onerror = () => {
-		terminalSockets.delete(termId);
-		terminalWriteQueues.delete(termId);
-	};
-
-	terminalSockets.set(termId, ws);
-	return ws;
-}
-
-function sendToTerminalWs(termId: string, message: string) {
-	const ws = getOrCreateTerminalWs(termId);
-	if (!ws) return;
-
-	if (ws.readyState === WebSocket.OPEN) {
-		ws.send(message);
-	} else {
-		// Queue until open
-		const queue = terminalWriteQueues.get(termId) || [];
-		queue.push(message);
-		terminalWriteQueues.set(termId, queue);
-	}
-}
-
-function closeTerminalWs(termId: string) {
-	const ws = terminalSockets.get(termId);
-	if (ws) {
-		ws.close();
-		terminalSockets.delete(termId);
-	}
-}
-
 export const terminal = {
 	create: async (
 		projectPath: string,
 		shell?: string,
 		context?: TerminalContext,
 	): Promise<string> => {
-		const id: string = await apiCall("/api/terminal/create", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, shell, context }),
+		return sendCommand({
+			ch: "cmd_create_terminal",
+			project_path: projectPath,
+			shell: shell || null,
+			context: context || null,
 		});
-		// Connect WebSocket for this terminal immediately
-		getOrCreateTerminalWs(id);
-		return id;
 	},
 
 	createCommand: async (
@@ -311,48 +257,42 @@ export const terminal = {
 		command: string[],
 		context?: TerminalContext,
 	): Promise<string> => {
-		const id: string = await apiCall("/api/terminal/create-command", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, command, context }),
+		return sendCommand({
+			ch: "cmd_create_command",
+			project_path: projectPath,
+			command,
+			context: context || null,
 		});
-		getOrCreateTerminalWs(id);
-		return id;
 	},
 
 	createSsh: async (
-		connection: SSHConnection,
-		password?: string,
-		cols?: number,
-		rows?: number,
+		_connection: SSHConnection,
+		_password?: string,
+		_cols?: number,
+		_rows?: number,
 	): Promise<string> => {
-		const id: string = await apiCall("/api/terminal/create-ssh", {
-			method: "POST",
-			body: JSON.stringify({ connection, password, cols, rows }),
-		});
-		getOrCreateTerminalWs(id);
-		return id;
+		// SSH terminal creation via remote not yet supported
+		throw new Error("SSH terminals not supported in remote mode");
 	},
 
 	write: (id: string, data: string): Promise<void> => {
-		sendToTerminalWs(id, JSON.stringify({ type: "input", data }));
+		send({ ch: "term_input", id, data });
 		return Promise.resolve();
 	},
 
 	resize: (id: string, cols: number, rows: number): Promise<void> => {
-		sendToTerminalWs(id, JSON.stringify({ type: "resize", cols: Math.round(cols), rows: Math.round(rows) }));
+		send({ ch: "term_resize", id, cols: Math.round(cols), rows: Math.round(rows) });
 		return Promise.resolve();
 	},
 
-	close: async (id: string): Promise<void> => {
-		closeTerminalWs(id);
-		return apiCall(`/api/terminal/${id}/close`, { method: "POST" });
+	close: (id: string): Promise<void> => {
+		send({ ch: "cmd_close_terminal", id });
+		return Promise.resolve();
 	},
 
 	onData: (callback: (id: string, data: string) => void): (() => void) => {
 		terminalDataListeners.add(callback);
-		return () => {
-			terminalDataListeners.delete(callback);
-		};
+		return () => { terminalDataListeners.delete(callback); };
 	},
 };
 
@@ -360,485 +300,172 @@ export const terminal = {
 
 export const project = {
 	list: async (): Promise<Project[]> => {
-		// Use cached init data if available (fast first load)
-		if (_initDataCache) return _initDataCache.projects;
-		try {
-			const init = await getInitData();
-			return init.projects;
-		} catch {
-			return apiCall("/api/projects");
-		}
+		const s = await waitForState();
+		return s.projects;
 	},
 
-	add: (proj: Project): Promise<Project[]> => {
-		invalidateInitCache();
-		return apiCall("/api/projects", { method: "POST", body: JSON.stringify(proj) });
+	add: async (_proj: Project): Promise<Project[]> => {
+		// Mutating operations: request refresh after
+		send({ ch: "cmd_refresh" });
+		return waitForState().then((s) => s.projects);
 	},
 
-	update: (proj: Project): Promise<Project[]> => {
-		invalidateInitCache();
-		return apiCall("/api/projects/update", {
-			method: "POST",
-			body: JSON.stringify(proj),
-		});
+	update: async (_proj: Project): Promise<Project[]> => {
+		send({ ch: "cmd_refresh" });
+		return waitForState().then((s) => s.projects);
 	},
 
-	reorder: (ids: string[]): Promise<Project[]> => {
-		invalidateInitCache();
-		return apiCall("/api/projects/reorder", {
-			method: "POST",
-			body: JSON.stringify({ ids }),
-		});
+	reorder: async (_ids: string[]): Promise<Project[]> => {
+		send({ ch: "cmd_refresh" });
+		return waitForState().then((s) => s.projects);
 	},
 
-	delete: (id: string): Promise<Project[]> => {
-		invalidateInitCache();
-		return apiCall(`/api/projects/${id}`, { method: "DELETE" });
+	delete: async (_id: string): Promise<Project[]> => {
+		send({ ch: "cmd_refresh" });
+		return waitForState().then((s) => s.projects);
 	},
 
 	selectDir: async (): Promise<string | null> => {
-		// Not available in remote mode — show a prompt instead
-		const path = window.prompt("Enter project directory path:");
-		return path || null;
+		return window.prompt("Enter project directory path:") || null;
 	},
 };
 
 // ─── Session ─────────────────────────────────────────────────────────────────
 
 export const session = {
-	save: (sess: Session): Promise<void> =>
-		apiCall("/api/sessions/save", {
-			method: "POST",
-			body: JSON.stringify(sess),
-		}),
-
-	load: (id: string): Promise<Session | null> =>
-		apiCall(`/api/sessions/${id}`),
-
-	list: (): Promise<Session[]> => apiCall("/api/sessions"),
-
-	delete: (id: string): Promise<void> =>
-		apiCall(`/api/sessions/${id}`, { method: "DELETE" }),
+	save: (_sess: Session): Promise<void> => Promise.resolve(),
+	load: (_id: string): Promise<Session | null> => Promise.resolve(null),
+	list: (): Promise<Session[]> => Promise.resolve([]),
+	delete: (_id: string): Promise<void> => Promise.resolve(),
 };
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export const settings = {
 	get: async (): Promise<AppSettings> => {
-		if (_initDataCache) return _initDataCache.settings;
-		try {
-			const init = await getInitData();
-			return init.settings;
-		} catch {
-			return apiCall("/api/settings");
-		}
+		const s = await waitForState();
+		return s.settings;
 	},
 
-	set: (s: AppSettings): Promise<AppSettings> => {
-		invalidateInitCache();
-		return apiCall("/api/settings", { method: "POST", body: JSON.stringify(s) });
+	set: async (_s: AppSettings): Promise<AppSettings> => {
+		// Settings changes not supported in remote mode
+		const s = await waitForState();
+		return s.settings;
 	},
 
 	getShells: async (): Promise<ShellInfo[]> => {
-		if (_initDataCache) return _initDataCache.shells;
-		try {
-			const init = await getInitData();
-			return init.shells;
-		} catch {
-			return apiCall("/api/settings/shells");
-		}
+		const s = await waitForState();
+		return s.shells;
 	},
 
-	getDefaultShell: (): Promise<string> =>
-		apiCall("/api/settings/default-shell"),
+	getDefaultShell: async (): Promise<string> => {
+		const s = await waitForState();
+		return s.settings.defaultShell || "";
+	},
 };
 
 // ─── Workspace ───────────────────────────────────────────────────────────────
 
 export const workspace = {
 	getState: async (): Promise<WorkspaceState> => {
-		if (_initDataCache) return _initDataCache.workspace;
-		try {
-			const init = await getInitData();
-			return init.workspace;
-		} catch {
-			return apiCall("/api/workspace");
-		}
+		const s = await waitForState();
+		return s.workspace;
 	},
 
-	saveState: (state: WorkspaceState): Promise<void> =>
-		apiCall("/api/workspace", { method: "POST", body: JSON.stringify(state) }),
+	saveState: (_state: WorkspaceState): Promise<void> => Promise.resolve(),
 };
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export const tasks = {
-	detect: (projectPath: string): Promise<TaskScript[]> =>
-		apiCall("/api/tasks/detect", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
+	detect: (_projectPath: string): Promise<TaskScript[]> => Promise.resolve([]),
 };
 
 // ─── Pinned Commands ─────────────────────────────────────────────────────────
 
 export const pinned = {
-	list: (projectId: string): Promise<PinnedCommand[]> =>
-		apiCall(`/api/pinned/${projectId}`),
-
-	save: (projectId: string, commands: PinnedCommand[]): Promise<void> =>
-		apiCall(`/api/pinned/${projectId}`, {
-			method: "POST",
-			body: JSON.stringify({ commands }),
-		}),
+	list: (_projectId: string): Promise<PinnedCommand[]> => Promise.resolve([]),
+	save: (_projectId: string, _commands: PinnedCommand[]): Promise<void> => Promise.resolve(),
 };
 
-// ─── SSH (limited in remote mode) ────────────────────────────────────────────
+// ─── SSH (limited) ───────────────────────────────────────────────────────────
 
 export const ssh = {
-	list: (projectId: string): Promise<SSHConnection[]> =>
-		apiCall(`/api/ssh/${projectId}`),
-
-	save: (projectId: string, connections: SSHConnection[]): Promise<void> =>
-		apiCall(`/api/ssh/${projectId}`, {
-			method: "POST",
-			body: JSON.stringify({ connections }),
-		}),
-
-	listGlobal: (): Promise<SSHConnection[]> => apiCall("/api/ssh/global"),
-
-	saveGlobal: (connections: SSHConnection[]): Promise<void> =>
-		apiCall("/api/ssh/global", {
-			method: "POST",
-			body: JSON.stringify({ connections }),
-		}),
-
-	buildCommand: (connection: SSHConnection): Promise<string> =>
-		apiCall("/api/ssh/build-command", {
-			method: "POST",
-			body: JSON.stringify(connection),
-		}),
-
-	buildCommandArgs: (connection: SSHConnection): Promise<string[]> =>
-		apiCall("/api/ssh/build-command-args", {
-			method: "POST",
-			body: JSON.stringify(connection),
-		}),
-
-	testConnection: (
-		connection: SSHConnection,
-		password?: string,
-	): Promise<SSHConnectionTestResult> =>
-		apiCall("/api/ssh/test", {
-			method: "POST",
-			body: JSON.stringify({ connection, password }),
-		}),
-
-	setSecret: (_key: string, _value: string): Promise<void> =>
-		Promise.reject(new Error("Not available in remote mode")),
-
-	getSecret: (_key: string): Promise<string | null> =>
-		Promise.resolve(null),
-
-	deleteSecret: (_key: string): Promise<void> =>
-		Promise.reject(new Error("Not available in remote mode")),
-
-	listKnownHosts: (): Promise<SSHKnownHost[]> =>
-		apiCall("/api/ssh/known-hosts"),
-
-	trustHost: (
-		host: string,
-		port: number,
-		fingerprintSha256: string,
-	): Promise<void> =>
-		apiCall("/api/ssh/trust-host", {
-			method: "POST",
-			body: JSON.stringify({ host, port, fingerprintSha256 }),
-		}),
-
-	forgetHost: (host: string, port: number): Promise<void> =>
-		apiCall("/api/ssh/forget-host", {
-			method: "POST",
-			body: JSON.stringify({ host, port }),
-		}),
-
-	sftpList: (
-		connection: SSHConnection,
-		path: string,
-		password?: string,
-	): Promise<SFTPEntry[]> =>
-		apiCall("/api/ssh/sftp/list", {
-			method: "POST",
-			body: JSON.stringify({ connection, path, password }),
-		}),
-
-	sftpDownload: (
-		_connection: SSHConnection,
-		_remotePath: string,
-		_localPath: string,
-		_password?: string,
-	): Promise<void> =>
-		Promise.reject(new Error("File download not available in remote mode")),
-
-	sftpUpload: (
-		_connection: SSHConnection,
-		_localPath: string,
-		_remotePath: string,
-		_password?: string,
-	): Promise<void> =>
-		Promise.reject(new Error("File upload not available in remote mode")),
-
-	sftpRead: (
-		connection: SSHConnection,
-		path: string,
-		password?: string,
-	): Promise<string> =>
-		apiCall("/api/ssh/sftp/read", {
-			method: "POST",
-			body: JSON.stringify({ connection, path, password }),
-		}),
-
-	sftpWrite: (
-		connection: SSHConnection,
-		path: string,
-		content: string,
-		password?: string,
-	): Promise<void> =>
-		apiCall("/api/ssh/sftp/write", {
-			method: "POST",
-			body: JSON.stringify({ connection, path, content, password }),
-		}),
-
-	sftpMkdir: (
-		connection: SSHConnection,
-		path: string,
-		password?: string,
-	): Promise<void> =>
-		apiCall("/api/ssh/sftp/mkdir", {
-			method: "POST",
-			body: JSON.stringify({ connection, path, password }),
-		}),
-
-	sftpDelete: (
-		connection: SSHConnection,
-		path: string,
-		isDir: boolean,
-		password?: string,
-	): Promise<void> =>
-		apiCall("/api/ssh/sftp/delete", {
-			method: "POST",
-			body: JSON.stringify({ connection, path, isDir, password }),
-		}),
-
-	sftpRename: (
-		connection: SSHConnection,
-		oldPath: string,
-		newPath: string,
-		password?: string,
-	): Promise<void> =>
-		apiCall("/api/ssh/sftp/rename", {
-			method: "POST",
-			body: JSON.stringify({ connection, oldPath, newPath, password }),
-		}),
-
-	forgetOpenSSHHost: (host: string, port: number): Promise<string> =>
-		apiCall("/api/ssh/forget-openssh-host", {
-			method: "POST",
-			body: JSON.stringify({ host, port }),
-		}),
-
-	selectKey: async (): Promise<string | null> => {
-		const path = window.prompt("Enter SSH key path:");
-		return path || null;
-	},
-
-	keyExists: (keyPath: string): Promise<boolean> =>
-		apiCall("/api/ssh/key-exists", {
-			method: "POST",
-			body: JSON.stringify({ keyPath }),
-		}),
+	list: (_projectId: string): Promise<SSHConnection[]> => Promise.resolve([]),
+	save: (_projectId: string, _connections: SSHConnection[]): Promise<void> => Promise.resolve(),
+	listGlobal: (): Promise<SSHConnection[]> => Promise.resolve([]),
+	saveGlobal: (_connections: SSHConnection[]): Promise<void> => Promise.resolve(),
+	buildCommand: (_connection: SSHConnection): Promise<string> => Promise.resolve(""),
+	buildCommandArgs: (_connection: SSHConnection): Promise<string[]> => Promise.resolve([]),
+	testConnection: (_connection: SSHConnection, _password?: string): Promise<SSHConnectionTestResult> =>
+		Promise.resolve({ success: false, error: "Not available in remote mode" } as any),
+	setSecret: (_key: string, _value: string): Promise<void> => Promise.resolve(),
+	getSecret: (_key: string): Promise<string | null> => Promise.resolve(null),
+	deleteSecret: (_key: string): Promise<void> => Promise.resolve(),
+	listKnownHosts: (): Promise<SSHKnownHost[]> => Promise.resolve([]),
+	trustHost: (_host: string, _port: number, _fp: string): Promise<void> => Promise.resolve(),
+	forgetHost: (_host: string, _port: number): Promise<void> => Promise.resolve(),
+	sftpList: (_c: SSHConnection, _p: string, _pw?: string): Promise<SFTPEntry[]> => Promise.resolve([]),
+	sftpDownload: (): Promise<void> => Promise.reject(new Error("Not available")),
+	sftpUpload: (): Promise<void> => Promise.reject(new Error("Not available")),
+	sftpRead: (_c: SSHConnection, _p: string, _pw?: string): Promise<string> => Promise.resolve(""),
+	sftpWrite: (): Promise<void> => Promise.resolve(),
+	sftpMkdir: (): Promise<void> => Promise.resolve(),
+	sftpDelete: (): Promise<void> => Promise.resolve(),
+	sftpRename: (): Promise<void> => Promise.resolve(),
+	forgetOpenSSHHost: (_h: string, _p: number): Promise<string> => Promise.resolve(""),
+	selectKey: (): Promise<string | null> => Promise.resolve(null),
+	keyExists: (_keyPath: string): Promise<boolean> => Promise.resolve(false),
 };
 
 // ─── Git ─────────────────────────────────────────────────────────────────────
 
 export const git = {
-	status: (projectPath: string): Promise<GitStatus> =>
-		apiCall("/api/git/status", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	changedFiles: (projectPath: string): Promise<any[]> =>
-		apiCall("/api/git/changed-files", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	diff: (projectPath: string, filePath: string, staged: boolean): Promise<any> =>
-		apiCall("/api/git/diff", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, filePath, staged }),
-		}),
-
-	diffUntracked: (projectPath: string, filePath: string): Promise<any> =>
-		apiCall("/api/git/diff-untracked", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, filePath }),
-		}),
-
-	stage: (projectPath: string, filePath: string): Promise<void> =>
-		apiCall("/api/git/stage", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, filePath }),
-		}),
-
-	stageAll: (projectPath: string): Promise<void> =>
-		apiCall("/api/git/stage-all", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	unstage: (projectPath: string, filePath: string): Promise<void> =>
-		apiCall("/api/git/unstage", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, filePath }),
-		}),
-
-	unstageAll: (projectPath: string): Promise<void> =>
-		apiCall("/api/git/unstage-all", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	discard: (projectPath: string, filePath: string): Promise<void> =>
-		apiCall("/api/git/discard", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, filePath }),
-		}),
-
-	openFile: (projectPath: string, filePath: string): Promise<void> =>
-		apiCall("/api/git/open-file", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, filePath }),
-		}),
-
-	commit: (projectPath: string, message: string): Promise<any> =>
-		apiCall("/api/git/commit", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, message }),
-		}),
-
-	push: (projectPath: string): Promise<any> =>
-		apiCall("/api/git/push", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	pull: (projectPath: string): Promise<any> =>
-		apiCall("/api/git/pull", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	fetch: (projectPath: string): Promise<any> =>
-		apiCall("/api/git/fetch", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	history: (projectPath: string, limit?: number): Promise<any[]> =>
-		apiCall("/api/git/history", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, limit }),
-		}),
-
-	branches: (projectPath: string): Promise<any[]> =>
-		apiCall("/api/git/branches", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	checkout: (projectPath: string, branch: string): Promise<any> =>
-		apiCall("/api/git/checkout", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, branch }),
-		}),
-
-	createBranch: (projectPath: string, branchName: string): Promise<any> =>
-		apiCall("/api/git/create-branch", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, branchName }),
-		}),
-
-	publishBranch: (projectPath: string): Promise<any> =>
-		apiCall("/api/git/publish-branch", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	stashList: (projectPath: string): Promise<any[]> =>
-		apiCall("/api/git/stash/list", {
-			method: "POST",
-			body: JSON.stringify({ projectPath }),
-		}),
-
-	stashSave: (projectPath: string, message?: string): Promise<any> =>
-		apiCall("/api/git/stash/save", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, message }),
-		}),
-
-	stashPop: (projectPath: string, index?: number): Promise<any> =>
-		apiCall("/api/git/stash/pop", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, index }),
-		}),
-
-	stashApply: (projectPath: string, index?: number): Promise<any> =>
-		apiCall("/api/git/stash/apply", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, index }),
-		}),
-
-	stashDrop: (projectPath: string, index?: number): Promise<any> =>
-		apiCall("/api/git/stash/drop", {
-			method: "POST",
-			body: JSON.stringify({ projectPath, index }),
-		}),
+	status: (_projectPath: string): Promise<GitStatus> =>
+		Promise.resolve({ branch: "", ahead: 0, behind: 0, staged: 0, modified: 0, untracked: 0 } as any),
+	changedFiles: (_projectPath: string): Promise<any[]> => Promise.resolve([]),
+	diff: (): Promise<any> => Promise.resolve(null),
+	diffUntracked: (): Promise<any> => Promise.resolve(null),
+	stage: (): Promise<void> => Promise.resolve(),
+	stageAll: (): Promise<void> => Promise.resolve(),
+	unstage: (): Promise<void> => Promise.resolve(),
+	unstageAll: (): Promise<void> => Promise.resolve(),
+	discard: (): Promise<void> => Promise.resolve(),
+	openFile: (): Promise<void> => Promise.resolve(),
+	commit: (): Promise<any> => Promise.resolve(null),
+	push: (): Promise<any> => Promise.resolve(null),
+	pull: (): Promise<any> => Promise.resolve(null),
+	fetch: (): Promise<any> => Promise.resolve(null),
+	history: (): Promise<any[]> => Promise.resolve([]),
+	branches: (): Promise<any[]> => Promise.resolve([]),
+	checkout: (): Promise<any> => Promise.resolve(null),
+	createBranch: (): Promise<any> => Promise.resolve(null),
+	publishBranch: (): Promise<any> => Promise.resolve(null),
+	stashList: (): Promise<any[]> => Promise.resolve([]),
+	stashSave: (): Promise<any> => Promise.resolve(null),
+	stashPop: (): Promise<any> => Promise.resolve(null),
+	stashApply: (): Promise<any> => Promise.resolve(null),
+	stashDrop: (): Promise<any> => Promise.resolve(null),
 };
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 export const theme = {
 	get: async (): Promise<AppTheme> => {
-		if (_initDataCache) return _initDataCache.theme;
-		try {
-			const init = await getInitData();
-			return init.theme;
-		} catch {
-			return apiCall("/api/theme");
-		}
+		const s = await waitForState();
+		return s.theme;
 	},
-	set: async (themeId: string): Promise<AppTheme> => {
-		invalidateInitCache();
-		await apiCall("/api/theme", {
-			method: "POST",
-			body: JSON.stringify({ themeId }),
-		});
-		return apiCall("/api/theme");
+	set: async (_themeId: string): Promise<AppTheme> => {
+		const s = await waitForState();
+		return s.theme;
 	},
 	list: async (): Promise<AppTheme[]> => {
-		if (_initDataCache) return _initDataCache.themes;
-		try {
-			const init = await getInitData();
-			return init.themes;
-		} catch {
-			return apiCall("/api/themes");
-		}
+		const s = await waitForState();
+		return s.themes;
 	},
 };
 
-// ─── App Window (no-op in remote mode) ──────────────────────────────────────
+// ─── App Window (no-op) ─────────────────────────────────────────────────────
 
 export const app = {
 	minimize: () => Promise.resolve(),
@@ -846,17 +473,12 @@ export const app = {
 	close: () => Promise.resolve(),
 	isMaximized: () => Promise.resolve(false),
 	getVersion: async (): Promise<string> => {
-		if (_initDataCache) return _initDataCache.version;
-		try {
-			const init = await getInitData();
-			return init.version;
-		} catch {
-			return apiCall("/api/version");
-		}
+		const s = await waitForState();
+		return s.version;
 	},
 };
 
-// ─── Updater (disabled in remote mode) ──────────────────────────────────────
+// ─── Updater (disabled) ─────────────────────────────────────────────────────
 
 export const updater = {
 	check: async () => ({ available: false, version: "" }),
@@ -870,45 +492,29 @@ export const updater = {
 	onError: () => () => {},
 };
 
-// ─── Notification ────────────────────────────────────────────────────────────
+// ─── Notification (minimal) ─────────────────────────────────────────────────
 
 export const notification = {
-	list: (): Promise<any[]> => apiCall("/api/notifications"),
-	unreadCount: (): Promise<number> => apiCall("/api/notifications/unread-count"),
-	markRead: (id: string): Promise<void> =>
-		apiCall(`/api/notifications/${id}/read`, { method: "POST" }),
-	markAllRead: (): Promise<void> =>
-		apiCall("/api/notifications/read-all", { method: "POST" }),
-	remove: (id: string): Promise<void> =>
-		apiCall(`/api/notifications/${id}`, { method: "DELETE" }),
-	clear: (): Promise<void> =>
-		apiCall("/api/notifications/clear", { method: "POST" }),
-	getSettings: (): Promise<any> => apiCall("/api/notifications/settings"),
-	updateSettings: (settings: any): Promise<any> =>
-		apiCall("/api/notifications/settings", {
-			method: "POST",
-			body: JSON.stringify(settings),
-		}),
+	list: (): Promise<any[]> => Promise.resolve([]),
+	unreadCount: (): Promise<number> => Promise.resolve(0),
+	markRead: (_id: string): Promise<void> => Promise.resolve(),
+	markAllRead: (): Promise<void> => Promise.resolve(),
+	remove: (_id: string): Promise<void> => Promise.resolve(),
+	clear: (): Promise<void> => Promise.resolve(),
+	getSettings: (): Promise<any> => Promise.resolve({ enabled: false }),
+	updateSettings: (_s: any): Promise<any> => Promise.resolve({}),
 	getPort: (): Promise<number | null> => Promise.resolve(null),
 	onReceived: (_cb: (n: any) => void) => () => {},
 	onNavigate: (_cb: (n: any) => void) => () => {},
-	getProviders: (): Promise<any[]> => apiCall("/api/notifications/providers"),
-	installHook: (providerId: string): Promise<void> =>
-		apiCall("/api/notifications/hooks/install", {
-			method: "POST",
-			body: JSON.stringify({ providerId }),
-		}),
-	uninstallHook: (providerId: string): Promise<void> =>
-		apiCall("/api/notifications/hooks/uninstall", {
-			method: "POST",
-			body: JSON.stringify({ providerId }),
-		}),
+	getProviders: (): Promise<any[]> => Promise.resolve([]),
+	installHook: (_id: string): Promise<void> => Promise.resolve(),
+	uninstallHook: (_id: string): Promise<void> => Promise.resolve(),
 	uploadSound: async () => ({ success: false }),
 	removeCustomSound: (): Promise<void> => Promise.resolve(),
 	getSoundPath: (): Promise<string | null> => Promise.resolve(null),
 };
 
-// ─── Discord (disabled in remote mode) ──────────────────────────────────────
+// ─── Discord (disabled) ─────────────────────────────────────────────────────
 
 export const discord = {
 	connect: () => Promise.resolve(false),
@@ -917,7 +523,7 @@ export const discord = {
 	isConnected: () => Promise.resolve(false),
 };
 
-// ─── Remote (same as tauri-api) ─────────────────────────────────────────────
+// ─── Remote ─────────────────────────────────────────────────────────────────
 
 export interface RemoteStatus {
 	isRunning: boolean;

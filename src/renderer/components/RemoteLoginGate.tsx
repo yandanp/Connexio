@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { isRemoteMode } from "../lib/tauri-shim";
-import { authenticate, isAuthenticated, logout } from "../lib/remote-api";
+import { authenticate, isAuthenticated, logout, getInitData } from "../lib/remote-api";
 
 /**
  * Remote login gate — wraps the app and shows a PIN login screen
@@ -30,6 +30,8 @@ export default function RemoteLoginGate({
 		setError("");
 		try {
 			await authenticate(pin);
+			// Pre-fetch all init data before showing the app
+			await getInitData();
 			setAuthed(true);
 		} catch (err: any) {
 			setError(err.message || "Authentication failed");

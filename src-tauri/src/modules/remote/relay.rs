@@ -3,11 +3,16 @@ use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::Mutex;
+use tokio::time::{Duration, interval};
 
 use super::server::RemoteState;
 
+/// Buffer interval for terminal output batching (16ms ≈ 60fps)
+const BUFFER_INTERVAL_MS: u64 = 16;
+
 /// Handle a WebSocket connection for a terminal session.
 /// Bridges the WebSocket to the PTY read/write via the Tauri app handle.
+/// Output is batched at ~60fps to avoid flooding the WebSocket.
 pub async fn handle_terminal_ws(
     socket: WebSocket,
     terminal_id: String,
@@ -46,11 +51,43 @@ pub async fn handle_terminal_ws(
     let term_id_clone = terminal_id.clone();
     let state_clone = state.clone();
 
-    // Task: forward terminal output to WebSocket
+    // Task: forward terminal output to WebSocket with batching
     let send_task = tokio::spawn(async move {
-        while let Some(data) = output_rx.recv().await {
-            if ws_sender.send(Message::Text(data.into())).await.is_err() {
-                break;
+        let mut buffer = String::with_capacity(8192);
+        let mut tick = interval(Duration::from_millis(BUFFER_INTERVAL_MS));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+        loop {
+            tokio::select! {
+                // Receive data from PTY
+                data = output_rx.recv() => {
+                    match data {
+                        Some(chunk) => {
+                            buffer.push_str(&chunk);
+                            // If buffer is large enough, flush immediately
+                            if buffer.len() > 16384 {
+                                if ws_sender.send(Message::Text(std::mem::take(&mut buffer).into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                        None => {
+                            // Channel closed, flush remaining
+                            if !buffer.is_empty() {
+                                let _ = ws_sender.send(Message::Text(std::mem::take(&mut buffer).into())).await;
+                            }
+                            break;
+                        }
+                    }
+                }
+                // Periodic flush at 60fps
+                _ = tick.tick() => {
+                    if !buffer.is_empty() {
+                        if ws_sender.send(Message::Text(std::mem::take(&mut buffer).into())).await.is_err() {
+                            break;
+                        }
+                    }
+                }
             }
         }
     });

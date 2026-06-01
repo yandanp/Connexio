@@ -207,6 +207,7 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
             .route("/api/theme", get(get_theme).post(set_theme))
             .route("/api/themes", get(list_themes))
             .route("/api/version", get(get_version))
+            .route("/api/init", get(get_init_data))
             .route("/ws/terminal/{id}", get(ws_upgrade))
             .route("/ws/sync", get(ws_sync_upgrade))
             .with_state(app_state);
@@ -729,6 +730,35 @@ async fn get_version(
 
     let version = env!("CARGO_PKG_VERSION").to_string();
     (StatusCode::OK, Json(serde_json::json!(version))).into_response()
+}
+
+/// Batch endpoint: returns projects, settings, workspace, themes, shells in one request
+async fn get_init_data(
+    State(state): State<Arc<Mutex<RemoteState>>>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let app = match verify_auth(&state, &headers).await {
+        Ok(a) => a,
+        Err(e) => return e.into_response(),
+    };
+
+    let projects = crate::modules::projects::projects_list(app.clone());
+    let settings = crate::modules::settings::settings_get(app.clone());
+    let workspace = crate::modules::workspace::workspace_get_state(app.clone());
+    let theme = crate::modules::theme::theme_get(app.clone());
+    let themes = crate::modules::theme::theme_list();
+    let shells = crate::modules::settings::settings_get_shells();
+    let version = env!("CARGO_PKG_VERSION").to_string();
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "projects": projects,
+        "settings": settings,
+        "workspace": workspace,
+        "theme": theme,
+        "themes": themes,
+        "shells": shells,
+        "version": version,
+    }))).into_response()
 }
 
 // ─── WebSocket Handlers ──────────────────────────────────────────────────────

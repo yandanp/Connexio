@@ -103,6 +103,37 @@ async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
 	return res.json();
 }
 
+// ─── Batch Init (single request for all initial data) ────────────────────
+
+export interface InitData {
+	projects: Project[];
+	settings: AppSettings;
+	workspace: WorkspaceState;
+	theme: AppTheme;
+	themes: AppTheme[];
+	shells: ShellInfo[];
+	version: string;
+}
+
+let _initDataCache: InitData | null = null;
+let _initDataPromise: Promise<InitData> | null = null;
+
+export function getInitData(): Promise<InitData> {
+	if (_initDataCache) return Promise.resolve(_initDataCache);
+	if (_initDataPromise) return _initDataPromise;
+
+	_initDataPromise = apiCall<InitData>("/api/init").then((data) => {
+		_initDataCache = data;
+		_initDataPromise = null;
+		return data;
+	});
+	return _initDataPromise;
+}
+
+export function invalidateInitCache() {
+	_initDataCache = null;
+}
+
 // ─── WebSocket ───────────────────────────────────────────────────────────────
 
 function connectWebSocket() {
@@ -328,25 +359,42 @@ export const terminal = {
 // ─── Projects ────────────────────────────────────────────────────────────────
 
 export const project = {
-	list: (): Promise<Project[]> => apiCall("/api/projects"),
+	list: async (): Promise<Project[]> => {
+		// Use cached init data if available (fast first load)
+		if (_initDataCache) return _initDataCache.projects;
+		try {
+			const init = await getInitData();
+			return init.projects;
+		} catch {
+			return apiCall("/api/projects");
+		}
+	},
 
-	add: (proj: Project): Promise<Project[]> =>
-		apiCall("/api/projects", { method: "POST", body: JSON.stringify(proj) }),
+	add: (proj: Project): Promise<Project[]> => {
+		invalidateInitCache();
+		return apiCall("/api/projects", { method: "POST", body: JSON.stringify(proj) });
+	},
 
-	update: (proj: Project): Promise<Project[]> =>
-		apiCall("/api/projects/update", {
+	update: (proj: Project): Promise<Project[]> => {
+		invalidateInitCache();
+		return apiCall("/api/projects/update", {
 			method: "POST",
 			body: JSON.stringify(proj),
-		}),
+		});
+	},
 
-	reorder: (ids: string[]): Promise<Project[]> =>
-		apiCall("/api/projects/reorder", {
+	reorder: (ids: string[]): Promise<Project[]> => {
+		invalidateInitCache();
+		return apiCall("/api/projects/reorder", {
 			method: "POST",
 			body: JSON.stringify({ ids }),
-		}),
+		});
+	},
 
-	delete: (id: string): Promise<Project[]> =>
-		apiCall(`/api/projects/${id}`, { method: "DELETE" }),
+	delete: (id: string): Promise<Project[]> => {
+		invalidateInitCache();
+		return apiCall(`/api/projects/${id}`, { method: "DELETE" });
+	},
 
 	selectDir: async (): Promise<string | null> => {
 		// Not available in remote mode — show a prompt instead
@@ -376,12 +424,30 @@ export const session = {
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export const settings = {
-	get: (): Promise<AppSettings> => apiCall("/api/settings"),
+	get: async (): Promise<AppSettings> => {
+		if (_initDataCache) return _initDataCache.settings;
+		try {
+			const init = await getInitData();
+			return init.settings;
+		} catch {
+			return apiCall("/api/settings");
+		}
+	},
 
-	set: (s: AppSettings): Promise<AppSettings> =>
-		apiCall("/api/settings", { method: "POST", body: JSON.stringify(s) }),
+	set: (s: AppSettings): Promise<AppSettings> => {
+		invalidateInitCache();
+		return apiCall("/api/settings", { method: "POST", body: JSON.stringify(s) });
+	},
 
-	getShells: (): Promise<ShellInfo[]> => apiCall("/api/settings/shells"),
+	getShells: async (): Promise<ShellInfo[]> => {
+		if (_initDataCache) return _initDataCache.shells;
+		try {
+			const init = await getInitData();
+			return init.shells;
+		} catch {
+			return apiCall("/api/settings/shells");
+		}
+	},
 
 	getDefaultShell: (): Promise<string> =>
 		apiCall("/api/settings/default-shell"),
@@ -390,7 +456,15 @@ export const settings = {
 // ─── Workspace ───────────────────────────────────────────────────────────────
 
 export const workspace = {
-	getState: (): Promise<WorkspaceState> => apiCall("/api/workspace"),
+	getState: async (): Promise<WorkspaceState> => {
+		if (_initDataCache) return _initDataCache.workspace;
+		try {
+			const init = await getInitData();
+			return init.workspace;
+		} catch {
+			return apiCall("/api/workspace");
+		}
+	},
 
 	saveState: (state: WorkspaceState): Promise<void> =>
 		apiCall("/api/workspace", { method: "POST", body: JSON.stringify(state) }),
@@ -736,15 +810,32 @@ export const git = {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 export const theme = {
-	get: (): Promise<AppTheme> => apiCall("/api/theme"),
+	get: async (): Promise<AppTheme> => {
+		if (_initDataCache) return _initDataCache.theme;
+		try {
+			const init = await getInitData();
+			return init.theme;
+		} catch {
+			return apiCall("/api/theme");
+		}
+	},
 	set: async (themeId: string): Promise<AppTheme> => {
+		invalidateInitCache();
 		await apiCall("/api/theme", {
 			method: "POST",
 			body: JSON.stringify({ themeId }),
 		});
 		return apiCall("/api/theme");
 	},
-	list: (): Promise<AppTheme[]> => apiCall("/api/themes"),
+	list: async (): Promise<AppTheme[]> => {
+		if (_initDataCache) return _initDataCache.themes;
+		try {
+			const init = await getInitData();
+			return init.themes;
+		} catch {
+			return apiCall("/api/themes");
+		}
+	},
 };
 
 // ─── App Window (no-op in remote mode) ──────────────────────────────────────
@@ -754,7 +845,15 @@ export const app = {
 	maximize: () => Promise.resolve(),
 	close: () => Promise.resolve(),
 	isMaximized: () => Promise.resolve(false),
-	getVersion: (): Promise<string> => apiCall("/api/version"),
+	getVersion: async (): Promise<string> => {
+		if (_initDataCache) return _initDataCache.version;
+		try {
+			const init = await getInitData();
+			return init.version;
+		} catch {
+			return apiCall("/api/version");
+		}
+	},
 };
 
 // ─── Updater (disabled in remote mode) ──────────────────────────────────────

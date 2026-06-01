@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/yandanp/Connexio?style=flat-square&color=green)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/yandanp/Connexio/total?style=flat-square&color=brightgreen)](https://github.com/yandanp/Connexio/releases)
 
-> ⚠️ **v0.4.x is in active development** — Fully migrated from Electron to Tauri v2 with a native Rust backend. Pre-release builds are available but not yet recommended for general use.
+Connexio is built with **Tauri v2** and a native **Rust** backend for fast startup, low memory usage, and cross-platform support.
 
 ## 📸 Preview
 
@@ -126,9 +126,16 @@ npm run dev
 ### Release
 
 ```bash
-npm version prerelease --preid=dev   # bump dev version
-git push && git push --tags          # triggers GitHub Actions → multi-platform build & release
+# Patch release (e.g. 0.4.2 → 0.4.3)
+npm version patch
+git push && git push --tags
+
+# Pre-release (dev builds)
+npm version prerelease --preid=dev
+git push && git push --tags
 ```
+
+Pushing a `v*` tag triggers GitHub Actions → multi-platform build & GitHub Release.
 
 Tag patterns for release channels:
 - `v1.0.0` — Stable release

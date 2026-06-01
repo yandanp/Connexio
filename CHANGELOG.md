@@ -5,26 +5,14 @@
 ### 🐛 Bug Fixes
 
 - **Fix terminal scroll-to-top on resize** — Terminal no longer jumps to top when the right sidebar is opened/closed or when Pi/CLI tools are actively outputting. The scroll preservation logic now uses a tight threshold and lets xterm.js handle position internally.
-- **Integrated SSH improvements** — Improved SSH terminal connection and session management
-- **Sidebar polish** — Navigation refinements and visual consistency
-- **Browser improvements** — Enhanced web preview experience
+- **SSH connection improvements** — More reliable SSH terminal sessions with better error handling
+- **Sidebar navigation polish** — Visual consistency and smoother interactions
+- **Web preview stability** — Enhanced browser preview panel experience
 
----
+### 🔧 Improvements
 
-## [0.4.2-dev.1] — 2026-05-31 (Pre-release)
-
-> ⚠️ **Dev build** — Integrated SSH, sidebar polish, browser improvements, and updater validation.
-
-### ✨ New Features & Improvements
-
-- **Integrated SSH** — Improved SSH terminal connection and session management
-- **Sidebar polish** — Navigation refinements and visual consistency
-- **Browser improvements** — Enhanced web preview experience
-
-### 🔧 Infrastructure
-
-- Auto-update validation release (testing updater from `0.4.1-dev.1` → `0.4.2-dev.1`)
-- Version sync across `package.json`, `tauri.conf.json`, and `Cargo.toml`
+- Auto-updater validated and working across all platforms
+- Version sync enforced across `package.json`, `tauri.conf.json`, and `Cargo.toml`
 
 ---
 

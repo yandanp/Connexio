@@ -1,11 +1,14 @@
-import "./lib/tauri-shim";
+import { shimReady } from "./lib/tauri-shim";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles/globals.css";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-	<React.StrictMode>
-		<App />
-	</React.StrictMode>,
-);
+// Wait for the API shim to initialize before rendering
+shimReady.then(() => {
+	ReactDOM.createRoot(document.getElementById("root")!).render(
+		<React.StrictMode>
+			<App />
+		</React.StrictMode>,
+	);
+});

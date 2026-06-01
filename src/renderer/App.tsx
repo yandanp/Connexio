@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import AppFooter from "./components/AppFooter";
 import NotificationToast from "./components/NotificationToast";
+import RemoteLoginGate from "./components/RemoteLoginGate";
 import SettingsModal from "./components/SettingsModal";
 import Sidebar from "./components/Sidebar";
 import TitleBar from "./components/TitleBar";
@@ -9,6 +10,7 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import Workspace from "./components/Workspace";
 
 import { useDiscordPresence } from "./hooks/useDiscordPresence";
+import { isRemoteMode } from "./lib/tauri-shim";
 import { useNotificationStore } from "./stores/notificationStore";
 import { useProjectStore } from "./stores/projectStore";
 import { useSettingsStore } from "./stores/settingsStore";
@@ -127,24 +129,26 @@ export default function App() {
 	}, []);
 
 	return (
-		<div className="flex flex-col h-screen w-screen bg-connexio-bg">
-			<TitleBar />
-			<div className="flex flex-1 overflow-hidden">
-				<Sidebar />
-				<div className="flex flex-col flex-1 overflow-hidden">
-					{activeProjectId ? <Workspace /> : <WelcomeScreen />}
+		<RemoteLoginGate>
+			<div className="flex flex-col h-screen w-screen bg-connexio-bg">
+				{!isRemoteMode() && <TitleBar />}
+				<div className="flex flex-1 overflow-hidden">
+					<Sidebar />
+					<div className="flex flex-col flex-1 overflow-hidden">
+						{activeProjectId ? <Workspace /> : <WelcomeScreen />}
+					</div>
 				</div>
+				<AppFooter />
+
+				{/* Settings Modal */}
+				{isSettingsOpen && <SettingsModal />}
+
+				{/* Auto-update notification (desktop only) */}
+				{!isRemoteMode() && <UpdateNotification />}
+
+				{/* Notification toast */}
+				<NotificationToast />
 			</div>
-			<AppFooter />
-
-			{/* Settings Modal */}
-			{isSettingsOpen && <SettingsModal />}
-
-			{/* Auto-update notification */}
-			<UpdateNotification />
-
-			{/* Notification toast */}
-			<NotificationToast />
-		</div>
+		</RemoteLoginGate>
 	);
 }

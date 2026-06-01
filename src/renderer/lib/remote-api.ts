@@ -179,9 +179,84 @@ interface TerminalContext {
 	tabLabel: string;
 }
 
-function sendWsTerminal(termId: string, type: string, data: any) {
-	if (_ws && _ws.readyState === WebSocket.OPEN) {
-		_ws.send(JSON.stringify({ target: "terminal", terminalId: termId, type, ...data }));
+// Per-terminal WebSocket connections for I/O
+const terminalSockets = new Map<string, WebSocket>();
+const terminalWriteQueues = new Map<string, string[]>();
+
+function getOrCreateTerminalWs(termId: string): WebSocket | null {
+	if (!_token) return null;
+
+	const existing = terminalSockets.get(termId);
+	if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
+		return existing;
+	}
+
+	// Close stale socket
+	if (existing) {
+		existing.close();
+		terminalSockets.delete(termId);
+	}
+
+	const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+	const ws = new WebSocket(
+		`${wsProtocol}//${window.location.host}/ws/terminal/${termId}?token=${encodeURIComponent(_token!)}`,
+	);
+
+	ws.onopen = () => {
+		// Flush queued writes
+		const queue = terminalWriteQueues.get(termId);
+		if (queue) {
+			for (const msg of queue) {
+				ws.send(msg);
+			}
+			terminalWriteQueues.delete(termId);
+		}
+	};
+
+	ws.onmessage = (event) => {
+		// Terminal output comes as plain text from the relay
+		const data = event.data;
+		for (const cb of terminalDataListeners) {
+			cb(termId, data);
+		}
+	};
+
+	ws.onclose = () => {
+		terminalSockets.delete(termId);
+		terminalWriteQueues.delete(termId);
+		for (const cb of terminalExitListeners) {
+			cb(termId);
+		}
+	};
+
+	ws.onerror = () => {
+		terminalSockets.delete(termId);
+		terminalWriteQueues.delete(termId);
+	};
+
+	terminalSockets.set(termId, ws);
+	return ws;
+}
+
+function sendToTerminalWs(termId: string, message: string) {
+	const ws = getOrCreateTerminalWs(termId);
+	if (!ws) return;
+
+	if (ws.readyState === WebSocket.OPEN) {
+		ws.send(message);
+	} else {
+		// Queue until open
+		const queue = terminalWriteQueues.get(termId) || [];
+		queue.push(message);
+		terminalWriteQueues.set(termId, queue);
+	}
+}
+
+function closeTerminalWs(termId: string) {
+	const ws = terminalSockets.get(termId);
+	if (ws) {
+		ws.close();
+		terminalSockets.delete(termId);
 	}
 }
 
@@ -191,10 +266,13 @@ export const terminal = {
 		shell?: string,
 		context?: TerminalContext,
 	): Promise<string> => {
-		return apiCall("/api/terminal/create", {
+		const id: string = await apiCall("/api/terminal/create", {
 			method: "POST",
 			body: JSON.stringify({ projectPath, shell, context }),
 		});
+		// Connect WebSocket for this terminal immediately
+		getOrCreateTerminalWs(id);
+		return id;
 	},
 
 	createCommand: async (
@@ -202,10 +280,12 @@ export const terminal = {
 		command: string[],
 		context?: TerminalContext,
 	): Promise<string> => {
-		return apiCall("/api/terminal/create-command", {
+		const id: string = await apiCall("/api/terminal/create-command", {
 			method: "POST",
 			body: JSON.stringify({ projectPath, command, context }),
 		});
+		getOrCreateTerminalWs(id);
+		return id;
 	},
 
 	createSsh: async (
@@ -214,23 +294,26 @@ export const terminal = {
 		cols?: number,
 		rows?: number,
 	): Promise<string> => {
-		return apiCall("/api/terminal/create-ssh", {
+		const id: string = await apiCall("/api/terminal/create-ssh", {
 			method: "POST",
 			body: JSON.stringify({ connection, password, cols, rows }),
 		});
+		getOrCreateTerminalWs(id);
+		return id;
 	},
 
 	write: (id: string, data: string): Promise<void> => {
-		sendWsTerminal(id, "input", { data });
+		sendToTerminalWs(id, JSON.stringify({ type: "input", data }));
 		return Promise.resolve();
 	},
 
 	resize: (id: string, cols: number, rows: number): Promise<void> => {
-		sendWsTerminal(id, "resize", { cols: Math.round(cols), rows: Math.round(rows) });
+		sendToTerminalWs(id, JSON.stringify({ type: "resize", cols: Math.round(cols), rows: Math.round(rows) }));
 		return Promise.resolve();
 	},
 
-	close: (id: string): Promise<void> => {
+	close: async (id: string): Promise<void> => {
+		closeTerminalWs(id);
 		return apiCall(`/api/terminal/${id}/close`, { method: "POST" });
 	},
 

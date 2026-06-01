@@ -45,12 +45,20 @@ impl RemoteState {
 /// Managed Tauri state wrapper
 pub struct RemoteAccessState {
     pub inner: Arc<Mutex<RemoteState>>,
+    /// Cached app handle for fast access without locking
+    pub cached_app: StdMutex<Option<AppHandle>>,
+    /// JWT secret for token verification without locking full state
+    pub jwt_secret: StdMutex<String>,
 }
 
 impl RemoteAccessState {
     pub fn new() -> Self {
+        let state = RemoteState::new();
+        let secret = state.auth.secret.clone();
         Self {
-            inner: Arc::new(Mutex::new(RemoteState::new())),
+            inner: Arc::new(Mutex::new(state)),
+            cached_app: StdMutex::new(None),
+            jwt_secret: StdMutex::new(secret),
         }
     }
 }
@@ -111,6 +119,10 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
     remote.port = port;
     remote.app_handle = Some(app.clone());
 
+    // Cache for fast access
+    *state.cached_app.lock().unwrap() = Some(app.clone());
+    *state.jwt_secret.lock().unwrap() = remote.auth.secret.clone();
+
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     remote.shutdown_tx = Some(shutdown_tx);
 
@@ -137,6 +149,28 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
                             "type": "terminal:data",
                             "id": term_id,
                             "data": data
+                        }).to_string();
+                        for tx in sync_senders {
+                            let _ = tx.send(msg.clone());
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Listen for terminal:exit events
+    let ws_state_exit = state.inner.clone();
+    let _exit_listener = app.listen("terminal:exit", move |event| {
+        let payload = event.payload();
+        if let Ok(term_id) = serde_json::from_str::<String>(payload) {
+            if let Ok(ws_clients) = ws_state_exit.try_lock() {
+                if let Ok(clients) = ws_clients.ws_clients.lock() {
+                    // Notify sync clients
+                    if let Some(sync_senders) = clients.get("__sync__") {
+                        let msg = serde_json::json!({
+                            "type": "terminal:exit",
+                            "id": term_id
                         }).to_string();
                         for tx in sync_senders {
                             let _ = tx.send(msg.clone());
@@ -284,6 +318,7 @@ pub async fn remote_regenerate_pin(app: AppHandle) -> Result<String, String> {
     let state = app.state::<RemoteAccessState>();
     let mut remote = state.inner.lock().await;
     remote.auth.regenerate_pin();
+    *state.jwt_secret.lock().unwrap() = remote.auth.secret.clone();
     Ok(remote.auth.pin.clone())
 }
 
@@ -341,9 +376,14 @@ async fn verify_auth(
     state: &Arc<Mutex<RemoteState>>,
     headers: &HeaderMap,
 ) -> Result<AppHandle, (StatusCode, Json<serde_json::Value>)> {
+    let token = extract_token(headers).ok_or((
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({ "error": "Unauthorized" })),
+    ))?;
+
+    // Fast path: verify token without async lock
     let remote = state.lock().await;
-    let token = extract_token(headers);
-    if token.is_none() || !remote.auth.verify_token(token.unwrap()) {
+    if !remote.auth.verify_token(token) {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "error": "Unauthorized" })),

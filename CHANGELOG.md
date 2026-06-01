@@ -2,17 +2,34 @@
 
 ## [0.4.2] — 2026-06-01
 
+First stable release on Tauri v2. Includes all features and fixes from the `0.4.x-dev` pre-release cycle.
+
+### ✨ New Features
+
+- **Native SSH & SFTP Manager** — Save SSH connections per project + global, one-click connect with key or password auth, integrated SFTP file browser
+- **Discord Rich Presence** — Show current project and activity in Discord status
+- **Adjustable UI font size** — Scale the entire app UI independently from terminal font
+- **AI panel improvements** — Better chat experience with configurable model integration
+- **File Explorer git status indicators** — See modified/staged/untracked files at a glance
+- **Auto-Updater** — Check for updates via GitHub Releases, download & install with one click
+- **New app icon** — Updated Connexio icon design with proper multi-resolution support
+
 ### 🐛 Bug Fixes
 
-- **Fix terminal scroll-to-top on resize** — Terminal no longer jumps to top when the right sidebar is opened/closed or when Pi/CLI tools are actively outputting. The scroll preservation logic now uses a tight threshold and lets xterm.js handle position internally.
-- **SSH connection improvements** — More reliable SSH terminal sessions with better error handling
+- **Fix terminal scroll-to-top on resize** — Terminal no longer jumps to top when the right sidebar is opened/closed or when Pi/CLI tools are actively outputting. Scroll preservation uses a tight threshold and lets xterm.js handle position internally.
+- **Fix terminal paste and scroll glitches** — Resolved double-paste on WebView2 and scroll jank during rapid output
+- **Fix SSH/SFTP editor hang on close** — SFTP state now persists correctly, editor no longer freezes when closing SSH tabs
+- **Fix Windows Terminal opening separately** — PTY no longer spawns a visible console window alongside the app
 - **Sidebar navigation polish** — Visual consistency and smoother interactions
 - **Web preview stability** — Enhanced browser preview panel experience
+- **Remove unreliable command timer** — Removed flaky timer that reported incorrect durations
 
-### 🔧 Improvements
+### 🔧 Infrastructure
 
+- Release workflow rewritten for multi-platform builds (Windows x64, macOS ARM, Linux x64)
 - Auto-updater validated and working across all platforms
-- Version sync enforced across `package.json`, `tauri.conf.json`, and `Cargo.toml`
+- Signing key regenerated with proper empty password handling
+- Contributing guide and issue/PR templates added
 
 ---
 

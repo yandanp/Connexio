@@ -1,6 +1,6 @@
 use axum::{
     extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{Html, IntoResponse, Json},
     routing::{get, post},
     Router,
@@ -33,6 +33,14 @@ const OUTPUT_FLUSH_THRESHOLD: usize = 32768; // flush immediately if buffer > 32
 /// Per-client sender for multiplexed messages
 type ClientSender = mpsc::UnboundedSender<String>;
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteClientInfo {
+    pub id: String,
+    pub user_agent: String,
+    pub connected_at: u64,
+}
+
 pub struct RemoteState {
     pin: String,
     app_handle: Option<AppHandle>,
@@ -42,6 +50,7 @@ pub struct RemoteState {
     lockout_until: Option<u64>,
     /// All connected clients (client_id → sender)
     clients: HashMap<String, ClientSender>,
+    client_info: HashMap<String, RemoteClientInfo>,
     /// Terminal output buffers: term_id → accumulated output
     /// Flushed to all clients at 60fps
     output_buffers: HashMap<String, String>,
@@ -58,6 +67,7 @@ impl RemoteState {
             failed_attempts: 0,
             lockout_until: None,
             clients: HashMap::new(),
+            client_info: HashMap::new(),
             output_buffers: HashMap::new(),
             shutdown_tx: None,
         }
@@ -93,6 +103,7 @@ pub struct RemoteStatusResponse {
     pub pin: String,
     pub local_ip: Option<String>,
     pub connected_clients: usize,
+    pub clients: Vec<RemoteClientInfo>,
 }
 
 #[tauri::command]
@@ -221,6 +232,7 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
         pin: s.pin.clone(),
         local_ip,
         connected_clients: s.clients.len(),
+        clients: s.client_info.values().cloned().collect(),
     })
 }
 
@@ -239,6 +251,7 @@ pub async fn remote_stop(app: AppHandle) -> Result<(), String> {
 
     s.is_running = false;
     s.clients.clear();
+    s.client_info.clear();
     s.output_buffers.clear();
     Ok(())
 }
@@ -255,6 +268,7 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
         pin: s.pin.clone(),
         local_ip,
         connected_clients: s.clients.len(),
+        clients: s.client_info.values().cloned().collect(),
     })
 }
 
@@ -320,6 +334,7 @@ async fn handle_auth(
 async fn ws_upgrade(
     State(state): State<Arc<StdMutex<RemoteState>>>,
     Query(params): Query<WsQueryParams>,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
     // Verify PIN
@@ -330,7 +345,13 @@ async fn ws_upgrade(
         }
     }
 
-    ws.on_upgrade(move |socket| handle_ws_client(socket, state))
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("Unknown device")
+        .to_string();
+
+    ws.on_upgrade(move |socket| handle_ws_client(socket, state, user_agent))
         .into_response()
 }
 
@@ -340,7 +361,7 @@ async fn serve_fallback() -> Html<&'static str> {
 
 // ─── WebSocket Client Handler ────────────────────────────────────────────────
 
-async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>) {
+async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>, user_agent: String) {
     let (mut ws_tx, mut ws_rx) = socket.split();
     let (client_tx, mut client_rx) = mpsc::unbounded_channel::<String>();
 
@@ -350,6 +371,11 @@ async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>) 
     let app_handle = {
         let mut s = state.lock().unwrap();
         s.clients.insert(client_id.clone(), client_tx);
+        s.client_info.insert(client_id.clone(), RemoteClientInfo {
+            id: client_id.clone(),
+            user_agent,
+            connected_at: now_secs(),
+        });
         s.app_handle.clone()
     };
 
@@ -401,6 +427,7 @@ async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>) 
     // Cleanup
     let mut s = state.lock().unwrap();
     s.clients.remove(&client_id);
+    s.client_info.remove(&client_id);
 }
 
 fn handle_client_message(

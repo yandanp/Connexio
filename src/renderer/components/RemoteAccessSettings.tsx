@@ -68,6 +68,7 @@ export default function RemoteAccessSettings() {
 	};
 
 	const isRunning = status?.isRunning ?? false;
+	const clients = status?.clients || [];
 
 	return (
 		<div className="space-y-4">
@@ -178,6 +179,23 @@ export default function RemoteAccessSettings() {
 								{status.connectedClients === 1 ? "device" : "devices"}
 							</span>
 						</div>
+
+						{clients.length > 0 && (
+							<div className="space-y-1 pt-2 border-t border-connexio-border">
+								<p className="text-[11px] text-connexio-text-secondary">
+									Connected devices
+								</p>
+								{clients.map((client) => (
+									<div
+										key={client.id}
+										className="rounded bg-connexio-bg-secondary px-2 py-1 text-[10px] text-connexio-text-muted"
+										title={client.userAgent}
+									>
+										{client.userAgent.split(" ").slice(0, 3).join(" ")}
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 				)}
 			</div>

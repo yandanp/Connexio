@@ -513,12 +513,19 @@ export const discord = {
 
 // ─── Remote Access ───────────────────────────────────────────────────────────
 
+export interface RemoteClientInfo {
+	id: string;
+	userAgent: string;
+	connectedAt: number;
+}
+
 export interface RemoteStatus {
 	isRunning: boolean;
 	port: number;
 	pin: string;
 	localIp: string | null;
 	connectedClients: number;
+	clients: RemoteClientInfo[];
 }
 
 export const remote = {

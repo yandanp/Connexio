@@ -573,12 +573,19 @@ export const discord = {
 
 // ─── Remote ─────────────────────────────────────────────────────────────────
 
+export interface RemoteClientInfo {
+	id: string;
+	userAgent: string;
+	connectedAt: number;
+}
+
 export interface RemoteStatus {
 	isRunning: boolean;
 	port: number;
 	pin: string;
 	localIp: string | null;
 	connectedClients: number;
+	clients: RemoteClientInfo[];
 }
 
 export const remote = {
@@ -593,6 +600,7 @@ export const remote = {
 		pin: "------",
 		localIp: window.location.hostname,
 		connectedClients: 1,
+		clients: [],
 	}),
 	stop: () => Promise.resolve(),
 	status: (): Promise<RemoteStatus> => Promise.resolve({
@@ -601,6 +609,7 @@ export const remote = {
 		pin: "------",
 		localIp: window.location.hostname,
 		connectedClients: 1,
+		clients: [],
 	}),
 	regeneratePin: () => Promise.resolve("------"),
 };

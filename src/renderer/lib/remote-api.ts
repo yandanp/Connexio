@@ -598,6 +598,8 @@ export interface RemoteStatus {
 	connectedClients: number;
 	clients: RemoteClientInfo[];
 	loginUrl: string | null;
+	tailscaleIp: string | null;
+	tailscaleLoginUrl: string | null;
 }
 
 export const remote = {
@@ -614,6 +616,8 @@ export const remote = {
 		connectedClients: 1,
 		clients: [],
 		loginUrl: null,
+		tailscaleIp: null,
+		tailscaleLoginUrl: null,
 	}),
 	stop: () => Promise.resolve(),
 	status: (): Promise<RemoteStatus> => Promise.resolve({
@@ -624,6 +628,8 @@ export const remote = {
 		connectedClients: 1,
 		clients: [],
 		loginUrl: null,
+		tailscaleIp: null,
+		tailscaleLoginUrl: null,
 	}),
 	regeneratePin: () => Promise.resolve("------"),
 	lockHost: (): Promise<void> => sendCommand<void>({ ch: "cmd_power", action: "lock" }),

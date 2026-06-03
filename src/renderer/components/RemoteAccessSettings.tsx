@@ -9,6 +9,7 @@ export default function RemoteAccessSettings() {
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+	const [qrTarget, setQrTarget] = useState<"lan" | "tailscale">("lan");
 	const [wolMac, setWolMac] = useState(localStorage.getItem("connexio_wol_mac") || "");
 	const [wolBroadcast, setWolBroadcast] = useState(localStorage.getItem("connexio_wol_broadcast") || "255.255.255.255");
 	const [wolPort, setWolPort] = useState(Number(localStorage.getItem("connexio_wol_port") || "9"));
@@ -30,19 +31,23 @@ export default function RemoteAccessSettings() {
 		return () => clearInterval(interval);
 	}, [fetchStatus]);
 
+	const selectedLoginUrl = qrTarget === "tailscale" && status?.tailscaleLoginUrl
+		? status.tailscaleLoginUrl
+		: status?.loginUrl;
+
 	useEffect(() => {
-		if (!status?.loginUrl) {
+		if (!selectedLoginUrl) {
 			setQrDataUrl(null);
 			return;
 		}
-		QRCode.toDataURL(status.loginUrl, {
+		QRCode.toDataURL(selectedLoginUrl, {
 			margin: 1,
 			width: 180,
 			color: { dark: "#0d1117", light: "#ffffff" },
 		})
 			.then(setQrDataUrl)
 			.catch(() => setQrDataUrl(null));
-	}, [status?.loginUrl]);
+	}, [selectedLoginUrl]);
 
 	const handleStart = async () => {
 		setLoading(true);
@@ -81,7 +86,7 @@ export default function RemoteAccessSettings() {
 
 	const copyUrl = () => {
 		if (!status?.localIp) return;
-		const url = status.loginUrl || `http://${status.localIp}:${status.port}`;
+		const url = selectedLoginUrl || status.loginUrl || `http://${status.localIp}:${status.port}`;
 		navigator.clipboard.writeText(url);
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);
@@ -162,7 +167,7 @@ export default function RemoteAccessSettings() {
 							</span>
 							<div className="flex items-center gap-1.5">
 								<code className="text-[11px] text-connexio-accent font-mono">
-									{status.loginUrl || `http://${status.localIp}:${status.port}`}
+									{selectedLoginUrl || status.loginUrl || `http://${status.localIp}:${status.port}`}
 								</code>
 								<button
 									onClick={copyUrl}
@@ -178,6 +183,37 @@ export default function RemoteAccessSettings() {
 								</button>
 							</div>
 						</div>
+
+						{status.tailscaleLoginUrl && (
+							<div className="flex items-center justify-between rounded border border-connexio-border bg-connexio-bg-secondary px-2 py-1">
+								<span className="text-[11px] text-connexio-text-secondary">QR target</span>
+								<div className="flex gap-1">
+									{(["lan", "tailscale"] as const).map((target) => (
+										<button
+											key={target}
+											onClick={() => setQrTarget(target)}
+											className={`rounded px-2 py-0.5 text-[10px] ${qrTarget === target ? "bg-connexio-accent text-white" : "bg-connexio-bg-tertiary text-connexio-text-muted"}`}
+											type="button"
+										>
+											{target === "lan" ? "LAN" : "Tailscale"}
+										</button>
+									))}
+								</div>
+							</div>
+						)}
+
+						{status.tailscaleLoginUrl && (
+							<div className="flex items-center justify-between">
+								<span className="text-[11px] text-connexio-text-secondary">Tailscale</span>
+								<code className="text-[11px] text-connexio-accent font-mono">{status.tailscaleLoginUrl}</code>
+							</div>
+						)}
+
+						{!status.tailscaleIp && (
+							<p className="rounded border border-yellow-500/20 bg-yellow-500/10 px-2 py-1 text-[10px] text-yellow-400">
+								Tailscale IP not detected. Install/connect Tailscale to get an outside-LAN URL.
+							</p>
+						)}
 
 						{qrDataUrl && (
 							<div className="flex items-center gap-3 rounded border border-connexio-border bg-white p-2">

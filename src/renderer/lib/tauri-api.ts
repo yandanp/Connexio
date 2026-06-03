@@ -527,6 +527,8 @@ export interface RemoteStatus {
 	connectedClients: number;
 	clients: RemoteClientInfo[];
 	loginUrl: string | null;
+	tailscaleIp: string | null;
+	tailscaleLoginUrl: string | null;
 }
 
 export const remote = {

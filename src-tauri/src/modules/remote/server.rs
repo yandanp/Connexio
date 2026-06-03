@@ -107,6 +107,8 @@ pub struct RemoteStatusResponse {
     pub connected_clients: usize,
     pub clients: Vec<RemoteClientInfo>,
     pub login_url: Option<String>,
+    pub tailscale_ip: Option<String>,
+    pub tailscale_login_url: Option<String>,
 }
 
 #[tauri::command]
@@ -227,9 +229,11 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
     });
 
     let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
+    let tailscale_ip = detect_tailscale_ip();
     let s = state.inner.lock().unwrap();
 
     let login_url = local_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
+    let tailscale_login_url = tailscale_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
 
     Ok(RemoteStatusResponse {
         is_running: true,
@@ -239,6 +243,8 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
         connected_clients: s.clients.len(),
         clients: s.client_info.values().cloned().collect(),
         login_url,
+        tailscale_ip,
+        tailscale_login_url,
     })
 }
 
@@ -267,8 +273,10 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
     let state = app.state::<RemoteAccessState>();
     let s = state.inner.lock().unwrap();
     let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
+    let tailscale_ip = detect_tailscale_ip();
 
     let login_url = local_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
+    let tailscale_login_url = tailscale_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
 
     Ok(RemoteStatusResponse {
         is_running: s.is_running,
@@ -278,6 +286,8 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
         connected_clients: s.clients.len(),
         clients: s.client_info.values().cloned().collect(),
         login_url,
+        tailscale_ip,
+        tailscale_login_url,
     })
 }
 
@@ -730,6 +740,22 @@ fn sleep_host() -> Result<(), String> {
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
+
+fn detect_tailscale_ip() -> Option<String> {
+    let interfaces = local_ip_address::list_afinet_netifas().ok()?;
+    interfaces.into_iter().find_map(|(name, ip)| {
+        let std::net::IpAddr::V4(v4) = ip else { return None; };
+        let octets = v4.octets();
+        // Tailscale assigns IPs from 100.64.0.0/10.
+        let is_tailscale_range = octets[0] == 100 && (64..=127).contains(&octets[1]);
+        let name_hint = name.to_lowercase().contains("tailscale");
+        if is_tailscale_range || name_hint {
+            Some(v4.to_string())
+        } else {
+            None
+        }
+    })
+}
 
 fn generate_pin() -> String {
     let mut rng = rand::thread_rng();

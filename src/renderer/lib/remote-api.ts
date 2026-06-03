@@ -35,6 +35,7 @@ let _connected = false;
 let _latencyMs: number | null = null;
 let _lastPingAt = 0;
 let _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let _lastConnectUsedToken = false;
 
 type RemoteConnectionStatus = "connected" | "connecting" | "reconnecting" | "disconnected";
 type StatusListener = (status: { status: RemoteConnectionStatus; latencyMs: number | null }) => void;
@@ -134,6 +135,7 @@ function connectWs(): Promise<void> {
 
 		const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
 		const params = new URLSearchParams();
+		_lastConnectUsedToken = !!_trustedToken;
 		if (_trustedToken) params.set("token", _trustedToken);
 		else if (_pin) params.set("pin", _pin);
 		_ws = new WebSocket(`${proto}//${window.location.host}/ws?${params.toString()}`);
@@ -155,9 +157,21 @@ function connectWs(): Promise<void> {
 			_connected = false;
 			stopHeartbeat();
 			setConnectionStatus(_authenticated ? "reconnecting" : "disconnected");
+
+			// If a trusted token was rejected after server restart/PIN rotation,
+			// fall back to the remembered PIN and request a fresh token.
+			if (_lastConnectUsedToken && _pin) {
+				_trustedToken = null;
+				localStorage.removeItem("connexio_remote_token");
+				setTimeout(() => {
+					authenticate(_pin!).catch(() => logout());
+				}, 300);
+				return;
+			}
+
 			// Auto-reconnect
 			setTimeout(() => {
-				if (_authenticated && _pin) {
+				if (_authenticated && (_trustedToken || _pin)) {
 					connectWs().catch(() => {});
 				}
 			}, 1200);

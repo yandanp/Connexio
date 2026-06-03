@@ -176,6 +176,7 @@ pub fn run() {
             modules::remote::remote_stop,
             modules::remote::remote_status,
             modules::remote::remote_regenerate_pin,
+            modules::remote::remote_wol_send,
         ])
         .on_window_event(|window, event| {
             match event {

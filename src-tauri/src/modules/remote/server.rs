@@ -282,6 +282,11 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
 }
 
 #[tauri::command]
+pub async fn remote_wol_send(mac: String, broadcast_ip: Option<String>, port: Option<u16>) -> Result<(), String> {
+    send_magic_packet(&mac, &broadcast_ip.unwrap_or_else(|| "255.255.255.255".to_string()), port.unwrap_or(9))
+}
+
+#[tauri::command]
 pub async fn remote_regenerate_pin(app: AppHandle) -> Result<String, String> {
     let state = app.state::<RemoteAccessState>();
     let mut s = state.inner.lock().unwrap();
@@ -624,6 +629,41 @@ fn resize_session(session: &mut crate::modules::pty::TerminalSession, cols: u16,
             Ok(())
         }
     }
+}
+
+// ─── Wake-on-LAN ────────────────────────────────────────────────────────────
+
+fn send_magic_packet(mac: &str, broadcast_ip: &str, port: u16) -> Result<(), String> {
+    let mac_bytes = parse_mac(mac)?;
+    let mut packet = Vec::with_capacity(102);
+    packet.extend_from_slice(&[0xFF; 6]);
+    for _ in 0..16 {
+        packet.extend_from_slice(&mac_bytes);
+    }
+
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind UDP socket: {}", e))?;
+    socket
+        .set_broadcast(true)
+        .map_err(|e| format!("Failed to enable broadcast: {}", e))?;
+    socket
+        .send_to(&packet, format!("{}:{}", broadcast_ip, port))
+        .map_err(|e| format!("Failed to send WoL packet: {}", e))?;
+    Ok(())
+}
+
+fn parse_mac(mac: &str) -> Result<[u8; 6], String> {
+    let cleaned = mac.replace([':', '-'], "");
+    if cleaned.len() != 12 {
+        return Err("MAC address must be 12 hex digits".to_string());
+    }
+    let mut bytes = [0u8; 6];
+    for i in 0..6 {
+        let part = &cleaned[i * 2..i * 2 + 2];
+        bytes[i] = u8::from_str_radix(part, 16)
+            .map_err(|_| "MAC address contains invalid hex".to_string())?;
+    }
+    Ok(bytes)
 }
 
 // ─── Power Controls ─────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { Globe, Loader2, RefreshCw, Copy, Check, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
+import QRCode from "qrcode";
 import { remote, type RemoteStatus } from "../lib/tauri-api";
 
 export default function RemoteAccessSettings() {
@@ -7,6 +8,11 @@ export default function RemoteAccessSettings() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
+	const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+	const [wolMac, setWolMac] = useState(localStorage.getItem("connexio_wol_mac") || "");
+	const [wolBroadcast, setWolBroadcast] = useState(localStorage.getItem("connexio_wol_broadcast") || "255.255.255.255");
+	const [wolPort, setWolPort] = useState(Number(localStorage.getItem("connexio_wol_port") || "9"));
+	const [wolStatus, setWolStatus] = useState<string | null>(null);
 
 	const fetchStatus = useCallback(async () => {
 		try {
@@ -23,6 +29,20 @@ export default function RemoteAccessSettings() {
 		const interval = setInterval(fetchStatus, 3000);
 		return () => clearInterval(interval);
 	}, [fetchStatus]);
+
+	useEffect(() => {
+		if (!status?.loginUrl) {
+			setQrDataUrl(null);
+			return;
+		}
+		QRCode.toDataURL(status.loginUrl, {
+			margin: 1,
+			width: 180,
+			color: { dark: "#0d1117", light: "#ffffff" },
+		})
+			.then(setQrDataUrl)
+			.catch(() => setQrDataUrl(null));
+	}, [status?.loginUrl]);
 
 	const handleStart = async () => {
 		setLoading(true);
@@ -65,6 +85,19 @@ export default function RemoteAccessSettings() {
 		navigator.clipboard.writeText(url);
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);
+	};
+
+	const handleSendWol = async () => {
+		setWolStatus(null);
+		try {
+			localStorage.setItem("connexio_wol_mac", wolMac);
+			localStorage.setItem("connexio_wol_broadcast", wolBroadcast);
+			localStorage.setItem("connexio_wol_port", String(wolPort || 9));
+			await remote.sendWol(wolMac, wolBroadcast, wolPort || 9);
+			setWolStatus("Magic packet sent.");
+		} catch (err) {
+			setWolStatus(String(err));
+		}
 	};
 
 	const isRunning = status?.isRunning ?? false;
@@ -146,6 +179,16 @@ export default function RemoteAccessSettings() {
 							</div>
 						</div>
 
+						{qrDataUrl && (
+							<div className="flex items-center gap-3 rounded border border-connexio-border bg-white p-2">
+								<img src={qrDataUrl} alt="Remote login QR code" className="h-28 w-28" />
+								<div className="text-[11px] text-slate-700">
+									<p className="font-semibold">Scan to login</p>
+									<p>Opens Connexio Remote with PIN pre-filled.</p>
+								</div>
+							</div>
+						)}
+
 						{/* PIN */}
 						<div className="flex items-center justify-between">
 							<span className="text-[11px] text-connexio-text-secondary">
@@ -201,19 +244,46 @@ export default function RemoteAccessSettings() {
 			</div>
 
 			{/* Wake-on-LAN helper */}
-			<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3">
-				<p className="text-[11px] font-medium text-connexio-text mb-2">
+			<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3 space-y-3">
+				<p className="text-[11px] font-medium text-connexio-text">
 					Wake-on-LAN setup
 				</p>
+				<div className="grid grid-cols-3 gap-2">
+					<input
+						value={wolMac}
+						onChange={(e) => setWolMac(e.target.value)}
+						placeholder="MAC address"
+						className="col-span-3 px-2 py-1 text-[11px] bg-connexio-bg-secondary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+					/>
+					<input
+						value={wolBroadcast}
+						onChange={(e) => setWolBroadcast(e.target.value)}
+						placeholder="Broadcast IP"
+						className="col-span-2 px-2 py-1 text-[11px] bg-connexio-bg-secondary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+					/>
+					<input
+						value={wolPort}
+						onChange={(e) => setWolPort(Number(e.target.value) || 9)}
+						placeholder="Port"
+						type="number"
+						className="px-2 py-1 text-[11px] bg-connexio-bg-secondary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+					/>
+				</div>
+				<button
+					onClick={handleSendWol}
+					disabled={!wolMac.trim()}
+					className="px-3 py-1.5 text-[11px] font-medium rounded bg-connexio-accent/10 text-connexio-accent border border-connexio-accent/30 hover:bg-connexio-accent/20 disabled:opacity-50"
+					type="button"
+				>
+					Send Magic Packet
+				</button>
+				{wolStatus && <p className="text-[10px] text-connexio-text-muted">{wolStatus}</p>}
 				<ol className="text-[11px] text-connexio-text-secondary space-y-1 list-decimal list-inside">
 					<li>Enable Wake-on-LAN / PCI-E wake in BIOS</li>
 					<li>Use Ethernet when possible; WiFi WoL is often unreliable</li>
 					<li>Enable Windows NIC option: Allow this device to wake the computer</li>
-					<li>Use a phone WoL app or Tailscale WoL to wake the PC, then open the login link</li>
+					<li>For sleeping/off host PC, send WoL from phone/router/relay, then open the login link</li>
 				</ol>
-				<p className="mt-2 text-[10px] text-connexio-text-muted">
-					Connexio can serve remote access after the PC is awake; waking a powered-off PC needs your router/VPN/WoL app.
-				</p>
 			</div>
 
 			{/* Instructions */}

@@ -535,6 +535,8 @@ export const remote = {
 	stop: (): Promise<void> => invoke("remote_stop"),
 	status: (): Promise<RemoteStatus> => invoke("remote_status"),
 	regeneratePin: (): Promise<string> => invoke("remote_regenerate_pin"),
+	sendWol: (mac: string, broadcastIp?: string, port?: number): Promise<void> =>
+		invoke("remote_wol_send", { mac, broadcastIp: broadcastIp || null, port: port || null }),
 };
 
 // ─── Combined API (drop-in replacement for window.connexio) ──────────────────

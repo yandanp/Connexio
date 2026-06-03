@@ -520,6 +520,21 @@ fn handle_client_message(
             let msg = ServerMessage::State { data };
             send_to_client(state, client_id, &msg.to_json());
         }
+        ClientMessage::CmdDetectTasks { req_id, project_path } => {
+            let tasks = crate::modules::tasks::tasks_detect(app.clone(), project_path);
+            let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(tasks) };
+            send_to_client(state, client_id, &msg.to_json());
+        }
+        ClientMessage::CmdPinnedList { req_id, project_id } => {
+            let commands = crate::modules::pinned::pinned_list(app.clone(), project_id);
+            let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(commands) };
+            send_to_client(state, client_id, &msg.to_json());
+        }
+        ClientMessage::CmdPinnedSave { req_id, project_id, commands } => {
+            crate::modules::pinned::pinned_save(app.clone(), project_id, commands);
+            let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(null) };
+            send_to_client(state, client_id, &msg.to_json());
+        }
         ClientMessage::Ping => {
             let msg = ServerMessage::Pong { ts: now_secs() };
             send_to_client(state, client_id, &msg.to_json());

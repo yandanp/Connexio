@@ -63,6 +63,25 @@ pub enum ClientMessage {
     },
     /// Command: request state refresh
     CmdRefresh,
+    /// Detect project tasks
+    CmdDetectTasks {
+        #[serde(default)]
+        req_id: Option<String>,
+        project_path: String,
+    },
+    /// List pinned commands
+    CmdPinnedList {
+        #[serde(default)]
+        req_id: Option<String>,
+        project_id: String,
+    },
+    /// Save pinned commands
+    CmdPinnedSave {
+        #[serde(default)]
+        req_id: Option<String>,
+        project_id: String,
+        commands: Vec<crate::modules::pinned::PinnedCommand>,
+    },
     /// Heartbeat ping from client
     Ping,
 }
@@ -106,6 +125,12 @@ pub enum ServerMessage {
         #[serde(skip_serializing_if = "Option::is_none")]
         req_id: Option<String>,
         id: String,
+    },
+    /// Generic command result
+    CmdResult {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        req_id: Option<String>,
+        data: serde_json::Value,
     },
     /// Error response
     Error {

@@ -212,6 +212,14 @@ function handleServerMessage(raw: string) {
 				}
 				break;
 			}
+			case "cmd_result": {
+				const pending = pendingCommands.get(msg.req_id);
+				if (pending) {
+					pending.resolve(msg.data);
+					pendingCommands.delete(msg.req_id);
+				}
+				break;
+			}
 			case "error": {
 				const pending = pendingCommands.get(msg.req_id);
 				if (pending) {
@@ -246,7 +254,7 @@ function send(msg: object) {
 	}
 }
 
-function sendCommand(msg: object): Promise<string> {
+function sendCommand<T = string>(msg: object): Promise<T> {
 	const reqId = `req-${++_reqCounter}`;
 	return new Promise((resolve, reject) => {
 		pendingCommands.set(reqId, { resolve, reject });
@@ -426,14 +434,17 @@ export const workspace = {
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export const tasks = {
-	detect: (_projectPath: string): Promise<TaskScript[]> => Promise.resolve([]),
+	detect: (projectPath: string): Promise<TaskScript[]> =>
+		sendCommand<TaskScript[]>({ ch: "cmd_detect_tasks", project_path: projectPath }),
 };
 
 // ─── Pinned Commands ─────────────────────────────────────────────────────────
 
 export const pinned = {
-	list: (_projectId: string): Promise<PinnedCommand[]> => Promise.resolve([]),
-	save: (_projectId: string, _commands: PinnedCommand[]): Promise<void> => Promise.resolve(),
+	list: (projectId: string): Promise<PinnedCommand[]> =>
+		sendCommand<PinnedCommand[]>({ ch: "cmd_pinned_list", project_id: projectId }),
+	save: (projectId: string, commands: PinnedCommand[]): Promise<void> =>
+		sendCommand<void>({ ch: "cmd_pinned_save", project_id: projectId, commands }),
 };
 
 // ─── SSH (limited) ───────────────────────────────────────────────────────────

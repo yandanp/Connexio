@@ -200,6 +200,22 @@ export default function RemoteAccessSettings() {
 				)}
 			</div>
 
+			{/* Wake-on-LAN helper */}
+			<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3">
+				<p className="text-[11px] font-medium text-connexio-text mb-2">
+					Wake-on-LAN setup
+				</p>
+				<ol className="text-[11px] text-connexio-text-secondary space-y-1 list-decimal list-inside">
+					<li>Enable Wake-on-LAN / PCI-E wake in BIOS</li>
+					<li>Use Ethernet when possible; WiFi WoL is often unreliable</li>
+					<li>Enable Windows NIC option: Allow this device to wake the computer</li>
+					<li>Use a phone WoL app or Tailscale WoL to wake the PC, then open the login link</li>
+				</ol>
+				<p className="mt-2 text-[10px] text-connexio-text-muted">
+					Connexio can serve remote access after the PC is awake; waking a powered-off PC needs your router/VPN/WoL app.
+				</p>
+			</div>
+
 			{/* Instructions */}
 			{isRunning && (
 				<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3">

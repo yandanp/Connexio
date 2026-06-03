@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import AppFooter from "./components/AppFooter";
 import NotificationToast from "./components/NotificationToast";
 import RemoteLoginGate from "./components/RemoteLoginGate";
+import RemoteMobileShell from "./components/RemoteMobileShell";
 import SettingsModal from "./components/SettingsModal";
 import Sidebar from "./components/Sidebar";
 import TitleBar from "./components/TitleBar";
@@ -21,6 +22,10 @@ const UI_FONT_SIZE_MAP = {
 	default: "13px",
 	large: "15px",
 } as const;
+
+function useIsRemoteMobile() {
+	return isRemoteMode() && window.matchMedia("(max-width: 768px)").matches;
+}
 
 export default function App() {
 	const { loadProjects, activeProjectId, restoreWorkspace } = useProjectStore();
@@ -128,27 +133,38 @@ export default function App() {
 		};
 	}, []);
 
+	const remoteMobile = useIsRemoteMobile();
+	const mainContent = activeProjectId ? <Workspace /> : <WelcomeScreen />;
+
 	return (
 		<RemoteLoginGate>
-			<div className="flex flex-col h-screen w-screen bg-connexio-bg">
-				{!isRemoteMode() && <TitleBar />}
-				<div className="flex flex-1 overflow-hidden">
-					<Sidebar />
-					<div className="flex flex-col flex-1 overflow-hidden">
-						{activeProjectId ? <Workspace /> : <WelcomeScreen />}
+			{remoteMobile ? (
+				<RemoteMobileShell>
+					{mainContent}
+					{isSettingsOpen && <SettingsModal />}
+					<NotificationToast />
+				</RemoteMobileShell>
+			) : (
+				<div className="flex flex-col h-screen w-screen bg-connexio-bg">
+					{!isRemoteMode() && <TitleBar />}
+					<div className="flex flex-1 overflow-hidden">
+						<Sidebar />
+						<div className="flex flex-col flex-1 overflow-hidden">
+							{mainContent}
+						</div>
 					</div>
+					<AppFooter />
+
+					{/* Settings Modal */}
+					{isSettingsOpen && <SettingsModal />}
+
+					{/* Auto-update notification (desktop only) */}
+					{!isRemoteMode() && <UpdateNotification />}
+
+					{/* Notification toast */}
+					<NotificationToast />
 				</div>
-				<AppFooter />
-
-				{/* Settings Modal */}
-				{isSettingsOpen && <SettingsModal />}
-
-				{/* Auto-update notification (desktop only) */}
-				{!isRemoteMode() && <UpdateNotification />}
-
-				{/* Notification toast */}
-				<NotificationToast />
-			</div>
+			)}
 		</RemoteLoginGate>
 	);
 }

@@ -12,6 +12,7 @@ import { useNotificationStore } from "../stores/notificationStore";
 import { useProjectStore } from "../stores/projectStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import RemoteConnectionBadge from "./RemoteConnectionBadge";
+import RemotePowerControls from "./RemotePowerControls";
 
 export default function AppFooter() {
 	const {
@@ -191,6 +192,7 @@ export default function AppFooter() {
 				<div className="flex-1" />
 
 				<RemoteConnectionBadge />
+				<RemotePowerControls />
 
 				{/* Notifications for this project */}
 				{projectUnreadCount > 0 && (

@@ -17,7 +17,7 @@ use tokio::sync::mpsc;
 use tokio::time::{Duration, interval};
 use tower_http::services::{ServeDir, ServeFile};
 
-use super::protocol::{ClientMessage, ServerMessage};
+use super::protocol::{ClientMessage, PowerAction, ServerMessage};
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -535,6 +535,18 @@ fn handle_client_message(
             let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(null) };
             send_to_client(state, client_id, &msg.to_json());
         }
+        ClientMessage::CmdPower { req_id, action } => {
+            match run_power_action(action) {
+                Ok(_) => {
+                    let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(null) };
+                    send_to_client(state, client_id, &msg.to_json());
+                }
+                Err(e) => {
+                    let msg = ServerMessage::Error { req_id, error: e };
+                    send_to_client(state, client_id, &msg.to_json());
+                }
+            }
+        }
         ClientMessage::Ping => {
             let msg = ServerMessage::Pong { ts: now_secs() };
             send_to_client(state, client_id, &msg.to_json());
@@ -612,6 +624,69 @@ fn resize_session(session: &mut crate::modules::pty::TerminalSession, cols: u16,
             Ok(())
         }
     }
+}
+
+// ─── Power Controls ─────────────────────────────────────────────────────────
+
+fn run_power_action(action: PowerAction) -> Result<(), String> {
+    match action {
+        PowerAction::Lock => lock_host(),
+        PowerAction::Sleep => sleep_host(),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn lock_host() -> Result<(), String> {
+    std::process::Command::new("rundll32.exe")
+        .args(["user32.dll,LockWorkStation"])
+        .spawn()
+        .map_err(|e| format!("Failed to lock workstation: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn sleep_host() -> Result<(), String> {
+    std::process::Command::new("rundll32.exe")
+        .args(["powrprof.dll,SetSuspendState", "0,1,0"])
+        .spawn()
+        .map_err(|e| format!("Failed to sleep workstation: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn lock_host() -> Result<(), String> {
+    std::process::Command::new("pmset")
+        .args(["displaysleepnow"])
+        .spawn()
+        .map_err(|e| format!("Failed to lock display: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn sleep_host() -> Result<(), String> {
+    std::process::Command::new("pmset")
+        .args(["sleepnow"])
+        .spawn()
+        .map_err(|e| format!("Failed to sleep host: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn lock_host() -> Result<(), String> {
+    std::process::Command::new("loginctl")
+        .args(["lock-session"])
+        .spawn()
+        .map_err(|e| format!("Failed to lock session: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn sleep_host() -> Result<(), String> {
+    std::process::Command::new("systemctl")
+        .args(["suspend"])
+        .spawn()
+        .map_err(|e| format!("Failed to suspend host: {}", e))?;
+    Ok(())
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────

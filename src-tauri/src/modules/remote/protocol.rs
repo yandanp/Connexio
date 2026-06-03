@@ -82,6 +82,12 @@ pub enum ClientMessage {
         project_id: String,
         commands: Vec<crate::modules::pinned::PinnedCommand>,
     },
+    /// Remote power command: lock or sleep the host PC
+    CmdPower {
+        #[serde(default)]
+        req_id: Option<String>,
+        action: PowerAction,
+    },
     /// Heartbeat ping from client
     Ping,
 }
@@ -93,6 +99,13 @@ pub struct TerminalContextMsg {
     pub project_name: String,
     pub tab_id: String,
     pub tab_label: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum PowerAction {
+    Lock,
+    Sleep,
 }
 
 impl From<TerminalContextMsg> for crate::modules::pty::TerminalContext {

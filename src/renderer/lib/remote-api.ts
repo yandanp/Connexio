@@ -626,6 +626,8 @@ export const remote = {
 		loginUrl: null,
 	}),
 	regeneratePin: () => Promise.resolve("------"),
+	lockHost: (): Promise<void> => sendCommand<void>({ ch: "cmd_power", action: "lock" }),
+	sleepHost: (): Promise<void> => sendCommand<void>({ ch: "cmd_power", action: "sleep" }),
 };
 
 // ─── Combined API ────────────────────────────────────────────────────────────

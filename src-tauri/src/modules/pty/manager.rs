@@ -13,6 +13,7 @@ pub(crate) struct PtySession {
     pub(crate) master: Box<dyn MasterPty + Send>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
+    pub(crate) context: Option<TerminalContext>,
 }
 
 pub(crate) enum TerminalSession {
@@ -24,6 +25,7 @@ pub(crate) struct SshTerminalSession {
     pub(crate) channel: Arc<Mutex<Channel>>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
+    pub(crate) context: Option<TerminalContext>,
 }
 
 /// Global PTY manager state
@@ -39,9 +41,28 @@ impl PtyManager {
             counter: Mutex::new(0),
         }
     }
+
+    pub(crate) fn find_by_context(&self, project_id: &str, tab_id: &str) -> Option<String> {
+        let sessions = self.sessions.lock().unwrap();
+        sessions.iter().find_map(|(id, session)| {
+            let context = match session {
+                TerminalSession::Local(s) => s.context.as_ref(),
+                TerminalSession::Ssh(s) => s.context.as_ref(),
+            }?;
+            if context.project_id == project_id && context.tab_id == tab_id {
+                Some(id.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    pub(crate) fn session_ids(&self) -> Vec<String> {
+        self.sessions.lock().unwrap().keys().cloned().collect()
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalContext {
     pub project_id: String,
@@ -171,6 +192,7 @@ pub fn terminal_create(
                 master: pair.master,
                 cols: 80,
                 rows: 24,
+                context: context.clone(),
             }),
         );
     }
@@ -280,6 +302,7 @@ pub fn terminal_create_command(
                 master: pair.master,
                 cols: 80,
                 rows: 24,
+                context: context.clone(),
             }),
         );
     }
@@ -341,6 +364,7 @@ pub fn terminal_create_ssh(
                 channel: channel.clone(),
                 cols,
                 rows,
+                context: None,
             }),
         );
     }

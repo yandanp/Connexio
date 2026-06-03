@@ -426,6 +426,15 @@ fn handle_client_message(
             }
         }
         ClientMessage::CmdCreateTerminal { req_id, project_path, shell, context } => {
+            // Remote resume: if a terminal already exists for this project/tab,
+            // return the existing terminal ID instead of spawning a duplicate.
+            if let Some(ref ctx) = context {
+                if let Some(existing_id) = pty.find_by_context(&ctx.project_id, &ctx.tab_id) {
+                    let msg = ServerMessage::TermCreated { req_id, id: existing_id };
+                    send_to_client(state, client_id, &msg.to_json());
+                    return;
+                }
+            }
             let ctx = context.map(|c| c.into());
             match crate::modules::pty::terminal_create(app.clone(), project_path, shell, ctx) {
                 Ok(id) => {
@@ -439,6 +448,13 @@ fn handle_client_message(
             }
         }
         ClientMessage::CmdCreateCommand { req_id, project_path, command, context } => {
+            if let Some(ref ctx) = context {
+                if let Some(existing_id) = pty.find_by_context(&ctx.project_id, &ctx.tab_id) {
+                    let msg = ServerMessage::TermCreated { req_id, id: existing_id };
+                    send_to_client(state, client_id, &msg.to_json());
+                    return;
+                }
+            }
             let ctx = context.map(|c| c.into());
             match crate::modules::pty::terminal_create_command(app.clone(), project_path, command, ctx) {
                 Ok(id) => {
@@ -486,8 +502,7 @@ fn gather_init_state(app: &AppHandle) -> serde_json::Value {
 
     // Get active terminal IDs
     let pty = app.state::<crate::modules::pty::PtyManager>();
-    let sessions = pty.sessions.lock().unwrap();
-    let terminals: Vec<&String> = sessions.keys().collect();
+    let terminals = pty.session_ids();
 
     serde_json::json!({
         "projects": projects,

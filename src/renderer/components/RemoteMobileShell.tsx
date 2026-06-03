@@ -36,7 +36,7 @@ export default function RemoteMobileShell({ children }: Props) {
 				</div>
 			</header>
 
-			<main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+			<main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
 
 			<nav className="grid h-14 flex-shrink-0 grid-cols-4 border-t border-connexio-border bg-connexio-bg-secondary pb-[env(safe-area-inset-bottom)]">
 				<button

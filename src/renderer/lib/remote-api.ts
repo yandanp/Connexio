@@ -31,6 +31,23 @@ let _pin: string | null = sessionStorage.getItem("connexio_remote_pin");
 let _ws: WebSocket | null = null;
 let _authenticated = false;
 let _connected = false;
+let _latencyMs: number | null = null;
+let _lastPingAt = 0;
+let _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+type RemoteConnectionStatus = "connected" | "connecting" | "reconnecting" | "disconnected";
+type StatusListener = (status: { status: RemoteConnectionStatus; latencyMs: number | null }) => void;
+const statusListeners = new Set<StatusListener>();
+let _connectionStatus: RemoteConnectionStatus = "disconnected";
+
+function setConnectionStatus(status: RemoteConnectionStatus) {
+	_connectionStatus = status;
+	for (const cb of statusListeners) cb({ status, latencyMs: _latencyMs });
+}
+
+function notifyLatency() {
+	for (const cb of statusListeners) cb({ status: _connectionStatus, latencyMs: _latencyMs });
+}
 
 // State cache (pushed from server)
 let _state: InitState | null = null;
@@ -95,6 +112,8 @@ export function logout() {
 	_connected = false;
 	_state = null;
 	sessionStorage.removeItem("connexio_remote_pin");
+	stopHeartbeat();
+	setConnectionStatus("disconnected");
 	if (_ws) {
 		_ws.close();
 		_ws = null;
@@ -112,8 +131,12 @@ function connectWs(): Promise<void> {
 			`${proto}//${window.location.host}/ws?pin=${encodeURIComponent(_pin!)}`,
 		);
 
+		setConnectionStatus(_authenticated ? "reconnecting" : "connecting");
+
 		_ws.onopen = () => {
 			_connected = true;
+			setConnectionStatus("connected");
+			startHeartbeat();
 			resolve();
 		};
 
@@ -123,19 +146,39 @@ function connectWs(): Promise<void> {
 
 		_ws.onclose = () => {
 			_connected = false;
+			stopHeartbeat();
+			setConnectionStatus(_authenticated ? "reconnecting" : "disconnected");
 			// Auto-reconnect
 			setTimeout(() => {
 				if (_authenticated && _pin) {
 					connectWs().catch(() => {});
 				}
-			}, 2000);
+			}, 1200);
 		};
 
 		_ws.onerror = () => {
 			_connected = false;
+			stopHeartbeat();
+			setConnectionStatus(_authenticated ? "reconnecting" : "disconnected");
 			reject(new Error("WebSocket connection failed"));
 		};
 	});
+}
+
+function startHeartbeat() {
+	stopHeartbeat();
+	_heartbeatTimer = setInterval(() => {
+		if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
+		_lastPingAt = performance.now();
+		send({ ch: "ping" });
+	}, 5000);
+}
+
+function stopHeartbeat() {
+	if (_heartbeatTimer) {
+		clearInterval(_heartbeatTimer);
+		_heartbeatTimer = null;
+	}
 }
 
 function handleServerMessage(raw: string) {
@@ -177,6 +220,11 @@ function handleServerMessage(raw: string) {
 					resolve(_state!);
 				}
 				_stateResolvers = [];
+				break;
+			}
+			case "pong": {
+				_latencyMs = Math.max(0, Math.round(performance.now() - _lastPingAt));
+				notifyLatency();
 				break;
 			}
 		}
@@ -534,6 +582,11 @@ export interface RemoteStatus {
 }
 
 export const remote = {
+	onStatus: (cb: StatusListener) => {
+		statusListeners.add(cb);
+		cb({ status: _connectionStatus, latencyMs: _latencyMs });
+		return () => { statusListeners.delete(cb); };
+	},
 	start: (): Promise<RemoteStatus> => Promise.resolve({
 		isRunning: true,
 		port: parseInt(window.location.port) || 9876,

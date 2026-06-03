@@ -63,6 +63,8 @@ pub enum ClientMessage {
     },
     /// Command: request state refresh
     CmdRefresh,
+    /// Heartbeat ping from client
+    Ping,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -114,6 +116,10 @@ pub enum ServerMessage {
     /// Full state push (sent on connect and on refresh)
     State {
         data: serde_json::Value,
+    },
+    /// Heartbeat pong from server
+    Pong {
+        ts: u64,
     },
 }
 

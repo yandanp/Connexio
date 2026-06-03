@@ -11,6 +11,7 @@ import type { GitStatus } from "../../shared/types";
 import { useNotificationStore } from "../stores/notificationStore";
 import { useProjectStore } from "../stores/projectStore";
 import { useSettingsStore } from "../stores/settingsStore";
+import RemoteConnectionBadge from "./RemoteConnectionBadge";
 
 export default function AppFooter() {
 	const {
@@ -188,6 +189,8 @@ export default function AppFooter() {
 
 				{/* Spacer */}
 				<div className="flex-1" />
+
+				<RemoteConnectionBadge />
 
 				{/* Notifications for this project */}
 				{projectUnreadCount > 0 && (

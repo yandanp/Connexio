@@ -459,6 +459,10 @@ fn handle_client_message(
             let msg = ServerMessage::State { data };
             send_to_client(state, client_id, &msg.to_json());
         }
+        ClientMessage::Ping => {
+            let msg = ServerMessage::Pong { ts: now_secs() };
+            send_to_client(state, client_id, &msg.to_json());
+        }
     }
 }
 

@@ -46,6 +46,10 @@ function buildXtermTheme(terminal: TerminalThemeColors) {
 const MIN_SCROLLBACK = 500;
 const MAX_SCROLLBACK = 2000;
 
+function isRemoteMode() {
+	return !!(window as any).__CONNEXIO_REMOTE__;
+}
+
 function clampScrollback(value: number | undefined): number {
 	const scrollback = Number(value ?? 1000);
 	if (!Number.isFinite(scrollback)) return 1000;
@@ -106,6 +110,14 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			})
 			.catch(() => {});
 	}, []);
+
+	const sendShortcut = useCallback(
+		(data: string) => {
+			window.connexio.terminal.write(terminalId, data);
+			xtermRef.current?.focus();
+		},
+		[terminalId],
+	);
 
 	const closeContextMenu = useCallback(() => {
 		setContextMenu(null);
@@ -555,6 +567,38 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 				className="terminal-container w-full h-full bg-connexio-bg"
 				data-custom-context-menu=""
 			/>
+
+			{isRemoteMode() && (
+				<div className="absolute left-2 right-2 bottom-2 z-20 flex items-center gap-1 overflow-x-auto rounded-lg border border-connexio-border bg-connexio-bg-secondary/95 p-1 shadow-lg backdrop-blur">
+					{[
+						["Esc", "\x1b"],
+						["Tab", "\t"],
+						["Ctrl+C", "\x03"],
+						["Ctrl+D", "\x04"],
+						["↑", "\x1b[A"],
+						["↓", "\x1b[B"],
+						["←", "\x1b[D"],
+						["→", "\x1b[C"],
+					].map(([label, value]) => (
+						<button
+							key={label}
+							onClick={() => sendShortcut(value)}
+							className="flex-shrink-0 rounded border border-connexio-border bg-connexio-bg-tertiary px-2 py-1 text-[11px] font-medium text-connexio-text-secondary active:bg-connexio-accent/20"
+							type="button"
+						>
+							{label}
+						</button>
+					))}
+					<button
+						onClick={handlePaste}
+						className="flex-shrink-0 rounded border border-connexio-border bg-connexio-bg-tertiary px-2 py-1 text-[11px] font-medium text-connexio-text-secondary active:bg-connexio-accent/20"
+						type="button"
+					>
+						Paste
+					</button>
+				</div>
+			)}
+
 			{contextMenu && (
 				<TerminalContextMenu
 					x={contextMenu.x}

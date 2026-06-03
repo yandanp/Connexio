@@ -38,7 +38,9 @@ interface TerminalContext {
 
 // Global terminal data listeners — registered immediately on import
 type TerminalDataCallback = (id: string, data: string) => void;
+type TerminalExitCallback = (id: string) => void;
 const terminalDataListeners = new Set<TerminalDataCallback>();
+const terminalExitListeners = new Set<TerminalExitCallback>();
 
 // Buffer: stores data per terminal ID until at least one listener exists
 const terminalDataBuffer = new Map<string, string[]>();
@@ -76,6 +78,12 @@ listen<[string, string]>("terminal:data", (event) => {
 	}
 });
 
+listen<string>("terminal:exit", (event) => {
+	for (const cb of terminalExitListeners) {
+		cb(event.payload);
+	}
+});
+
 export const terminal = {
 	create: async (projectPath: string, shell?: string, context?: TerminalContext): Promise<string> => {
 		try {
@@ -110,6 +118,13 @@ export const terminal = {
 		}
 		return () => {
 			terminalDataListeners.delete(callback);
+		};
+	},
+
+	onExit: (callback: (id: string) => void): (() => void) => {
+		terminalExitListeners.add(callback);
+		return () => {
+			terminalExitListeners.delete(callback);
 		};
 	},
 };

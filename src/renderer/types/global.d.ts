@@ -31,6 +31,7 @@ interface ConnexioAPI {
 		resize: (id: string, cols: number, rows: number) => Promise<void>;
 		close: (id: string) => Promise<void>;
 		onData: (callback: (id: string, data: string) => void) => () => void;
+		onExit: (callback: (id: string) => void) => () => void;
 	};
 	project: {
 		list: () => Promise<import("../../shared/types").Project[]>;

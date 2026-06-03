@@ -78,7 +78,7 @@ export default function AIIntegrationsSettings() {
 
 	return (
 		<div className="space-y-3">
-			<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
+			<h3 className="section-label">
 				AI Agent Integrations
 			</h3>
 			<p className="text-[10px] text-connexio-text-muted leading-relaxed">
@@ -92,7 +92,7 @@ export default function AIIntegrationsSettings() {
 				{providers.map((provider) => (
 					<div
 						key={provider.id}
-						className="flex items-center justify-between p-2.5 bg-connexio-bg-tertiary rounded-lg border border-connexio-border"
+						className="flex items-center justify-between rounded-xl bg-white/[0.035] p-2.5"
 					>
 						<div className="flex items-center gap-2.5">
 							{/* Status indicator */}
@@ -130,7 +130,7 @@ export default function AIIntegrationsSettings() {
 								) : provider.isHookInstalled ? (
 									<button
 										onClick={() => handleUninstall(provider.id)}
-										className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded hover:bg-red-500/20 transition-colors"
+										className="flex items-center gap-1.5 rounded-lg bg-red-500/10 px-2.5 py-1 text-[10px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
 										type="button"
 									>
 										<Trash2 size={10} />
@@ -139,7 +139,7 @@ export default function AIIntegrationsSettings() {
 								) : (
 									<button
 										onClick={() => handleInstall(provider.id)}
-										className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-connexio-accent bg-connexio-accent/10 border border-connexio-accent/20 rounded hover:bg-connexio-accent/20 transition-colors"
+										className="flex items-center gap-1.5 rounded-lg bg-connexio-accent/10 px-2.5 py-1 text-[10px] font-medium text-connexio-accent transition-colors hover:bg-connexio-accent/20"
 										type="button"
 									>
 										<Download size={10} />
@@ -167,10 +167,10 @@ export default function AIIntegrationsSettings() {
 			)}
 
 			{/* Info */}
-			<div className="pt-2 border-t border-connexio-border">
+			<div className="soft-separator-top pt-3">
 				<p className="text-[10px] text-connexio-text-muted/60 leading-relaxed">
 					Hooks communicate via TCP localhost. Set{" "}
-					<code className="text-connexio-text-muted bg-connexio-bg px-1 rounded">
+					<code className="rounded bg-connexio-bg px-1 text-connexio-text-muted">
 						CONNEXIO_NOTIFICATION_PORT
 					</code>{" "}
 					environment variable for the agents to connect.

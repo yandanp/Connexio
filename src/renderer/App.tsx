@@ -1,5 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AppFooter from "./components/AppFooter";
+import CommandPalette from "./components/CommandPalette";
+import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal";
 import NotificationToast from "./components/NotificationToast";
 import RemoteLoginGate from "./components/RemoteLoginGate";
 import RemoteMobileShell from "./components/RemoteMobileShell";
@@ -29,6 +31,9 @@ function useIsRemoteMobile() {
 
 export default function App() {
 	const { loadProjects, activeProjectId, restoreWorkspace } = useProjectStore();
+	const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+	const [showStartPage, setShowStartPage] = useState(false);
 	const { loadTheme, loadThemes } = useThemeStore();
 	const { isSettingsOpen, settings, loadSettings, loadShells, discordPresence } = useSettingsStore();
 	const {
@@ -101,6 +106,53 @@ export default function App() {
 		return () => document.removeEventListener("contextmenu", handleContextMenu);
 	}, []);
 
+	useEffect(() => {
+		if (activeProjectId) setShowStartPage(false);
+	}, [activeProjectId]);
+
+	useEffect(() => {
+		const unsubscribe = window.connexio.terminal.onExit((terminalId) => {
+			useProjectStore.getState().markTerminalExited(terminalId);
+		});
+		return unsubscribe;
+	}, []);
+
+	useEffect(() => {
+		const handleOpenShortcuts = () => setIsShortcutsOpen(true);
+		const handleOpenStartPage = () => setShowStartPage(true);
+		window.addEventListener("connexio:open-shortcuts", handleOpenShortcuts);
+		window.addEventListener("connexio:open-start-page", handleOpenStartPage);
+		return () => {
+			window.removeEventListener("connexio:open-shortcuts", handleOpenShortcuts);
+			window.removeEventListener("connexio:open-start-page", handleOpenStartPage);
+		};
+	}, []);
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement;
+			const isEditable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+			const isTerminalTarget = Boolean(target.closest(".xterm, .terminal-container"));
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+				if (isTerminalTarget) return;
+				e.preventDefault();
+				setIsCommandPaletteOpen((open) => !open);
+				return;
+			}
+			if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+				e.preventDefault();
+				setIsShortcutsOpen((open) => !open);
+				return;
+			}
+			if (e.key === "Escape" && !isEditable) {
+				setIsCommandPaletteOpen(false);
+				setIsShortcutsOpen(false);
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
+
 	// Listen for real-time notifications from main process
 	useEffect(() => {
 		const unsubscribe = window.connexio.notification.onReceived(handleIncoming);
@@ -134,7 +186,15 @@ export default function App() {
 	}, []);
 
 	const remoteMobile = useIsRemoteMobile();
-	const mainContent = activeProjectId ? <Workspace /> : <WelcomeScreen />;
+	const mainContent = activeProjectId && !showStartPage
+		? <Workspace />
+		: (
+			<WelcomeScreen
+				canClose={Boolean(activeProjectId && showStartPage)}
+				onClose={() => setShowStartPage(false)}
+				onProjectSelected={() => setShowStartPage(false)}
+			/>
+		);
 
 	return (
 		<RemoteLoginGate>
@@ -145,15 +205,25 @@ export default function App() {
 					<NotificationToast />
 				</RemoteMobileShell>
 			) : (
-				<div className="flex flex-col h-screen w-screen bg-connexio-bg">
+				<div className="flex flex-col h-screen w-screen bg-connexio-bg text-connexio-text">
+					<div className="pointer-events-none fixed inset-0 opacity-70 [background:radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.08),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(139,92,246,0.07),transparent_26%)]" />
 					{!isRemoteMode() && <TitleBar />}
-					<div className="flex flex-1 overflow-hidden">
+					<div className="relative flex flex-1 overflow-hidden">
 						<Sidebar />
 						<div className="flex flex-col flex-1 overflow-hidden">
 							{mainContent}
 						</div>
 					</div>
 					<AppFooter />
+
+					<CommandPalette
+						open={isCommandPaletteOpen}
+						onClose={() => setIsCommandPaletteOpen(false)}
+					/>
+					<KeyboardShortcutsModal
+						open={isShortcutsOpen}
+						onClose={() => setIsShortcutsOpen(false)}
+					/>
 
 					{/* Settings Modal */}
 					{isSettingsOpen && <SettingsModal />}

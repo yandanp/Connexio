@@ -1,4 +1,4 @@
-import { GripVertical, Pencil, X } from "lucide-react";
+import { Code2, FileCode, Globe, GripVertical, HardDrive, Pencil, Server, Terminal, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface TabProps {
@@ -9,6 +9,9 @@ interface TabProps {
 	canClose: boolean;
 	isDirty?: boolean;
 	tabType?: "terminal" | "editor" | "preview" | "remoteEditor" | "sshManager" | "sftp";
+	detail?: string;
+	splitCount?: number;
+	status?: "active" | "running" | "exited";
 	onSelect: () => void;
 	onClose: () => void;
 	onRename: (newLabel: string) => void;
@@ -29,6 +32,9 @@ export default function WorkspaceTab({
 	canClose,
 	isDirty,
 	tabType,
+	detail,
+	splitCount,
+	status,
 	onSelect,
 	onClose,
 	onRename,
@@ -117,9 +123,28 @@ export default function WorkspaceTab({
 	// Drag indicator styles
 	const dragIndicatorClass = isDragOver
 		? dragSide === "left"
-			? "before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:bg-connexio-accent before:rounded-full"
-			: "after:absolute after:right-0 after:top-1 after:bottom-1 after:w-0.5 after:bg-connexio-accent after:rounded-full"
+			? "before:absolute before:left-1 before:top-1.5 before:bottom-1.5 before:w-0.5 before:bg-connexio-accent before:rounded-full before:shadow-[0_0_10px_var(--accent-color)]"
+			: "after:absolute after:right-1 after:top-1.5 after:bottom-1.5 after:w-0.5 after:bg-connexio-accent after:rounded-full after:shadow-[0_0_10px_var(--accent-color)]"
 		: "";
+
+	const TabIcon =
+		tabType === "editor" || tabType === "remoteEditor"
+			? FileCode
+			: tabType === "preview"
+				? Globe
+				: tabType === "sshManager"
+					? Server
+					: tabType === "sftp"
+						? HardDrive
+						: tabType === "terminal"
+							? Terminal
+							: Code2;
+	const typeLabel = tabType === "remoteEditor" ? "remote editor" : tabType || "terminal";
+	const showStatus = status && tabType !== "editor" && tabType !== "remoteEditor" && tabType !== "preview";
+	const statusLabel = status === "running" ? "Running" : status === "exited" ? "Exited" : "Ready";
+	const tooltip = [label, typeLabel, statusLabel, detail, splitCount && splitCount > 1 ? `${splitCount} panes` : null]
+		.filter(Boolean)
+		.join(" - ");
 
 	return (
 		<div
@@ -127,11 +152,12 @@ export default function WorkspaceTab({
 			role="tab"
 			tabIndex={0}
 			aria-selected={isActive}
+			title={tooltip}
 			draggable={!isEditing}
-			className={`relative group flex items-center gap-1 px-1 h-9 min-w-[100px] max-w-[200px] border-r border-connexio-border cursor-pointer transition-colors select-none ${
+			className={`interaction-lift relative group mx-0.5 flex h-7 min-w-[110px] max-w-[210px] cursor-pointer select-none items-center gap-1 rounded-md border px-1.5 transition-all duration-150 ${
 				isActive
-					? "bg-connexio-bg border-b-2 border-b-connexio-accent"
-					: "hover:bg-connexio-bg-tertiary"
+					? "border-transparent bg-connexio-bg-elevated text-connexio-text shadow-[inset_2px_0_0_var(--accent-color),inset_0_1px_0_rgba(255,255,255,0.05),0_6px_18px_rgba(0,0,0,0.18)]"
+					: "border-transparent text-connexio-text-muted hover:bg-connexio-bg-tertiary/70 hover:text-connexio-text-secondary"
 			} ${dragIndicatorClass} ${isDragging ? "opacity-40" : ""}`}
 			onClick={() => {
 				if (!isEditing) onSelect();
@@ -176,6 +202,19 @@ export default function WorkspaceTab({
 				<GripVertical size={10} className="text-connexio-text-muted" />
 			</div>
 
+			<span className="relative flex flex-shrink-0 items-center">
+				<TabIcon
+					size={12}
+					className={isActive ? "text-connexio-accent" : "text-connexio-text-muted"}
+				/>
+				{showStatus && (
+					<span
+						className={`absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full ring-2 ring-connexio-bg-elevated ${status === "running" ? "animate-pulse bg-[var(--success-color)] shadow-[0_0_8px_rgba(52,211,153,0.7)]" : status === "exited" ? "bg-connexio-text-muted/45" : "bg-connexio-accent/80"}`}
+						title={statusLabel}
+					/>
+				)}
+			</span>
+
 			{/* Label or input — takes remaining space */}
 			{isEditing ? (
 				<input
@@ -187,7 +226,7 @@ export default function WorkspaceTab({
 					onKeyDown={handleInputKeyDown}
 					onClick={(e) => e.stopPropagation()}
 					onMouseDown={(e) => e.stopPropagation()}
-					className="flex-1 text-xs bg-connexio-bg-tertiary text-connexio-text border border-connexio-accent rounded px-1 py-0.5 outline-none min-w-0"
+					className="min-w-0 flex-1 rounded-md border border-connexio-accent bg-connexio-bg-tertiary px-1 py-0.5 text-xs text-connexio-text outline-none"
 					maxLength={30}
 				/>
 			) : (
@@ -202,9 +241,27 @@ export default function WorkspaceTab({
 				</span>
 			)}
 
+			{showStatus && status === "running" && isActive && !isEditing && (
+				<span className="rounded-full bg-[var(--success-color)]/10 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--success-color)]">
+					Run
+				</span>
+			)}
+
+			{showStatus && status === "exited" && isActive && !isEditing && (
+				<span className="rounded-full bg-white/[0.035] px-1.5 text-[9px] font-semibold uppercase tracking-wide text-connexio-text-muted">
+					Done
+				</span>
+			)}
+
+			{splitCount && splitCount > 1 && !isEditing && (
+				<span className="rounded bg-white/[0.04] px-1 text-[9px] font-semibold text-connexio-text-muted" title={`${splitCount} panes`}>
+					{splitCount}
+				</span>
+			)}
+
 			{/* Unsaved indicator dot */}
 			{isDirty && (
-				<span className="w-1.5 h-1.5 rounded-full bg-connexio-accent flex-shrink-0" title="Unsaved changes" />
+				<span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-connexio-accent shadow-[0_0_10px_var(--accent-color)]" title="Unsaved changes" />
 			)}
 
 			{/* Close button — always pinned to the right */}
@@ -214,7 +271,7 @@ export default function WorkspaceTab({
 						e.stopPropagation();
 						onClose();
 					}}
-					className="flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/20 transition-all"
+					className="ml-auto flex-shrink-0 rounded-md p-0.5 opacity-0 transition-all hover:bg-red-500/20 group-hover:opacity-100"
 					type="button"
 				>
 					<X size={10} className="text-connexio-text-muted" />
@@ -264,7 +321,7 @@ function TabContextMenu({
 		<div
 			ref={menuRef}
 			data-tab-context-menu=""
-			className="fixed z-[200] min-w-[140px] py-1 bg-connexio-bg-secondary border border-connexio-border rounded-md shadow-xl"
+			className="fixed z-[200] min-w-[140px] rounded-lg border border-connexio-border bg-connexio-bg-secondary py-1 shadow-2xl"
 			style={{ top: pos.y, left: pos.x }}
 			onMouseDown={(e) => e.stopPropagation()}
 			onClick={(e) => e.stopPropagation()}

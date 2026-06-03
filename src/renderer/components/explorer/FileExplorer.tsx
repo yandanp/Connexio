@@ -1,4 +1,5 @@
 import {
+	Archive,
 	ChevronDown,
 	ChevronRight,
 	File,
@@ -96,7 +97,7 @@ function InlineInput({ initialValue, placeholder, onConfirm, onCancel }: {
 				e.stopPropagation();
 			}}
 			onClick={(e) => e.stopPropagation()}
-			className="flex-1 min-w-0 text-[12px] px-1 py-0 bg-connexio-bg border border-connexio-accent/60 rounded text-connexio-text outline-none"
+			className="min-w-0 flex-1 rounded bg-connexio-bg px-1 py-0 text-[12px] text-connexio-text outline-none ring-1 ring-connexio-accent/50"
 		/>
 	);
 }
@@ -221,7 +222,7 @@ function FileTreeNode({ entry, depth, onOpenFile, onContextMenu, renamingPath, o
 	return (
 		<div>
 			<div
-				className={`flex items-center gap-1 px-2 py-[3px] cursor-pointer hover:bg-connexio-bg-tertiary rounded-sm transition-colors ${entry.isHidden ? "opacity-60" : ""}`}
+				className={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-white/[0.04] ${entry.isHidden ? "opacity-60" : ""}`}
 				style={{ paddingLeft: `${depth * 12 + 8}px` }}
 				onClick={handleClick}
 				onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, entry); }}
@@ -447,10 +448,10 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 	};
 
 	return (
-		<div className="flex flex-col h-full overflow-hidden">
+		<div className="flex h-full flex-col overflow-hidden bg-connexio-bg-secondary/35">
 			{/* Search bar */}
-			<div className="px-2 pt-2 pb-1 border-b border-connexio-border flex-shrink-0">
-				<div className="flex items-center gap-1 bg-connexio-bg-tertiary rounded px-2 py-1">
+			<div className="flex-shrink-0 px-2 pb-2 pt-2 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
+				<div className="flex items-center gap-1 rounded-lg bg-connexio-bg-tertiary px-2 py-1.5">
 					<Search size={12} className="text-connexio-text-muted flex-shrink-0" />
 					<input
 						ref={searchInputRef}
@@ -492,7 +493,7 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 
 			{/* Search results */}
 			{searched && (
-				<div className="border-b border-connexio-border max-h-[40%] overflow-y-auto flex-shrink-0">
+				<div className="max-h-[40%] flex-shrink-0 overflow-y-auto shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
 					{searching && (
 						<div className="flex items-center justify-center py-4 text-connexio-text-muted">
 							<Loader2 size={12} className="animate-spin mr-1.5" />
@@ -500,7 +501,11 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 						</div>
 					)}
 					{!searching && searchResults.length === 0 && (
-						<div className="px-3 py-3 text-center text-[11px] text-connexio-text-muted">No results</div>
+						<ExplorerEmptyState
+							icon={<Search size={18} />}
+							title="No search results"
+							description="Try a different phrase or toggle case sensitivity."
+						/>
 					)}
 					{!searching && searchResults.length > 0 && (
 						<div className="py-1">
@@ -511,7 +516,7 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 								<div key={filePath} className="mb-0.5">
 									<button
 										onClick={() => onOpenFile?.(filePath)}
-										className="w-full flex items-center gap-1.5 px-2 py-0.5 text-left hover:bg-connexio-bg-tertiary transition-colors"
+										className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/[0.04]"
 										type="button"
 									>
 										<FileCode size={11} className="text-connexio-accent flex-shrink-0" />
@@ -579,9 +584,15 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 				setContextMenu({ x: e.clientX, y: e.clientY, entry: { name: "", path: projectPath, isDir: true, isHidden: false, extension: null, size: null, children: null } });
 			}}>
 				{loading ? (
-					<div className="text-[11px] text-connexio-text-muted px-3 py-2">Loading...</div>
+					<div className="px-3 py-2 text-[11px] text-connexio-text-muted">Loading...</div>
 				) : filteredEntries.length === 0 ? (
-					<div className="text-[11px] text-connexio-text-muted px-3 py-2">Empty directory</div>
+					<ExplorerEmptyState
+						icon={<Archive size={18} />}
+						title={showHidden ? "Empty directory" : "No visible files"}
+						description={showHidden ? "Create a file or folder to start working here." : "Hidden files are currently filtered out."}
+						actionLabel={showHidden ? "New file" : "Show hidden"}
+						onAction={() => showHidden ? setNewItem({ parent: projectPath, type: "file" }) : setShowHidden(true)}
+					/>
 				) : (
 					filteredEntries.map((entry) => (
 						<FileTreeNode
@@ -619,6 +630,39 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 					onOpenInSplitRight={!contextMenu.entry.isDir && onOpenFileInSplit ? () => { onOpenFileInSplit(contextMenu.entry.path, "horizontal"); setContextMenu(null); } : undefined}
 					onOpenInSplitDown={!contextMenu.entry.isDir && onOpenFileInSplit ? () => { onOpenFileInSplit(contextMenu.entry.path, "vertical"); setContextMenu(null); } : undefined}
 				/>
+			)}
+		</div>
+	);
+}
+
+function ExplorerEmptyState({
+	icon,
+	title,
+	description,
+	actionLabel,
+	onAction,
+}: {
+	icon: React.ReactNode;
+	title: string;
+	description: string;
+	actionLabel?: string;
+	onAction?: () => void;
+}) {
+	return (
+		<div className="mx-2 my-3 rounded-2xl bg-white/[0.025] px-3 py-5 text-center">
+			<div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-connexio-accent/10 text-connexio-accent">
+				{icon}
+			</div>
+			<p className="text-[11px] font-semibold text-connexio-text">{title}</p>
+			<p className="mt-1 text-[10px] leading-4 text-connexio-text-muted">{description}</p>
+			{actionLabel && onAction && (
+				<button
+					onClick={onAction}
+					className="mt-3 rounded-lg bg-connexio-accent/10 px-2.5 py-1.5 text-[10px] font-semibold text-connexio-accent transition-colors hover:bg-connexio-accent/15"
+					type="button"
+				>
+					{actionLabel}
+				</button>
 			)}
 		</div>
 	);

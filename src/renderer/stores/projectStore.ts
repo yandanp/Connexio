@@ -301,11 +301,14 @@ async function createTerminalsForTree(
 
 // === Tab Types ===
 
+export type TerminalStatus = "active" | "running" | "exited";
+
 export interface TerminalTab {
 	id: string;
 	label: string;
 	shell?: string;
 	terminalId: string | null;
+	status?: TerminalStatus;
 	type?: "terminal" | "editor" | "preview" | "remoteEditor" | "sshManager" | "sftp";
 	filePath?: string;
 	remoteConnection?: import("../../shared/types").SSHConnection;
@@ -349,6 +352,7 @@ interface ProjectStore {
 	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => void;
 	closeTerminalTab: (projectId: string, tabId: string) => void;
 	setActiveTerminalTab: (projectId: string, tabId: string) => void;
+	markTerminalExited: (terminalId: string) => void;
 	renameTerminalTab: (projectId: string, tabId: string, newLabel: string) => void;
 	updatePreviewTabUrl: (projectId: string, tabId: string, url: string) => void;
 	reorderTabs: (projectId: string, fromIndex: number, toIndex: number) => void;
@@ -534,7 +538,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			return;
 		}
 
-		const newTab: TerminalTab = { id: newTabId, label: tabLabel, shell, terminalId };
+		const newTab: TerminalTab = { id: newTabId, label: tabLabel, shell, terminalId, status: "active" };
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
@@ -560,7 +564,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			return;
 		}
 
-		const newTab: TerminalTab = { id: newTabId, label, terminalId };
+		const newTab: TerminalTab = { id: newTabId, label, terminalId, status: "running" };
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
@@ -580,7 +584,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			return;
 		}
 
-		const newTab: TerminalTab = { id: uuid(), label, terminalId };
+		const newTab: TerminalTab = { id: uuid(), label, terminalId, status: "active" };
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
@@ -713,6 +717,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	setActiveTerminalTab: (projectId: string, tabId: string) => {
 		set({ activeTabIds: { ...get().activeTabIds, [projectId]: tabId } });
 		get().persistWorkspace();
+	},
+
+	markTerminalExited: (terminalId: string) => {
+		const { workspaceTabs } = get();
+		let changed = false;
+		const nextTabs = Object.fromEntries(
+			Object.entries(workspaceTabs).map(([projectId, tabs]) => [
+				projectId,
+				tabs.map((tab) => {
+					if (tab.terminalId === terminalId && tab.status !== "exited") {
+						changed = true;
+						return { ...tab, status: "exited" as TerminalStatus };
+					}
+					return tab;
+				}),
+			]),
+		);
+		if (changed) set({ workspaceTabs: nextTabs });
 	},
 
 	renameTerminalTab: (projectId: string, tabId: string, newLabel: string) => {

@@ -367,8 +367,8 @@ const ChangedFileItem = memo(function ChangedFileItem({
 				tabIndex={0}
 				className={`group flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded mx-1 ${
 					isExpanded
-						? "bg-connexio-bg-tertiary"
-						: "hover:bg-connexio-bg-tertiary"
+						? "bg-connexio-bg-tertiary/80"
+						: "hover:bg-white/[0.04]"
 				}`}
 				onClick={handleToggle}
 				onKeyDown={(e) => {
@@ -405,7 +405,7 @@ const ChangedFileItem = memo(function ChangedFileItem({
 								? "text-green-400 bg-green-400/10"
 								: status === "D"
 									? "text-red-400 bg-red-400/10"
-									: "text-connexio-text-muted bg-connexio-bg-tertiary"
+									: "text-connexio-text-muted bg-connexio-bg-tertiary/80"
 					}`}
 					title={getStatusLabel(status)}
 				>
@@ -467,7 +467,7 @@ const ChangedFileItem = memo(function ChangedFileItem({
 
 			{/* Expanded inline preview */}
 			{isExpanded && (
-				<div className="mx-1 mb-1 rounded overflow-hidden border border-connexio-border bg-connexio-bg-primary">
+				<div className="mx-1 mb-1 rounded-lg overflow-hidden bg-connexio-bg">
 					{loading && !diff ? (
 						<div className="px-3 py-2 text-[10px] text-connexio-text-muted flex items-center gap-1.5">
 							<span className="animate-pulse">Loading diff...</span>
@@ -494,7 +494,7 @@ const ChangedFileItem = memo(function ChangedFileItem({
 						diff.hunks.length > 0 && (
 							<button
 								onClick={onMaximize}
-								className="w-full px-2 py-1 text-[10px] text-connexio-text-muted hover:text-connexio-accent hover:bg-connexio-bg-tertiary border-t border-connexio-border transition-colors flex items-center justify-center gap-1"
+								className="w-full px-2 py-1 text-[10px] text-connexio-text-muted hover:text-connexio-accent hover:bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors flex items-center justify-center gap-1"
 								type="button"
 							>
 								<Maximize2 size={9} />
@@ -528,12 +528,12 @@ function SkeletonList() {
 		<div className="px-2 py-1 space-y-1">
 			{[0, 1, 2].map((i) => (
 				<div key={i} className="flex items-center gap-1 px-2 py-1">
-					<div className="w-3 h-3 rounded bg-connexio-bg-tertiary animate-pulse" />
+					<div className="w-3 h-3 rounded bg-connexio-bg-tertiary/80 animate-pulse" />
 					<div
-						className="flex-1 h-3 rounded bg-connexio-bg-tertiary animate-pulse"
+						className="flex-1 h-3 rounded bg-connexio-bg-tertiary/80 animate-pulse"
 						style={{ animationDelay: `${i * 80}ms` }}
 					/>
-					<div className="w-6 h-3 rounded bg-connexio-bg-tertiary animate-pulse" />
+					<div className="w-6 h-3 rounded bg-connexio-bg-tertiary/80 animate-pulse" />
 				</div>
 			))}
 		</div>
@@ -839,7 +839,7 @@ export default function SourcePanel({ projectPath }: Props) {
 				<div
 					role="button"
 					tabIndex={0}
-					className="flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-connexio-bg-tertiary transition-colors"
+					className="flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-white/[0.04] transition-colors"
 					onClick={() => toggleGroup(group)}
 					onKeyDown={(e) => {
 						if (e.key === "Enter" || e.key === " ") {
@@ -861,7 +861,7 @@ export default function SourcePanel({ projectPath }: Props) {
 					<span className={`text-[10px] px-1.5 rounded-full ${
 						group === "conflicted"
 							? "text-red-300 bg-red-500/15"
-							: "text-connexio-text-muted bg-connexio-bg-tertiary"
+							: "text-connexio-text-muted bg-connexio-bg-tertiary/80"
 					}`}>
 						{items.length}
 					</span>
@@ -915,7 +915,7 @@ export default function SourcePanel({ projectPath }: Props) {
 						{hiddenCount > 0 && (
 							<button
 								onClick={() => handleShowMore(group)}
-								className="mx-2 my-1 w-[calc(100%-1rem)] rounded border border-connexio-border px-2 py-1.5 text-[10px] text-connexio-text-muted hover:border-connexio-accent/50 hover:text-connexio-accent hover:bg-connexio-bg-tertiary transition-colors"
+								className="mx-2 my-1 w-[calc(100%-1rem)] rounded  px-2 py-1.5 text-[10px] text-connexio-text-muted hover:border-connexio-accent/50 hover:text-connexio-accent hover:bg-white/[0.04] transition-colors"
 								type="button"
 							>
 								Show {Math.min(hiddenCount, LOAD_MORE_FILES_STEP)} more of {hiddenCount} hidden files
@@ -929,14 +929,14 @@ export default function SourcePanel({ projectPath }: Props) {
 
 	return (
 		<>
-			<div className="flex flex-col h-full">
+			<div className="flex h-full flex-col bg-connexio-bg-secondary/35">
 				{/* Git status bar */}
-				<div className="px-3 py-1.5 border-b border-connexio-border relative overflow-visible">
+				<div className="px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] relative overflow-visible">
 					<GitStatusBar projectPath={projectPath} onMessage={showMessage} onRefresh={handleRefresh} />
 				</div>
 
 				{/* Tab switcher: Changes / History */}
-				<div className="flex items-center border-b border-connexio-border">
+				<div className="flex items-center shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
 					<button
 						onClick={() => setActiveTab("changes")}
 						className={`flex-1 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
@@ -984,7 +984,7 @@ export default function SourcePanel({ projectPath }: Props) {
 							onRefresh={handleRefresh}
 						/>
 
-				<div className="flex items-center gap-1 px-3 py-1.5 border-b border-connexio-border">
+				<div className="flex items-center gap-1 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
 					<span className="text-[10px] text-connexio-text-muted flex-1">
 						{filteredTotal !== totalChanges && filterQuery
 							? `${filteredTotal} of ${totalChanges} files`
@@ -1002,7 +1002,7 @@ export default function SourcePanel({ projectPath }: Props) {
 						className={`p-1 rounded transition-colors ${
 							showFilter
 								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+								: "hover:bg-white/[0.04] text-connexio-text-muted"
 						}`}
 						title="Filter files (Ctrl+F)"
 						type="button"
@@ -1011,7 +1011,7 @@ export default function SourcePanel({ projectPath }: Props) {
 					</button>
 					<button
 						onClick={handleRefresh}
-						className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+						className="p-1 rounded hover:bg-white/[0.04] transition-colors"
 						title="Refresh"
 						type="button"
 						disabled={isRefreshing}
@@ -1024,7 +1024,7 @@ export default function SourcePanel({ projectPath }: Props) {
 					{grouped.modified.length + grouped.untracked.length > 0 && (
 						<button
 							onClick={handleStageAll}
-							className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+							className="p-1 rounded hover:bg-white/[0.04] transition-colors"
 							title="Stage all changes"
 							type="button"
 							disabled={globalActionLoading === "stage-all"}
@@ -1039,7 +1039,7 @@ export default function SourcePanel({ projectPath }: Props) {
 					{grouped.staged.length > 0 && (
 						<button
 							onClick={handleUnstageAll}
-							className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+							className="p-1 rounded hover:bg-white/[0.04] transition-colors"
 							title="Unstage all"
 							type="button"
 							disabled={globalActionLoading === "unstage-all"}
@@ -1055,7 +1055,7 @@ export default function SourcePanel({ projectPath }: Props) {
 
 				{/* Filter bar */}
 				{showFilter && (
-					<div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-connexio-border bg-connexio-bg-primary">
+					<div className="flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] bg-connexio-bg-primary">
 						<Search size={10} className="text-connexio-text-muted flex-shrink-0" />
 						<input
 							ref={filterInputRef}
@@ -1081,7 +1081,7 @@ export default function SourcePanel({ projectPath }: Props) {
 								setShowFilter(false);
 								setFilterQuery("");
 							}}
-							className="p-0.5 rounded hover:bg-connexio-bg-tertiary transition-colors"
+							className="p-0.5 rounded hover:bg-white/[0.04] transition-colors"
 							type="button"
 						>
 							<X size={10} className="text-connexio-text-muted" />
@@ -1092,7 +1092,7 @@ export default function SourcePanel({ projectPath }: Props) {
 				{/* Inline message */}
 				{message && (
 					<div
-						className={`flex items-center gap-1.5 px-3 py-1.5 border-b border-connexio-border text-[10px] ${
+						className={`flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] text-[10px] ${
 							message.type === "error"
 								? "bg-red-500/10 text-red-300"
 								: message.type === "success"
@@ -1120,16 +1120,15 @@ export default function SourcePanel({ projectPath }: Props) {
 					{isInitialLoad ? (
 						<SkeletonList />
 					) : totalChanges === 0 ? (
-						<div className="flex flex-col items-center justify-center py-8 px-4">
-							<FileCode
-								size={24}
-								className="text-connexio-text-muted/30 mb-2"
-							/>
-							<p className="text-[11px] text-connexio-text-muted text-center">
-								No changes detected
-							</p>
-							<p className="text-[10px] text-connexio-text-muted/60 text-center mt-0.5">
+						<div className="mx-3 my-6 rounded-2xl bg-white/[0.025] px-4 py-8 text-center">
+							<div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-green-500/10 text-green-300 shadow-[inset_2px_0_0_rgba(74,222,128,0.75)]">
+								<FileCode size={22} />
+							</div>
+							<p className="text-[12px] font-semibold text-connexio-text">
 								Working tree is clean
+							</p>
+							<p className="mx-auto mt-1 max-w-[240px] text-[10px] leading-4 text-connexio-text-muted">
+								No staged, modified, untracked, or conflicted files were detected.
 							</p>
 						</div>
 					) : filteredTotal === 0 && filterQuery ? (
@@ -1146,7 +1145,7 @@ export default function SourcePanel({ projectPath }: Props) {
 						<>
 							{/* Conflict banner */}
 							{filteredGrouped.conflicted.length > 0 && (
-								<div className="mx-2 mt-1 mb-2 px-2.5 py-2 rounded border border-red-500/30 bg-red-500/5">
+								<div className="mx-2 mt-1 mb-2 px-2.5 py-2 rounded-lg border-red-500/30 bg-red-500/5">
 									<div className="flex items-center gap-1.5 mb-1">
 										<AlertCircle size={11} className="text-red-400" />
 										<span className="text-[10px] font-semibold text-red-300">

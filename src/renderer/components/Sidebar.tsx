@@ -22,6 +22,7 @@ export default function Sidebar() {
 		activeProjectId,
 		searchQuery,
 		sidebarCollapsed,
+		workspaceTabs,
 		setSearchQuery,
 		setActiveProject,
 		deleteProject,
@@ -70,6 +71,8 @@ export default function Sidebar() {
 		}
 		setExpandedGroups(next);
 	};
+
+	const getProjectTabCount = (projectId: string) => workspaceTabs[projectId]?.length || 0;
 
 	// Group projects
 	const grouped = projects.reduce(
@@ -205,7 +208,7 @@ export default function Sidebar() {
 
 	if (sidebarCollapsed) {
 		return (
-			<div className="w-12 bg-connexio-bg-secondary border-r border-connexio-border flex flex-col items-center py-3 gap-2">
+			<div className="w-12 glass-panel flex flex-col items-center gap-2 py-2 soft-separator-right transition-[width] duration-200">
 				<button
 					onClick={toggleSidebar}
 					className="p-2 rounded hover:bg-connexio-bg-tertiary transition-colors"
@@ -219,16 +222,16 @@ export default function Sidebar() {
 
 	return (
 		<>
-			<div className="w-64 bg-connexio-bg-secondary border-r border-connexio-border flex flex-col">
+			<div className="w-64 glass-panel flex flex-col soft-separator-right">
 				{/* Header */}
-				<div className="flex items-center justify-between px-3 py-2 border-b border-connexio-border">
-					<span className="text-[11px] font-semibold text-connexio-text-secondary uppercase tracking-wider">
+				<div className="flex h-10 items-center justify-between px-3">
+					<span className="text-[10px] font-bold text-connexio-text-secondary uppercase tracking-[0.18em]">
 						Projects
 					</span>
 					<div className="flex items-center gap-1">
 						<button
 							onClick={() => setShowAddModal(true)}
-							className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+							className="p-1.5 rounded-lg hover:bg-connexio-bg-tertiary transition-colors"
 							title="Add Project"
 							type="button"
 						>
@@ -236,7 +239,7 @@ export default function Sidebar() {
 						</button>
 						<button
 							onClick={toggleSidebar}
-							className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+							className="p-1.5 rounded-lg hover:bg-connexio-bg-tertiary transition-colors"
 							type="button"
 						>
 							<PanelLeftClose
@@ -248,8 +251,8 @@ export default function Sidebar() {
 				</div>
 
 				{/* Search */}
-				<div className="px-3 py-2">
-					<div className="flex items-center gap-2 px-2 py-1.5 rounded bg-connexio-bg-tertiary border border-connexio-border">
+				<div className="flex h-10 items-center px-3">
+					<div className="flex h-7 w-full items-center gap-2 rounded-lg bg-connexio-bg-tertiary/65 px-2.5">
 						<Search size={13} className="text-connexio-text-muted" />
 						<input
 							type="text"
@@ -272,7 +275,7 @@ export default function Sidebar() {
 				</div>
 
 				{/* Project list */}
-				<div className="flex-1 overflow-y-auto px-2 py-1">
+				<div className="flex-1 overflow-y-auto px-2.5 pt-2 pb-2.5">
 					{Object.entries(filteredGroups).map(([group, items]) => (
 						<div key={group} className="mb-2">
 							{/* Group header — drop target for moving project to group */}
@@ -282,7 +285,7 @@ export default function Sidebar() {
 									e.preventDefault();
 									setContextMenu({ type: "group", x: e.clientX, y: e.clientY, group });
 								}}
-								className={`flex items-center gap-1 px-2 py-1.5 w-full text-left rounded-md bg-connexio-bg/40 transition-colors ${
+								className={`flex items-center gap-1.5 px-2 py-1.5 w-full text-left rounded-lg bg-connexio-bg/35 transition-colors ${
 									dragOverGroup === group
 										? "bg-connexio-accent/15 border border-connexio-accent/40"
 										: "hover:bg-connexio-bg-tertiary border border-transparent"
@@ -332,18 +335,18 @@ export default function Sidebar() {
 
 							{/* Project items */}
 							{expandedGroups.has(group) && (
-								<div className="ml-3 mt-0.5 space-y-0.5">
+								<div className="ml-2 mt-1 space-y-1">
 									{items.map((project) => (
 										<div
 											key={project.id}
 											role="button"
 											tabIndex={0}
 											draggable
-											className={`group flex items-center gap-1 px-1 py-1.5 rounded cursor-pointer transition-colors select-none ${
+											className={`group interaction-lift flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition-all duration-150 select-none ${
 												dragOverId === project.id
 													? "bg-connexio-accent/15 border border-connexio-accent/40"
 													: activeProjectId === project.id
-														? "bg-connexio-accent/15 border border-connexio-accent/40 shadow-[inset_2px_0_0_var(--accent-color)]"
+														? "bg-connexio-accent/12 border border-transparent shadow-[inset_2px_0_0_var(--accent-color),0_8px_22px_rgba(56,189,248,0.05)]"
 														: "hover:bg-connexio-bg-tertiary border border-transparent"
 											} ${dragProjectId === project.id ? "opacity-40" : ""}`}
 											onClick={() => {
@@ -399,9 +402,16 @@ export default function Sidebar() {
 													className="min-w-0 flex-1 rounded border border-connexio-accent bg-connexio-bg px-1 py-0.5 text-[13px] text-connexio-text outline-none"
 												/>
 											) : (
-												<span className="text-[13px] text-connexio-text truncate flex-1">
-													{project.name}
-												</span>
+												<div className="min-w-0 flex-1">
+													<span className="block truncate text-[13px] font-medium text-connexio-text">
+														{project.name}
+													</span>
+													{activeProjectId === project.id && (
+														<span className="block truncate text-[9px] text-connexio-text-muted">
+															{getProjectTabCount(project.id)} tab{getProjectTabCount(project.id) !== 1 ? "s" : ""}
+														</span>
+													)}
+												</div>
 											)}
 											<button
 												onClick={(e) => {

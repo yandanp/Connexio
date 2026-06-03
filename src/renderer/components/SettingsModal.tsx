@@ -110,14 +110,14 @@ export default function SettingsModal() {
 	];
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[600px] max-h-[500px] shadow-2xl flex flex-col">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-md">
+			<div className="glass-panel animate-fade-scale flex max-h-[560px] w-[680px] flex-col overflow-hidden rounded-2xl shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
 				{/* Header */}
-				<div className="flex items-center justify-between px-4 py-3 border-b border-connexio-border">
+				<div className="flex items-center justify-between px-4 py-3 soft-separator-bottom">
 					<h2 className="text-sm font-semibold text-connexio-text">Settings</h2>
 					<button
 						onClick={handleClose}
-						className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+						className="dock-button p-1"
 						type="button"
 					>
 						<X size={14} className="text-connexio-text-secondary" />
@@ -126,15 +126,15 @@ export default function SettingsModal() {
 
 				<div className="flex flex-1 overflow-hidden">
 					{/* Sidebar tabs */}
-					<div className="w-40 border-r border-connexio-border py-2 px-2 space-y-0.5">
+					<div className="w-44 space-y-1 px-2 py-2 soft-separator-right">
 						{tabs.map((tab) => (
 							<button
 								key={tab.id}
 								onClick={() => setActiveTab(tab.id)}
-								className={`w-full flex items-center gap-2 px-3 py-2 rounded text-xs font-medium transition-colors ${
+								className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
 									activeTab === tab.id
-										? "bg-connexio-accent/10 text-connexio-accent border border-connexio-accent/30"
-										: "text-connexio-text-secondary hover:bg-connexio-bg-tertiary border border-transparent"
+										? "bg-connexio-accent/10 text-connexio-accent shadow-[inset_2px_0_0_var(--accent-color)]"
+										: "text-connexio-text-secondary hover:bg-white/[0.04]"
 								}`}
 								type="button"
 							>
@@ -145,7 +145,7 @@ export default function SettingsModal() {
 					</div>
 
 					{/* Content */}
-					<div className="flex-1 overflow-y-auto p-4 space-y-5">
+					<div className="flex-1 space-y-4 overflow-y-auto p-5">
 						{activeTab === "general" && (
 							<GeneralSettings
 								settings={effectiveSettings}
@@ -176,7 +176,7 @@ export default function SettingsModal() {
 
 				{/* Footer */}
 				{isDirty && (
-					<div className="flex items-center justify-end px-4 py-3 border-t border-connexio-border">
+					<div className="flex items-center justify-end px-4 py-3 soft-separator-top">
 						<button
 							onClick={handleSave}
 							className="px-4 py-1.5 text-xs font-medium text-white bg-connexio-accent rounded hover:bg-connexio-accent-hover transition-colors"
@@ -188,6 +188,26 @@ export default function SettingsModal() {
 				)}
 			</div>
 		</div>
+	);
+}
+
+function SettingsCard({
+	title,
+	description,
+	children,
+}: {
+	title: string;
+	description?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<section className="soft-card space-y-4 p-4">
+			<div>
+				<h3 className="section-label">{title}</h3>
+				{description && <p className="mt-1 text-[11px] text-connexio-text-muted">{description}</p>}
+			</div>
+			{children}
+		</section>
 	);
 }
 
@@ -205,10 +225,7 @@ function GeneralSettings({
 	) => void;
 }) {
 	return (
-		<div className="space-y-4">
-			<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
-				General
-			</h3>
+		<SettingsCard title="General" description="Default behavior for new workspaces and terminals.">
 
 			{/* Default Shell */}
 			<div>
@@ -218,7 +235,7 @@ function GeneralSettings({
 				<select
 					value={settings.defaultShell}
 					onChange={(e) => onChange("defaultShell", e.target.value)}
-					className="w-full px-3 py-2 text-sm bg-connexio-bg-tertiary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent transition-colors appearance-none cursor-pointer"
+					className="field-soft w-full px-3 py-2 text-sm transition-colors appearance-none cursor-pointer"
 				>
 					<option value="">System Default</option>
 					{shells.map((shell) => (
@@ -266,7 +283,7 @@ function GeneralSettings({
 
 			{/* Discord Presence */}
 			<DiscordPresenceToggle />
-		</div>
+		</SettingsCard>
 	);
 }
 
@@ -282,10 +299,7 @@ function TerminalSettings({
 	) => void;
 }) {
 	return (
-		<div className="space-y-4">
-			<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
-				Terminal
-			</h3>
+		<SettingsCard title="Terminal" description="Tune rendering, cursor, font, and scrollback.">
 
 			{/* Font Size */}
 			<div>
@@ -316,7 +330,7 @@ function TerminalSettings({
 					type="text"
 					value={settings.fontFamily}
 					onChange={(e) => onChange("fontFamily", e.target.value)}
-					className="w-full px-3 py-2 text-sm bg-connexio-bg-tertiary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent transition-colors"
+					className="field-soft w-full px-3 py-2 text-sm transition-colors"
 				/>
 			</div>
 
@@ -330,10 +344,10 @@ function TerminalSettings({
 						<button
 							key={style}
 							onClick={() => onChange("cursorStyle", style)}
-							className={`px-3 py-1.5 text-xs rounded border transition-colors capitalize ${
+							className={`px-3 py-1.5 text-xs rounded-lg transition-colors capitalize ${
 								settings.cursorStyle === style
-									? "border-connexio-accent bg-connexio-accent/10 text-connexio-accent"
-									: "border-connexio-border text-connexio-text-secondary hover:border-connexio-text-muted"
+									? "bg-connexio-accent/10 text-connexio-accent shadow-[inset_2px_0_0_var(--accent-color)]"
+									: "soft-card text-connexio-text-secondary hover:bg-white/[0.045]"
 							}`}
 							type="button"
 						>
@@ -381,7 +395,7 @@ function TerminalSettings({
 					</span>
 				</div>
 			</div>
-		</div>
+		</SettingsCard>
 	);
 }
 
@@ -400,10 +414,7 @@ function AppearanceSettings({
 	onChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }) {
 	return (
-		<div className="space-y-4">
-			<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
-				Appearance
-			</h3>
+		<SettingsCard title="Appearance" description="Control the visual density and theme of Connexio.">
 
 			{/* UI Font Size */}
 			<div>
@@ -415,10 +426,10 @@ function AppearanceSettings({
 						<button
 							key={size}
 							onClick={() => onChange("uiFontSize", size)}
-							className={`flex-1 px-3 py-2 text-xs rounded border transition-colors capitalize ${
+							className={`flex-1 px-3 py-2 text-xs rounded-lg transition-colors capitalize ${
 								(settings.uiFontSize || "default") === size
-									? "border-connexio-accent bg-connexio-accent/10 text-connexio-accent"
-									: "border-connexio-border text-connexio-text-secondary hover:border-connexio-text-muted"
+									? "bg-connexio-accent/10 text-connexio-accent shadow-[inset_2px_0_0_var(--accent-color)]"
+									: "soft-card text-connexio-text-secondary hover:bg-white/[0.045]"
 							}`}
 							type="button"
 						>
@@ -441,7 +452,7 @@ function AppearanceSettings({
 						<button
 							key={theme.id}
 							onClick={() => onThemeChange(theme.id)}
-							className={`flex items-center gap-3 px-3 py-2.5 rounded border transition-colors text-left ${
+							className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${
 								currentThemeId === theme.id
 									? "border-connexio-accent bg-connexio-accent/10"
 									: "border-connexio-border hover:border-connexio-text-muted"
@@ -478,7 +489,7 @@ function AppearanceSettings({
 					))}
 				</div>
 			</div>
-		</div>
+		</SettingsCard>
 	);
 }
 
@@ -561,13 +572,9 @@ function AboutSettings() {
 	};
 
 	return (
-		<div className="space-y-5">
-			<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
-				About
-			</h3>
-
+		<SettingsCard title="About" description="Version, updates, and project support.">
 			{/* App Info */}
-			<div className="flex items-center gap-3 p-3 bg-connexio-bg-tertiary rounded-lg border border-connexio-border">
+			<div className="flex items-center gap-3 rounded-2xl bg-white/[0.035] p-3">
 				<img
 					src={new URL("../assets/icon.png", import.meta.url).href}
 					alt="Connexio"
@@ -599,7 +606,7 @@ function AboutSettings() {
 					<div className="space-y-2">
 						<button
 							onClick={handleCheckUpdate}
-							className="flex items-center gap-2 px-4 py-2 text-xs font-medium bg-connexio-bg-tertiary border border-connexio-border rounded-lg hover:border-connexio-accent hover:text-connexio-accent transition-colors text-connexio-text-secondary"
+							className="flex items-center gap-2 rounded-lg bg-white/[0.035] px-4 py-2 text-xs font-medium text-connexio-text-secondary transition-colors hover:bg-white/[0.055] hover:text-connexio-accent"
 							type="button"
 						>
 							<Download size={13} />
@@ -634,7 +641,7 @@ function AboutSettings() {
 
 				{/* Update Available */}
 				{updateState === "available" && (
-					<div className="p-3 bg-connexio-bg-tertiary rounded-lg border border-connexio-accent/30 space-y-2">
+					<div className="space-y-2 rounded-2xl bg-connexio-accent/10 p-3 shadow-[inset_2px_0_0_var(--accent-color)]">
 						<div className="flex items-center gap-2">
 							<Rocket size={13} className="text-connexio-accent" />
 							<span className="text-xs font-medium text-connexio-text">
@@ -654,7 +661,7 @@ function AboutSettings() {
 
 				{/* Downloading */}
 				{updateState === "downloading" && (
-					<div className="p-3 bg-connexio-bg-tertiary rounded-lg border border-connexio-border space-y-2">
+					<div className="space-y-2 rounded-2xl bg-white/[0.035] p-3">
 						<div className="flex items-center justify-between">
 							<div className="flex items-center gap-2 text-[11px] text-connexio-text-secondary">
 								<Loader2 size={13} className="animate-spin" />
@@ -675,7 +682,7 @@ function AboutSettings() {
 
 				{/* Downloaded */}
 				{updateState === "downloaded" && (
-					<div className="p-3 bg-connexio-bg-tertiary rounded-lg border border-green-500/30 space-y-2">
+					<div className="space-y-2 rounded-2xl bg-green-500/10 p-3 shadow-[inset_2px_0_0_rgba(74,222,128,0.75)]">
 						<div className="flex items-center gap-2">
 							<CheckCircle2 size={13} className="text-green-400" />
 							<span className="text-xs font-medium text-connexio-text">
@@ -695,21 +702,21 @@ function AboutSettings() {
 			</div>
 
 			{/* Links */}
-			<div className="pt-2 border-t border-connexio-border space-y-1.5">
+			<div className="soft-separator-top space-y-1.5 pt-3">
 				<p className="text-[10px] text-connexio-text-muted">
 					Made with ♥ by Connexio Team
 				</p>
 			</div>
 
 			{/* Support / Donate */}
-			<div className="pt-3 border-t border-connexio-border space-y-3">
-				<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
+			<div className="soft-separator-top space-y-3 pt-4">
+				<h3 className="section-label">
 					Support
 				</h3>
 				<p className="text-[11px] text-connexio-text-muted leading-relaxed">
 					Connexio is free and open source. If you find it useful, consider supporting development.
 				</p>
-				<div className="flex flex-col items-center gap-2 p-4 bg-connexio-bg-tertiary rounded-lg border border-connexio-border">
+				<div className="flex flex-col items-center gap-2 rounded-2xl bg-white/[0.035] p-4">
 					<div className="bg-white p-2 rounded-md">
 						<img
 							src={new URL("../assets/download.png", import.meta.url).href}
@@ -722,7 +729,7 @@ function AboutSettings() {
 					</p>
 				</div>
 			</div>
-		</div>
+		</SettingsCard>
 	);
 }
 
@@ -777,12 +784,9 @@ function NotificationsSettings() {
 	};
 
 	return (
-		<div className="space-y-5">
+		<div className="space-y-4">
 			{/* Sound Settings */}
-			<div className="space-y-4">
-				<h3 className="text-xs font-semibold text-connexio-text-secondary uppercase tracking-wider">
-					Sound
-				</h3>
+			<SettingsCard title="Sound" description="Control notification audio and custom alert sounds.">
 
 				{/* Sound toggle */}
 				<div className="flex items-center justify-between">
@@ -822,7 +826,7 @@ function NotificationsSettings() {
 							</span>
 							<button
 								onClick={handleTestSound}
-								className="px-2 py-1 text-[10px] font-medium text-connexio-text-secondary bg-connexio-bg-tertiary border border-connexio-border rounded hover:border-connexio-accent hover:text-connexio-accent transition-colors"
+								className="rounded-lg bg-white/[0.035] px-2 py-1 text-[10px] font-medium text-connexio-text-secondary transition-colors hover:bg-white/[0.055] hover:text-connexio-accent"
 								type="button"
 							>
 								Test
@@ -845,7 +849,7 @@ function NotificationsSettings() {
 									</span>
 									<button
 										onClick={handleRemoveCustomSound}
-										className="px-2 py-1 text-[10px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded hover:bg-red-500/20 transition-colors"
+										className="rounded-lg bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-400 transition-colors hover:bg-red-500/20"
 										type="button"
 									>
 										Remove
@@ -854,7 +858,7 @@ function NotificationsSettings() {
 							) : (
 								<button
 									onClick={handleUploadSound}
-									className="px-2.5 py-1 text-[10px] font-medium text-connexio-text-secondary bg-connexio-bg-tertiary border border-connexio-border rounded hover:border-connexio-accent hover:text-connexio-accent transition-colors"
+									className="rounded-lg bg-white/[0.035] px-2.5 py-1 text-[10px] font-medium text-connexio-text-secondary transition-colors hover:bg-white/[0.055] hover:text-connexio-accent"
 									type="button"
 								>
 									Upload .wav / .mp3 / .ogg
@@ -863,7 +867,7 @@ function NotificationsSettings() {
 						</div>
 					</div>
 				)}
-			</div>
+			</SettingsCard>
 
 			{/* AI Integrations */}
 			<AIIntegrationsSettings />
@@ -923,10 +927,10 @@ function ToggleSwitch({
 	return (
 		<button
 			onClick={() => onChange(!checked)}
-			className={`relative w-9 h-5 rounded-full transition-colors ${
+			className={`relative h-5 w-9 rounded-full transition-colors ${
 				checked
 					? "bg-connexio-accent"
-					: "bg-connexio-bg-tertiary border border-connexio-border"
+					: "bg-connexio-bg-tertiary shadow-[inset_0_0_0_1px_rgba(255,255,255,0.055)]"
 			}`}
 			type="button"
 		>

@@ -71,15 +71,23 @@
 
 
 :root {
-	--bg-primary: #0f1117;
-	--bg-secondary: #161822;
-	--bg-tertiary: #1e2030;
-	--border-color: #2a2d3e;
-	--accent-color: #7c3aed;
-	--accent-hover: #6d28d9;
-	--text-primary: #e2e8f0;
-	--text-secondary: #94a3b8;
-	--text-muted: #64748b;
+	--bg-primary: #090d14;
+	--bg-secondary: #101622;
+	--bg-tertiary: #172033;
+	--bg-elevated: #1b2638;
+	--border-color: #263348;
+	--border-subtle: rgba(148, 163, 184, 0.12);
+	--accent-color: #38bdf8;
+	--accent-hover: #0ea5e9;
+	--accent-secondary: #8b5cf6;
+	--success-color: #34d399;
+	--warning-color: #fbbf24;
+	--danger-color: #fb7185;
+	--text-primary: #e5eefb;
+	--text-secondary: #9fb1ca;
+	--text-muted: #65758d;
+	--shadow-soft: 0 18px 50px rgba(0, 0, 0, 0.34);
+	--shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 * {
@@ -90,12 +98,18 @@
 
 body {
 	font-family:
-		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	background-color: var(--bg-primary);
+		"Aptos", "SF Pro Display", "Segoe UI Variable", "Segoe UI", sans-serif;
+	background:
+		radial-gradient(circle at 18% -10%, rgba(56, 189, 248, 0.14), transparent 34%),
+		radial-gradient(circle at 84% 0%, rgba(139, 92, 246, 0.1), transparent 30%),
+		linear-gradient(180deg, #0b1019 0%, var(--bg-primary) 46%, #070a10 100%);
 	color: var(--text-primary);
 	overflow: hidden;
 	height: 100vh;
 	width: 100vw;
+	font-size: var(--ui-font-size);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: geometricPrecision;
 }
 
 #root {
@@ -109,16 +123,117 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-	background: var(--bg-secondary);
+	background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-	background: var(--border-color);
-	border-radius: 3px;
+	background: rgba(148, 163, 184, 0.2);
+	border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: var(--text-muted);
+	background: rgba(148, 163, 184, 0.36);
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 1px solid color-mix(in srgb, var(--accent-color) 70%, white 10%);
+	outline-offset: 2px;
+}
+
+.app-surface {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 140px),
+		var(--bg-secondary);
+	box-shadow: var(--shadow-inset);
+}
+
+.glass-panel {
+	background: color-mix(in srgb, var(--bg-secondary) 88%, black 12%);
+	box-shadow: var(--shadow-inset);
+	backdrop-filter: blur(12px);
+}
+
+.connexio-pill {
+	background: rgba(255, 255, 255, 0.035);
+	box-shadow: var(--shadow-inset);
+}
+
+.soft-card {
+	background: rgba(255, 255, 255, 0.025);
+	border-radius: 1rem;
+	box-shadow: var(--shadow-inset);
+}
+
+.soft-card-hover {
+	transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.soft-card-hover:hover {
+	background: rgba(255, 255, 255, 0.045);
+}
+
+.soft-separator-bottom {
+	box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.soft-separator-top {
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.soft-separator-right {
+	box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.055);
+}
+
+.soft-separator-left {
+	box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.055);
+}
+
+.dock-button {
+	border-radius: 0.5rem;
+	color: var(--text-muted);
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dock-button:hover {
+	background: rgba(255, 255, 255, 0.04);
+	color: var(--text-secondary);
+}
+
+.dock-button-active {
+	background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+	color: var(--accent-color);
+	box-shadow: inset 2px 0 0 var(--accent-color);
+}
+
+.field-soft {
+	background: var(--bg-tertiary);
+	border-radius: 0.625rem;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+	color: var(--text-primary);
+	outline: none;
+}
+
+.field-soft:focus,
+.field-soft:focus-within {
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 50%, transparent);
+}
+
+.section-label {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--text-muted);
 }
 
 .titlebar-drag {
@@ -151,18 +266,19 @@ body {
 
 /* Drag & Drop tab styles */
 [draggable="true"] {
-	transition: opacity 0.15s ease;
+	transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 [draggable="true"]:active {
 	opacity: 0.6;
+	transform: scale(0.985);
 }
 
 [draggable="true"].dragging {
 	opacity: 0.4;
 }
 
-/* Notification toast animation */
+/* Motion primitives */
 @keyframes slide-up {
 	from {
 		opacity: 0;
@@ -174,8 +290,71 @@ body {
 	}
 }
 
+@keyframes fade-scale {
+	from {
+		opacity: 0;
+		transform: scale(0.985) translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+@keyframes panel-in {
+	from {
+		opacity: 0;
+		transform: translateX(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes soft-pulse {
+	0%, 100% {
+		opacity: 0.55;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+.interaction-lift {
+	transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.interaction-lift:hover {
+	transform: translateY(-1px);
+}
+
+.resize-rail-active {
+	background: color-mix(in srgb, var(--accent-color) 35%, transparent);
+	box-shadow: 0 0 18px color-mix(in srgb, var(--accent-color) 26%, transparent);
+}
+
 .animate-slide-up {
 	animation: slide-up 0.25s ease-out;
+}
+
+.animate-fade-scale {
+	animation: fade-scale 0.22s ease-out;
+}
+
+.animate-panel-in {
+	animation: panel-in 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+	}
 }
 
 /* Line clamp utility */

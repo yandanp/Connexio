@@ -3,7 +3,12 @@ import {
 	ArrowDown,
 	ArrowUp,
 	Bell,
+	Code2,
+	FileCode,
 	GitBranch,
+	Globe,
+	HardDrive,
+	Server,
 	Terminal,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -102,23 +107,38 @@ export default function AppFooter() {
 		? gitStatus.modified + gitStatus.staged + gitStatus.untracked
 		: 0;
 
+	const activeTabType = activeTab?.type || "terminal";
+	const activeStatusLabel = activeTab?.status === "running" ? "Running" : activeTab?.status === "exited" ? "Done" : "Ready";
+	const ActiveTabIcon =
+		activeTabType === "editor" || activeTabType === "remoteEditor"
+			? FileCode
+			: activeTabType === "preview"
+				? Globe
+				: activeTabType === "sshManager"
+					? Server
+					: activeTabType === "sftp"
+						? HardDrive
+						: activeTabType === "terminal"
+							? Terminal
+							: Code2;
+
 	// Sidebar width to match
 	const sidebarWidth = sidebarCollapsed ? "w-12" : "w-64";
 
 	return (
-		<div className="flex items-stretch h-[32px] bg-connexio-bg-secondary border-t border-connexio-border text-[12px] select-none">
+		<div className="relative z-10 flex h-[34px] select-none items-stretch bg-connexio-bg-secondary/90 text-[12px] soft-separator-top backdrop-blur-xl">
 			{/* Left section — matches sidebar width */}
 			<div
-				className={`${sidebarWidth} flex-shrink-0 flex items-center px-3 border-r border-connexio-border`}
+				className={`${sidebarWidth} flex-shrink-0 flex items-center px-3 soft-separator-right`}
 			>
 				{project && (
 					<button
 						onClick={handleCopyPath}
-						className="flex items-center gap-2 hover:text-connexio-accent transition-colors truncate w-full"
+						className="flex w-full items-center gap-2 truncate rounded-lg px-1 py-1 transition-colors hover:bg-connexio-bg-tertiary/70 hover:text-connexio-accent"
 						title={pathCopied ? "Path copied!" : `Click to copy: ${project.path}`}
 						type="button"
 					>
-						<span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+						<span className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--success-color)] shadow-[0_0_12px_rgba(52,211,153,0.5)]" />
 						<span className="truncate font-medium text-connexio-text-secondary">
 							{pathCopied ? "Copied!" : project.name}
 						</span>
@@ -127,12 +147,12 @@ export default function AppFooter() {
 			</div>
 
 			{/* Right section — matches workspace area */}
-			<div className="flex-1 flex items-center px-3 gap-3">
+			<div className="flex flex-1 items-center gap-2.5 px-3">
 				{/* Git segment — click to open source panel */}
 				{gitStatus?.isRepo && (
 					<button
 						onClick={handleGitClick}
-						className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-connexio-bg-tertiary hover:bg-connexio-accent/10 transition-colors cursor-pointer"
+						className="connexio-pill flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 transition-colors hover:bg-connexio-accent/10"
 						title="Open Source Control"
 						type="button"
 					>
@@ -174,12 +194,21 @@ export default function AppFooter() {
 				{activeTab && (
 					<button
 						onClick={handleTerminalClick}
-						className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-connexio-bg-tertiary hover:bg-connexio-accent/10 transition-colors cursor-pointer text-connexio-text-muted"
+						className="connexio-pill flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-connexio-text-muted transition-colors hover:bg-connexio-accent/10"
 						title="Focus terminal"
 						type="button"
 					>
-						<Terminal size={12} className="flex-shrink-0" />
+						<ActiveTabIcon size={12} className="flex-shrink-0" />
 						<span className="truncate max-w-[140px]">{activeTab.label}</span>
+						<span className="rounded bg-white/[0.04] px-1 text-[9px] uppercase text-connexio-text-muted">
+							{activeTabType}
+						</span>
+						{activeTab.status && (
+							<span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${activeTab.status === "running" ? "bg-[var(--success-color)]/10 text-[var(--success-color)]" : activeTab.status === "exited" ? "bg-white/[0.035] text-connexio-text-muted" : "bg-connexio-accent/10 text-connexio-accent"}`}>
+								<span className={`h-1.5 w-1.5 rounded-full ${activeTab.status === "running" ? "animate-pulse bg-[var(--success-color)]" : activeTab.status === "exited" ? "bg-connexio-text-muted/45" : "bg-connexio-accent"}`} />
+								{activeStatusLabel}
+							</span>
+						)}
 						{tabs.length > 1 && (
 							<span className="text-connexio-text-muted/60">
 								· {tabs.length} tabs
@@ -196,7 +225,7 @@ export default function AppFooter() {
 
 				{/* Notifications for this project */}
 				{projectUnreadCount > 0 && (
-					<div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-connexio-accent/10 text-connexio-accent font-medium">
+					<div className="flex items-center gap-1.5 rounded-lg border border-connexio-accent/20 bg-connexio-accent/10 px-2 py-1 font-medium text-connexio-accent">
 						<Bell size={12} />
 						<span>{projectUnreadCount} new</span>
 					</div>
@@ -206,7 +235,7 @@ export default function AppFooter() {
 				{appVersion && (
 					<button
 						onClick={handleOpenSettings}
-						className="px-2 py-0.5 rounded bg-connexio-bg-tertiary text-connexio-text-muted hover:text-connexio-text-secondary transition-colors"
+						className="connexio-pill rounded-lg px-2 py-1 text-connexio-text-muted transition-colors hover:text-connexio-text-secondary"
 						title="Open settings"
 						type="button"
 					>

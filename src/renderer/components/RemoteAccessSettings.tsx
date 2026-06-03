@@ -113,7 +113,7 @@ export default function RemoteAccessSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-2">
 				<Globe size={14} className="text-connexio-accent" />
-				<h3 className="text-xs font-semibold text-connexio-text">
+				<h3 className="section-label">
 					Remote Access
 				</h3>
 			</div>
@@ -124,7 +124,7 @@ export default function RemoteAccessSettings() {
 			</p>
 
 			{/* Status Card */}
-			<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3 space-y-3">
+			<div className="soft-card space-y-3 p-3">
 				{/* Toggle */}
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
@@ -140,10 +140,10 @@ export default function RemoteAccessSettings() {
 					<button
 						onClick={isRunning ? handleStop : handleStart}
 						disabled={loading}
-						className={`px-3 py-1.5 text-[11px] font-medium rounded transition-colors ${
+						className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors ${
 							isRunning
-								? "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
-								: "bg-connexio-accent/10 text-connexio-accent border border-connexio-accent/30 hover:bg-connexio-accent/20"
+								? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
+								: "bg-connexio-accent/10 text-connexio-accent hover:bg-connexio-accent/20"
 						}`}
 						type="button"
 					>
@@ -159,7 +159,7 @@ export default function RemoteAccessSettings() {
 
 				{/* Connection Info */}
 				{isRunning && status && (
-					<div className="space-y-2 pt-2 border-t border-connexio-border">
+					<div className="soft-separator-top space-y-2 pt-3">
 						{/* URL */}
 						<div className="flex items-center justify-between">
 							<span className="text-[11px] text-connexio-text-secondary">
@@ -171,7 +171,7 @@ export default function RemoteAccessSettings() {
 								</code>
 								<button
 									onClick={copyUrl}
-									className="p-1 rounded hover:bg-connexio-bg-secondary transition-colors"
+									className="dock-button p-1"
 									title="Copy URL"
 									type="button"
 								>
@@ -185,14 +185,14 @@ export default function RemoteAccessSettings() {
 						</div>
 
 						{status.tailscaleLoginUrl && (
-							<div className="flex items-center justify-between rounded border border-connexio-border bg-connexio-bg-secondary px-2 py-1">
+							<div className="flex items-center justify-between rounded-xl bg-white/[0.035] px-2 py-1">
 								<span className="text-[11px] text-connexio-text-secondary">QR target</span>
 								<div className="flex gap-1">
 									{(["lan", "tailscale"] as const).map((target) => (
 										<button
 											key={target}
 											onClick={() => setQrTarget(target)}
-											className={`rounded px-2 py-0.5 text-[10px] ${qrTarget === target ? "bg-connexio-accent text-white" : "bg-connexio-bg-tertiary text-connexio-text-muted"}`}
+											className={`rounded-lg px-2 py-0.5 text-[10px] ${qrTarget === target ? "bg-connexio-accent text-white" : "bg-white/[0.035] text-connexio-text-muted"}`}
 											type="button"
 										>
 											{target === "lan" ? "LAN" : "Tailscale"}
@@ -210,13 +210,13 @@ export default function RemoteAccessSettings() {
 						)}
 
 						{!status.tailscaleIp && (
-							<p className="rounded border border-yellow-500/20 bg-yellow-500/10 px-2 py-1 text-[10px] text-yellow-400">
+							<p className="rounded-xl bg-yellow-500/10 px-2 py-1 text-[10px] text-yellow-400">
 								Tailscale IP not detected. Install/connect Tailscale to get an outside-LAN URL.
 							</p>
 						)}
 
 						{qrDataUrl && (
-							<div className="flex items-center gap-3 rounded border border-connexio-border bg-white p-2">
+							<div className="flex items-center gap-3 rounded-xl bg-white p-2">
 								<img src={qrDataUrl} alt="Remote login QR code" className="h-28 w-28" />
 								<div className="text-[11px] text-slate-700">
 									<p className="font-semibold">Scan to login</p>
@@ -236,7 +236,7 @@ export default function RemoteAccessSettings() {
 								</code>
 								<button
 									onClick={handleRegeneratePin}
-									className="p-1 rounded hover:bg-connexio-bg-secondary transition-colors"
+									className="dock-button p-1"
 									title="Regenerate PIN"
 									type="button"
 								>
@@ -260,7 +260,7 @@ export default function RemoteAccessSettings() {
 						</div>
 
 						{clients.length > 0 && (
-							<div className="space-y-1 pt-2 border-t border-connexio-border">
+							<div className="soft-separator-top space-y-1 pt-3">
 								<p className="text-[11px] text-connexio-text-secondary">
 									Connected devices
 								</p>
@@ -280,7 +280,7 @@ export default function RemoteAccessSettings() {
 			</div>
 
 			{/* Wake-on-LAN helper */}
-			<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3 space-y-3">
+			<div className="soft-card space-y-3 p-3">
 				<p className="text-[11px] font-medium text-connexio-text">
 					Wake-on-LAN setup
 				</p>
@@ -289,26 +289,26 @@ export default function RemoteAccessSettings() {
 						value={wolMac}
 						onChange={(e) => setWolMac(e.target.value)}
 						placeholder="MAC address"
-						className="col-span-3 px-2 py-1 text-[11px] bg-connexio-bg-secondary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+						className="col-span-3 px-2 py-1 text-[11px] bg-connexio-bg-secondary  rounded text-connexio-text outline-none focus:border-connexio-accent"
 					/>
 					<input
 						value={wolBroadcast}
 						onChange={(e) => setWolBroadcast(e.target.value)}
 						placeholder="Broadcast IP"
-						className="col-span-2 px-2 py-1 text-[11px] bg-connexio-bg-secondary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+						className="col-span-2 px-2 py-1 text-[11px] bg-connexio-bg-secondary  rounded text-connexio-text outline-none focus:border-connexio-accent"
 					/>
 					<input
 						value={wolPort}
 						onChange={(e) => setWolPort(Number(e.target.value) || 9)}
 						placeholder="Port"
 						type="number"
-						className="px-2 py-1 text-[11px] bg-connexio-bg-secondary border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+						className="px-2 py-1 text-[11px] bg-connexio-bg-secondary  rounded text-connexio-text outline-none focus:border-connexio-accent"
 					/>
 				</div>
 				<button
 					onClick={handleSendWol}
 					disabled={!wolMac.trim()}
-					className="px-3 py-1.5 text-[11px] font-medium rounded bg-connexio-accent/10 text-connexio-accent border border-connexio-accent/30 hover:bg-connexio-accent/20 disabled:opacity-50"
+					className="px-3 py-1.5 text-[11px] font-medium rounded bg-connexio-accent/10 text-connexio-accent hover:bg-connexio-accent/20 disabled:opacity-50"
 					type="button"
 				>
 					Send Magic Packet
@@ -324,7 +324,7 @@ export default function RemoteAccessSettings() {
 
 			{/* Instructions */}
 			{isRunning && (
-				<div className="bg-connexio-bg-tertiary border border-connexio-border rounded-md p-3">
+				<div className="bg-connexio-bg-tertiary/80  rounded-md p-3">
 					<p className="text-[11px] font-medium text-connexio-text mb-2">
 						How to connect:
 					</p>
@@ -339,7 +339,7 @@ export default function RemoteAccessSettings() {
 
 			{/* Error */}
 			{error && (
-				<p className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded px-2 py-1.5">
+				<p className="rounded-lg bg-red-500/10 px-2 py-1.5 text-[11px] text-red-400">
 					{error}
 				</p>
 			)}

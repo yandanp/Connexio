@@ -1,5 +1,5 @@
 import { Bot, Columns2, FolderTree, GitBranch, Globe, ListTodo, PanelRightClose, Rows2, Server } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectStore, type TerminalTab } from "../stores/projectStore";
 import { AIChatPanel } from "./ai";
 import ConfirmDialog from "./ConfirmDialog";
@@ -53,12 +53,14 @@ export default function Workspace() {
 
 	// Resizable side panel
 	const [panelWidth, setPanelWidth] = useState(360);
+	const [isPanelResizing, setIsPanelResizing] = useState(false);
 	const isResizing = useRef(false);
 	const panelRef = useRef<HTMLDivElement>(null);
 
 	const handleResizeStart = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		isResizing.current = true;
+		setIsPanelResizing(true);
 		document.body.style.cursor = "col-resize";
 		document.body.style.userSelect = "none";
 	}, []);
@@ -75,6 +77,7 @@ export default function Workspace() {
 		const handleResizeEnd = () => {
 			if (isResizing.current) {
 				isResizing.current = false;
+				setIsPanelResizing(false);
 				document.body.style.cursor = "";
 				document.body.style.userSelect = "";
 			}
@@ -227,6 +230,19 @@ export default function Workspace() {
 		handleDragEnd();
 	};
 
+	const getTabDetail = (tab: TerminalTab) => {
+		if (tab.type === "editor" || tab.type === "remoteEditor" || tab.type === "preview") return tab.filePath;
+		if (tab.type === "sftp") return tab.sftpConnection?.host;
+		if (tab.type === "sshManager") return "SSH connections";
+		return tab.status ? `${tab.shell || "terminal"} · ${tab.status}` : tab.shell || "terminal";
+	};
+
+	const getSplitCount = (tab: TerminalTab) => {
+		if (!tab.splitLayout) return 1;
+		const countLeaves = (node: any): number => node.type === "leaf" ? 1 : node.children.reduce((sum: number, child: any) => sum + countLeaves(child), 0);
+		return countLeaves(tab.splitLayout.root);
+	};
+
 	// Run command in active terminal
 	const handleRunCommand = (command: string) => {
 		if (activeTab?.terminalId) {
@@ -286,18 +302,18 @@ export default function Workspace() {
 	return (
 		<div className="flex flex-col flex-1 overflow-hidden">
 			{/* Workspace Header */}
-			<div className="flex items-center h-8 px-3 bg-connexio-bg-secondary border-b border-connexio-border gap-2">
-				<span className="text-[11px] font-medium text-connexio-text-muted truncate flex-shrink-0">
+			<div className="flex h-10 items-center gap-2 bg-connexio-bg-secondary/70 px-3 backdrop-blur">
+				<span className="truncate rounded-full border border-connexio-border-subtle bg-connexio-bg-tertiary/70 px-2 py-1 text-[11px] font-semibold text-connexio-text flex-shrink-0">
 					{project.name}
 				</span>
-				<span className="text-[10px] text-connexio-text-muted truncate opacity-60 flex-shrink min-w-0">
+				<span className="min-w-0 flex-shrink truncate text-[10px] text-connexio-text-muted opacity-70">
 					{project.path}
 				</span>
 
 				{/* Web Preview — open as tab */}
 				<button
 					onClick={() => useProjectStore.getState().openPreviewTab(activeProjectId)}
-					className="p-1 rounded transition-colors hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+					className="dock-button p-1.5"
 					title="Web Preview"
 					type="button"
 				>
@@ -318,7 +334,7 @@ export default function Workspace() {
 									splitTerminal(activeProjectId, activeTab.id, activeTab.id, "horizontal");
 								}
 							}}
-							className="p-1 rounded transition-colors hover:bg-connexio-bg-tertiary text-connexio-text-muted hover:text-connexio-text-secondary"
+							className="dock-button p-1.5"
 							title="Split Right (Ctrl+Shift+D)"
 							type="button"
 						>
@@ -335,7 +351,7 @@ export default function Workspace() {
 									splitTerminal(activeProjectId, activeTab.id, activeTab.id, "vertical");
 								}
 							}}
-							className="p-1 rounded transition-colors hover:bg-connexio-bg-tertiary text-connexio-text-muted hover:text-connexio-text-secondary"
+							className="dock-button p-1.5"
 							title="Split Down (Ctrl+Shift+E)"
 							type="button"
 						>
@@ -345,13 +361,13 @@ export default function Workspace() {
 				)}
 
 				{/* Side panel toggles */}
-				<div className="ml-auto flex items-center gap-0.5 flex-shrink-0">
+				<div className="ml-auto flex flex-shrink-0 items-center gap-1">
 					<button
 						onClick={() => toggleSidePanel("ai")}
-						className={`p-1 rounded transition-colors ${
+						className={`p-1 dock-button ${
 							showSidePanel && sidePanelTab === "ai"
-								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+								? "dock-button-active"
+								: ""
 						}`}
 						title="AI Chat"
 						type="button"
@@ -360,10 +376,10 @@ export default function Workspace() {
 					</button>
 					<button
 						onClick={() => toggleSidePanel("explorer")}
-						className={`p-1 rounded transition-colors ${
+						className={`p-1 dock-button ${
 							showSidePanel && sidePanelTab === "explorer"
-								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+								? "dock-button-active"
+								: ""
 						}`}
 						title="File Explorer"
 						type="button"
@@ -372,10 +388,10 @@ export default function Workspace() {
 					</button>
 					<button
 						onClick={() => toggleSidePanel("source")}
-						className={`p-1 rounded transition-colors ${
+						className={`p-1 dock-button ${
 							showSidePanel && sidePanelTab === "source"
-								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+								? "dock-button-active"
+								: ""
 						}`}
 						title="Source Control"
 						type="button"
@@ -384,10 +400,10 @@ export default function Workspace() {
 					</button>
 					<button
 						onClick={() => toggleSidePanel("tasks")}
-						className={`p-1 rounded transition-colors ${
+						className={`p-1 dock-button ${
 							showSidePanel && sidePanelTab === "tasks"
-								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+								? "dock-button-active"
+								: ""
 						}`}
 						title="Tasks & Pinned Commands"
 						type="button"
@@ -396,10 +412,10 @@ export default function Workspace() {
 					</button>
 					<button
 						onClick={() => toggleSidePanel("ssh")}
-						className={`p-1 rounded transition-colors ${
+						className={`p-1 dock-button ${
 							showSidePanel && sidePanelTab === "ssh"
-								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-connexio-bg-tertiary text-connexio-text-muted"
+								? "dock-button-active"
+								: ""
 						}`}
 						title="SSH Connections"
 						type="button"
@@ -412,7 +428,7 @@ export default function Workspace() {
 			{/* Terminal TabBar */}
 			<div
 				ref={tabBarRef}
-				className="flex items-center h-9 bg-connexio-bg-secondary border-b border-connexio-border"
+				className="flex h-10 items-center bg-connexio-bg-secondary/50 px-2 soft-separator-bottom"
 				onContextMenu={(e) => e.preventDefault()}
 				onDragOver={handleTabBarDragOver}
 				onDrop={handleTabBarDrop}
@@ -424,7 +440,7 @@ export default function Workspace() {
 					}
 				}}
 			>
-				<div className="flex items-center flex-1 overflow-x-auto">
+				<div className="flex flex-1 items-center overflow-x-auto">
 					{tabs.map((tab, index) => (
 						<WorkspaceTab
 							key={tab.id}
@@ -435,6 +451,9 @@ export default function Workspace() {
 							canClose={tabs.length > 1}
 							isDirty={dirtyTabs.has(tab.id)}
 							tabType={tab.type}
+							detail={getTabDetail(tab)}
+							splitCount={getSplitCount(tab)}
+							status={tab.status}
 							onSelect={() => setActiveTerminalTab(activeProjectId, tab.id)}
 							onClose={() => handleCloseTab(tab.id)}
 							onRename={(newLabel) =>
@@ -465,7 +484,7 @@ export default function Workspace() {
 			<div className="flex flex-1 overflow-hidden">
 				{/* Terminal / Editor / Preview Area */}
 				<div
-					className="flex-1 min-w-0 relative overflow-hidden flex flex-col"
+					className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-connexio-bg"
 					data-file-drop-zone=""
 					onDragOver={(e) => {
 						if (e.dataTransfer.types.includes("application/connexio-file") || e.dataTransfer.types.includes("Files")) {
@@ -579,19 +598,19 @@ export default function Workspace() {
 				{showSidePanel && (
 					<div
 						ref={panelRef}
-						className="bg-connexio-bg-secondary border-l border-connexio-border flex flex-col flex-shrink-0 relative overflow-hidden"
+						className="glass-panel animate-panel-in relative flex flex-shrink-0 flex-col overflow-hidden shadow-[-16px_0_40px_rgba(0,0,0,0.16),inset_1px_0_0_rgba(255,255,255,0.055)]"
 						style={{ width: panelWidth }}
 					>
 						{/* Resize handle */}
 						<div
-							className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-connexio-accent/30 active:bg-connexio-accent/50 transition-colors z-10"
+							className={`absolute bottom-0 left-0 top-0 z-10 w-1 cursor-col-resize transition-colors hover:bg-connexio-accent/30 active:bg-connexio-accent/50 ${isPanelResizing ? "resize-rail-active" : ""}`}
 							onMouseDown={handleResizeStart}
 						/>
 						{/* Panel header with tabs */}
-						<div className="flex items-center border-b border-connexio-border flex-shrink-0 overflow-x-auto">
+						<div className="flex flex-shrink-0 items-center overflow-x-auto bg-connexio-bg-secondary/55 px-1 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
 							<button
 								onClick={() => setSidePanelTab("ai")}
-								className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
 									sidePanelTab === "ai"
 										? "text-connexio-accent border-b-2 border-connexio-accent"
 										: "text-connexio-text-muted hover:text-connexio-text-secondary"
@@ -603,7 +622,7 @@ export default function Workspace() {
 							</button>
 							<button
 								onClick={() => setSidePanelTab("explorer")}
-								className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
 									sidePanelTab === "explorer"
 										? "text-connexio-accent border-b-2 border-connexio-accent"
 										: "text-connexio-text-muted hover:text-connexio-text-secondary"
@@ -615,7 +634,7 @@ export default function Workspace() {
 							</button>
 							<button
 								onClick={() => setSidePanelTab("source")}
-								className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
 									sidePanelTab === "source"
 										? "text-connexio-accent border-b-2 border-connexio-accent"
 										: "text-connexio-text-muted hover:text-connexio-text-secondary"
@@ -627,7 +646,7 @@ export default function Workspace() {
 							</button>
 							<button
 								onClick={() => setSidePanelTab("tasks")}
-								className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
 									sidePanelTab === "tasks"
 										? "text-connexio-accent border-b-2 border-connexio-accent"
 										: "text-connexio-text-muted hover:text-connexio-text-secondary"
@@ -639,7 +658,7 @@ export default function Workspace() {
 							</button>
 							<button
 								onClick={() => setSidePanelTab("ssh")}
-								className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
 									sidePanelTab === "ssh"
 										? "text-connexio-accent border-b-2 border-connexio-accent"
 										: "text-connexio-text-muted hover:text-connexio-text-secondary"
@@ -651,7 +670,7 @@ export default function Workspace() {
 							</button>
 							<button
 								onClick={() => setShowSidePanel(false)}
-								className="ml-auto p-1 mr-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
+								className="ml-auto mr-1 dock-button p-1.5"
 								type="button"
 							>
 								<PanelRightClose

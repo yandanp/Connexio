@@ -1,5 +1,6 @@
 import {
 	Bookmark,
+	FileJson,
 	Check,
 	ChevronDown,
 	ChevronRight,
@@ -116,17 +117,17 @@ export default function TaskPanel({
 	};
 
 	return (
-		<div className="flex flex-col h-full overflow-y-auto">
+		<div className="flex h-full flex-col overflow-y-auto bg-connexio-bg-secondary/35">
 			{/* Pinned Commands */}
-			<div className="border-b border-connexio-border">
+			<div className="shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
 				<button
 					onClick={() => setShowPinned(!showPinned)}
-					className="flex items-center gap-1.5 w-full px-3 py-2 text-left hover:bg-connexio-bg-tertiary transition-colors"
+					className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.035]"
 					type="button"
 				>
 					{showPinned ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
 					<Bookmark size={11} className="text-connexio-accent" />
-					<span className="text-[10px] font-semibold text-connexio-text-secondary uppercase tracking-wider">
+					<span className="section-label">
 						Pinned
 					</span>
 					<span className="text-[9px] text-connexio-text-muted ml-auto">
@@ -135,7 +136,16 @@ export default function TaskPanel({
 				</button>
 
 				{showPinned && (
-					<div className="px-2 pb-2 space-y-0.5">
+					<div className="space-y-1 px-2 pb-2">
+						{pinnedCommands.length === 0 && !isAddingCommand && (
+							<PanelEmptyState
+								icon={<Bookmark size={18} />}
+								title="No pinned commands yet"
+								description="Save commands you run often, then launch them from this panel or Ctrl+K."
+								actionLabel="Pin a command"
+								onAction={() => setIsAddingCommand(true)}
+							/>
+						)}
 						{pinnedCommands.map((cmd, index) =>
 							editingId === cmd.id ? (
 								/* Edit mode */
@@ -153,10 +163,10 @@ export default function TaskPanel({
 								<div
 									key={cmd.id}
 									draggable
-									className={`group flex items-center gap-1 px-1 py-1 rounded transition-colors select-none ${
+									className={`group flex items-center gap-1 rounded-lg px-1.5 py-1.5 transition-colors select-none ${
 										dragOverIndex === index
 											? "bg-connexio-accent/15 border border-connexio-accent/40"
-											: "hover:bg-connexio-bg-tertiary border border-transparent"
+											: "hover:bg-white/[0.04] border border-transparent"
 									} ${dragFromIndex === index ? "opacity-40" : ""}`}
 									onDragStart={(e) => {
 										e.dataTransfer.effectAllowed = "move";
@@ -208,7 +218,7 @@ export default function TaskPanel({
 									<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
 										<button
 											onClick={() => handleStartEdit(cmd)}
-											className="p-0.5 rounded hover:bg-connexio-bg transition-colors"
+											className="dock-button p-0.5 transition-colors"
 											type="button"
 											title="Edit"
 										>
@@ -245,7 +255,7 @@ export default function TaskPanel({
 						) : (
 							<button
 								onClick={() => setIsAddingCommand(true)}
-								className="flex items-center gap-1 px-2 py-1 text-[10px] text-connexio-text-muted hover:text-connexio-text transition-colors w-full"
+								className="flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] text-connexio-text-muted transition-colors hover:bg-white/[0.035] hover:text-connexio-text"
 								type="button"
 							>
 								<Plus size={10} />
@@ -257,16 +267,22 @@ export default function TaskPanel({
 			</div>
 
 			{/* Task Runner */}
-			{tasks.length > 0 && (
+			{tasks.length === 0 ? (
+				<PanelEmptyState
+					icon={<FileJson size={18} />}
+					title="No scripts detected"
+					description="Connexio looks for package.json, Makefile, Cargo.toml, and pyproject.toml commands."
+				/>
+			) : (
 				<div>
 					<button
 						onClick={() => setShowTasks(!showTasks)}
-						className="flex items-center gap-1.5 w-full px-3 py-2 text-left hover:bg-connexio-bg-tertiary transition-colors"
+						className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.035]"
 						type="button"
 					>
 						{showTasks ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
 						<Zap size={11} className="text-yellow-400" />
-						<span className="text-[10px] font-semibold text-connexio-text-secondary uppercase tracking-wider">
+						<span className="section-label">
 							Scripts
 						</span>
 						<span className="text-[9px] text-connexio-text-muted ml-auto">
@@ -275,12 +291,12 @@ export default function TaskPanel({
 					</button>
 
 					{showTasks && (
-						<div className="px-2 pb-2 space-y-0.5">
+						<div className="space-y-1 px-2 pb-2">
 							{tasks.map((task) => (
 								<button
 									key={`${task.source}-${task.name}`}
 									onClick={() => onRunCommand(task.command)}
-									className="flex items-center gap-1.5 w-full px-2 py-1 rounded hover:bg-connexio-bg-tertiary transition-colors text-left"
+									className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/[0.04]"
 									type="button"
 									title={task.command}
 								>
@@ -291,7 +307,7 @@ export default function TaskPanel({
 									<span className="text-[11px] text-connexio-text truncate flex-1">
 										{task.name}
 									</span>
-									<span className="text-[8px] text-connexio-text-muted px-1 py-0.5 rounded bg-connexio-bg">
+									<span className="rounded bg-white/[0.04] px-1 py-0.5 text-[8px] text-connexio-text-muted">
 										{task.source.replace(".toml", "").replace(".json", "")}
 									</span>
 								</button>
@@ -299,6 +315,39 @@ export default function TaskPanel({
 						</div>
 					)}
 				</div>
+			)}
+		</div>
+	);
+}
+
+function PanelEmptyState({
+	icon,
+	title,
+	description,
+	actionLabel,
+	onAction,
+}: {
+	icon: React.ReactNode;
+	title: string;
+	description: string;
+	actionLabel?: string;
+	onAction?: () => void;
+}) {
+	return (
+		<div className="mx-1 my-2 rounded-2xl soft-card px-3 py-4 text-center">
+			<div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-connexio-accent/10 text-connexio-accent">
+				{icon}
+			</div>
+			<p className="text-[11px] font-semibold text-connexio-text">{title}</p>
+			<p className="mt-1 text-[10px] leading-4 text-connexio-text-muted">{description}</p>
+			{actionLabel && onAction && (
+				<button
+					onClick={onAction}
+					className="mt-3 rounded-lg bg-connexio-accent/10 px-2.5 py-1.5 text-[10px] font-semibold text-connexio-accent transition-colors hover:bg-connexio-accent/15"
+					type="button"
+				>
+					{actionLabel}
+				</button>
 			)}
 		</div>
 	);
@@ -346,7 +395,7 @@ function PinnedEditForm({
 	};
 
 	return (
-		<div className="px-1.5 py-1.5 space-y-1.5 bg-connexio-bg-tertiary rounded border border-connexio-border">
+		<div className="space-y-1.5 rounded-lg bg-connexio-bg-tertiary/80 px-1.5 py-1.5">
 			<input
 				ref={labelRef}
 				type="text"
@@ -354,7 +403,7 @@ function PinnedEditForm({
 				value={label}
 				onChange={(e) => onLabelChange(e.target.value)}
 				onKeyDown={handleKeyDown}
-				className="w-full px-2 py-1 text-[10px] bg-connexio-bg border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent"
+				className="w-full rounded-md bg-connexio-bg px-2 py-1 text-[10px] text-connexio-text outline-none ring-1 ring-white/[0.04] focus:ring-connexio-accent/50"
 			/>
 			<input
 				type="text"
@@ -362,7 +411,7 @@ function PinnedEditForm({
 				value={command}
 				onChange={(e) => onCommandChange(e.target.value)}
 				onKeyDown={handleKeyDown}
-				className="w-full px-2 py-1 text-[10px] bg-connexio-bg border border-connexio-border rounded text-connexio-text outline-none focus:border-connexio-accent font-mono"
+				className="w-full rounded-md bg-connexio-bg px-2 py-1 text-[10px] text-connexio-text outline-none ring-1 ring-white/[0.04] focus:ring-connexio-accent/50 font-mono"
 			/>
 			<div className="flex gap-1">
 				<button

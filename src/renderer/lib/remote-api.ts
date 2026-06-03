@@ -28,6 +28,7 @@ import type {
 // ─── Connection State ────────────────────────────────────────────────────────
 
 let _pin: string | null = sessionStorage.getItem("connexio_remote_pin");
+let _trustedToken: string | null = localStorage.getItem("connexio_remote_token");
 let _ws: WebSocket | null = null;
 let _authenticated = false;
 let _connected = false;
@@ -97,9 +98,12 @@ export async function authenticate(pin: string): Promise<boolean> {
 		throw new Error(data.error || "Authentication failed");
 	}
 
+	const data = await res.json().catch(() => ({}));
 	_pin = pin;
+	_trustedToken = data.token || null;
 	_authenticated = true;
 	sessionStorage.setItem("connexio_remote_pin", pin);
+	if (_trustedToken) localStorage.setItem("connexio_remote_token", _trustedToken);
 
 	// Connect WebSocket
 	await connectWs();
@@ -108,10 +112,12 @@ export async function authenticate(pin: string): Promise<boolean> {
 
 export function logout() {
 	_pin = null;
+	_trustedToken = null;
 	_authenticated = false;
 	_connected = false;
 	_state = null;
 	sessionStorage.removeItem("connexio_remote_pin");
+	localStorage.removeItem("connexio_remote_token");
 	stopHeartbeat();
 	setConnectionStatus("disconnected");
 	if (_ws) {
@@ -127,9 +133,10 @@ function connectWs(): Promise<void> {
 		if (_ws) _ws.close();
 
 		const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-		_ws = new WebSocket(
-			`${proto}//${window.location.host}/ws?pin=${encodeURIComponent(_pin!)}`,
-		);
+		const params = new URLSearchParams();
+		if (_trustedToken) params.set("token", _trustedToken);
+		else if (_pin) params.set("pin", _pin);
+		_ws = new WebSocket(`${proto}//${window.location.host}/ws?${params.toString()}`);
 
 		setConnectionStatus(_authenticated ? "reconnecting" : "connecting");
 
@@ -261,20 +268,13 @@ function waitForState(): Promise<InitState> {
 	});
 }
 
-// Auto-reconnect on load if PIN exists
-if (_pin) {
-	fetch(`${window.location.origin}/api/auth`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ pin: _pin }),
-	}).then((res) => {
-		if (res.ok) {
-			_authenticated = true;
-			connectWs().catch(() => {});
-		} else {
-			logout();
-		}
-	}).catch(() => {});
+// Reconnect automatically with a trusted token or remembered PIN.
+// Magic link (?pin=xxxxxx) is handled by RemoteLoginGate so the UI can show progress.
+if (_trustedToken || _pin) {
+	_authenticated = true;
+	connectWs().catch(() => {
+		logout();
+	});
 }
 
 // ─── Terminal API ────────────────────────────────────────────────────────────
@@ -586,6 +586,7 @@ export interface RemoteStatus {
 	localIp: string | null;
 	connectedClients: number;
 	clients: RemoteClientInfo[];
+	loginUrl: string | null;
 }
 
 export const remote = {
@@ -601,6 +602,7 @@ export const remote = {
 		localIp: window.location.hostname,
 		connectedClients: 1,
 		clients: [],
+		loginUrl: null,
 	}),
 	stop: () => Promise.resolve(),
 	status: (): Promise<RemoteStatus> => Promise.resolve({
@@ -610,6 +612,7 @@ export const remote = {
 		localIp: window.location.hostname,
 		connectedClients: 1,
 		clients: [],
+		loginUrl: null,
 	}),
 	regeneratePin: () => Promise.resolve("------"),
 };

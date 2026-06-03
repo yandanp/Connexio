@@ -61,7 +61,7 @@ export default function RemoteAccessSettings() {
 
 	const copyUrl = () => {
 		if (!status?.localIp) return;
-		const url = `http://${status.localIp}:${status.port}`;
+		const url = status.loginUrl || `http://${status.localIp}:${status.port}`;
 		navigator.clipboard.writeText(url);
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);
@@ -125,11 +125,11 @@ export default function RemoteAccessSettings() {
 						{/* URL */}
 						<div className="flex items-center justify-between">
 							<span className="text-[11px] text-connexio-text-secondary">
-								URL
+								Login link
 							</span>
 							<div className="flex items-center gap-1.5">
 								<code className="text-[11px] text-connexio-accent font-mono">
-									http://{status.localIp}:{status.port}
+									{status.loginUrl || `http://${status.localIp}:${status.port}`}
 								</code>
 								<button
 									onClick={copyUrl}

@@ -526,6 +526,7 @@ export interface RemoteStatus {
 	localIp: string | null;
 	connectedClients: number;
 	clients: RemoteClientInfo[];
+	loginUrl: string | null;
 }
 
 export const remote = {

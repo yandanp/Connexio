@@ -8,7 +8,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use rand::Rng;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex as StdMutex};
@@ -51,6 +51,7 @@ pub struct RemoteState {
     /// All connected clients (client_id → sender)
     clients: HashMap<String, ClientSender>,
     client_info: HashMap<String, RemoteClientInfo>,
+    trusted_tokens: HashSet<String>,
     /// Terminal output buffers: term_id → accumulated output
     /// Flushed to all clients at 60fps
     output_buffers: HashMap<String, String>,
@@ -68,6 +69,7 @@ impl RemoteState {
             lockout_until: None,
             clients: HashMap::new(),
             client_info: HashMap::new(),
+            trusted_tokens: HashSet::new(),
             output_buffers: HashMap::new(),
             shutdown_tx: None,
         }
@@ -104,6 +106,7 @@ pub struct RemoteStatusResponse {
     pub local_ip: Option<String>,
     pub connected_clients: usize,
     pub clients: Vec<RemoteClientInfo>,
+    pub login_url: Option<String>,
 }
 
 #[tauri::command]
@@ -226,6 +229,8 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
     let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
     let s = state.inner.lock().unwrap();
 
+    let login_url = local_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
+
     Ok(RemoteStatusResponse {
         is_running: true,
         port,
@@ -233,6 +238,7 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
         local_ip,
         connected_clients: s.clients.len(),
         clients: s.client_info.values().cloned().collect(),
+        login_url,
     })
 }
 
@@ -262,6 +268,8 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
     let s = state.inner.lock().unwrap();
     let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
 
+    let login_url = local_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
+
     Ok(RemoteStatusResponse {
         is_running: s.is_running,
         port: s.port,
@@ -269,6 +277,7 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
         local_ip,
         connected_clients: s.clients.len(),
         clients: s.client_info.values().cloned().collect(),
+        login_url,
     })
 }
 
@@ -277,6 +286,7 @@ pub async fn remote_regenerate_pin(app: AppHandle) -> Result<String, String> {
     let state = app.state::<RemoteAccessState>();
     let mut s = state.inner.lock().unwrap();
     s.pin = generate_pin();
+    s.trusted_tokens.clear();
     s.failed_attempts = 0;
     s.lockout_until = None;
     Ok(s.pin.clone())
@@ -291,7 +301,8 @@ struct AuthRequest {
 
 #[derive(Deserialize)]
 struct WsQueryParams {
-    pin: String,
+    pin: Option<String>,
+    token: Option<String>,
 }
 
 async fn handle_auth(
@@ -314,7 +325,9 @@ async fn handle_auth(
 
     if body.pin == s.pin {
         s.failed_attempts = 0;
-        (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response()
+        let token = uuid::Uuid::new_v4().to_string();
+        s.trusted_tokens.insert(token.clone());
+        (StatusCode::OK, Json(serde_json::json!({ "ok": true, "token": token }))).into_response()
     } else {
         s.failed_attempts += 1;
         if s.failed_attempts >= MAX_PIN_ATTEMPTS {
@@ -337,11 +350,16 @@ async fn ws_upgrade(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    // Verify PIN
+    // Verify PIN or trusted token
     {
         let s = state.lock().unwrap();
-        if params.pin != s.pin {
-            return (StatusCode::UNAUTHORIZED, "Invalid PIN").into_response();
+        let pin_ok = params.pin.as_ref().is_some_and(|pin| pin == &s.pin);
+        let token_ok = params
+            .token
+            .as_ref()
+            .is_some_and(|token| s.trusted_tokens.contains(token));
+        if !pin_ok && !token_ok {
+            return (StatusCode::UNAUTHORIZED, "Invalid PIN or token").into_response();
         }
     }
 

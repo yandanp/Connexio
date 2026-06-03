@@ -19,6 +19,19 @@ export default function RemoteLoginGate({
 	}
 
 	useEffect(() => {
+		const queryPin = new URLSearchParams(window.location.search).get("pin");
+		if (queryPin && /^\d{6}$/.test(queryPin)) {
+			setPin(queryPin);
+			setLoading(true);
+			authenticate(queryPin)
+				.then(() => {
+					window.history.replaceState({}, "", window.location.pathname);
+					setAuthed(true);
+				})
+				.catch((err: any) => setError(err.message || "Authentication failed"))
+				.finally(() => setLoading(false));
+			return;
+		}
 		setAuthed(isAuthenticated());
 	}, []);
 

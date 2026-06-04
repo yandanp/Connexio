@@ -43,11 +43,15 @@ const IFRAME_BLOCK_TIMEOUT = 6000;
 
 type ViewportId = (typeof VIEWPORTS)[number]["id"];
 
+function isLocalPreviewTarget(target: string) {
+	return /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?(?:\/|$)/i.test(target);
+}
+
 function normalizeUrl(value: string) {
 	const target = value.trim();
 	if (!target) return DEFAULT_URL;
-	if (target.startsWith("http://") || target.startsWith("https://")) return target;
-	return `http://${target}`;
+	if (/^https?:\/\//i.test(target)) return target;
+	return `${isLocalPreviewTarget(target) ? "http" : "https"}://${target}`;
 }
 
 async function openExternalUrl(targetUrl: string) {

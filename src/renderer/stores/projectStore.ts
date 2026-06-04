@@ -704,6 +704,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		if (tab?.type === "editor" || tab?.type === "remoteEditor") {
 			window.dispatchEvent(new CustomEvent("connexio:editor-tab-destroyed", { detail: { tabId, filePath: tab.filePath } }));
 		}
+		if (tab?.type === "sftp" && tab.sftpConnection) {
+			window.dispatchEvent(new CustomEvent("connexio:sftp-tab-closed", { detail: { connectionId: tab.sftpConnection.id, tabId } }));
+		}
 
 		const newTabs = tabs.filter((t) => t.id !== tabId);
 		const newActiveTabIds = { ...activeTabIds };

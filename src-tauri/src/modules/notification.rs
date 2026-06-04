@@ -105,8 +105,11 @@ fn now_ms() -> u128 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
 }
 
-fn now_secs() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+fn now_ms_u64() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 fn load_notifications(app: &AppHandle) -> Vec<ConnexioNotification> {
@@ -262,7 +265,7 @@ fn parse_json_notification(line: &str) -> Option<ConnexioNotification> {
         terminal_id: payload.get("terminalId").and_then(|v| v.as_str()).map(|s| s.to_string()),
         project_name: payload.get("projectName").and_then(|v| v.as_str()).map(|s| s.to_string()),
         tab_label: payload.get("tabLabel").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        timestamp: now_secs(),
+        timestamp: now_ms_u64(),
         is_read: false,
     })
 }
@@ -282,7 +285,7 @@ fn parse_legacy_notification(line: &str) -> Option<ConnexioNotification> {
         terminal_id: None,
         project_name: None,
         tab_label: None,
-        timestamp: now_secs(),
+        timestamp: now_ms_u64(),
         is_read: false,
     })
 }

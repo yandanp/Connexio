@@ -269,13 +269,18 @@ function PaneRenderer({
 			}
 		: {
 				position: "absolute",
-				top: 0, left: 0, width: 0, height: 0, overflow: "hidden",
+				top: 0,
+				left: 0,
+				width: 1,
+				height: 1,
+				overflow: "hidden",
+				visibility: "hidden",
+				pointerEvents: "none",
 			};
 
 	return (
 		<div
 			style={style}
-			className={!isVisible ? "hidden" : ""}
 			onMouseDown={handleFocus}
 		>
 			{/* Active pane indicator */}

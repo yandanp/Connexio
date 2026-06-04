@@ -237,8 +237,14 @@ function NotificationItem({
 	);
 }
 
+function normalizeTimestamp(timestamp: number): number {
+	// Older backend versions stored seconds; UI expects milliseconds.
+	return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+}
+
 function getTimeAgo(timestamp: number): string {
-	const seconds = Math.floor((Date.now() - timestamp) / 1000);
+	const normalized = normalizeTimestamp(timestamp);
+	const seconds = Math.max(0, Math.floor((Date.now() - normalized) / 1000));
 	if (seconds < 60) return "just now";
 	const minutes = Math.floor(seconds / 60);
 	if (minutes < 60) return `${minutes}m ago`;

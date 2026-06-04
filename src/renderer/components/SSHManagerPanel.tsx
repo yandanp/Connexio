@@ -761,6 +761,7 @@ const sftpStateCache = new Map<string, SFTPCacheEntry>();
 
 export function SFTPBrowser({ connection, onBack }: { connection: SSHConnection; onBack?: () => void }) {
 	const { activeProjectId, openRemoteEditorTab } = useProjectStore();
+	const mountedRef = useRef(true);
 
 	// Restore from cache on mount
 	const cached = sftpStateCache.get(connection.id);
@@ -783,6 +784,21 @@ export function SFTPBrowser({ connection, onBack }: { connection: SSHConnection;
 	const [deleteConfirm, setDeleteConfirm] = useState<SFTPEntry | null>(null);
 
 	const needsPassword = connection.authMethod !== "agent";
+
+	useEffect(() => {
+		mountedRef.current = true;
+		const handleClosed = (event: Event) => {
+			const detail = (event as CustomEvent).detail;
+			if (detail?.connectionId === connection.id) {
+				sftpStateCache.delete(connection.id);
+			}
+		};
+		window.addEventListener("connexio:sftp-tab-closed", handleClosed);
+		return () => {
+			mountedRef.current = false;
+			window.removeEventListener("connexio:sftp-tab-closed", handleClosed);
+		};
+	}, [connection.id]);
 
 	// Sync important state to cache whenever it changes
 	useEffect(() => {

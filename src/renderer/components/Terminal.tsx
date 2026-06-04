@@ -7,6 +7,7 @@ import { Search, X as XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { TerminalThemeColors } from "../../shared/types";
+import { useTerminalResizeV2 } from "../hooks/use-terminal-resize-v2";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useThemeStore } from "../stores/themeStore";
 import TerminalContextMenu from "./TerminalContextMenu";
@@ -123,45 +124,25 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 		setContextMenu(null);
 	}, []);
 
-	// Safe wrapper: only call xterm/fitAddon if not disposed
-	const safeFit = () => {
-		if (disposedRef.current) return;
-		try {
-			const el = containerRef.current;
-			if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
-			const xterm = xtermRef.current;
-			const fitAddon = fitAddonRef.current;
-			if (!xterm || !fitAddon) return;
+	const handlePtyResize = useCallback(
+		(cols: number, rows: number) => {
+			if (disposedRef.current) return;
+			window.connexio.terminal.resize(terminalId, cols, rows);
+		},
+		[terminalId],
+	);
 
-			const nextDims = fitAddon.proposeDimensions();
-			if (!nextDims || nextDims.cols <= 0 || nextDims.rows <= 0) return;
+	const { forceFit } = useTerminalResizeV2({
+		onPtyResize: handlePtyResize,
+		terminalRef: xtermRef,
+		fitAddonRef,
+		containerRef,
+		isVisible: isVisible ?? false,
+	});
 
-			const currentCols = xterm.cols;
-			const currentRows = xterm.rows;
-			if (currentCols === nextDims.cols && currentRows === nextDims.rows) return;
-
-			// Determine if user is "at the bottom" — use a small fixed threshold
-			// to avoid false positives when user has scrolled up within the viewport.
-			const buffer = xterm.buffer.active;
-			const distanceFromBottom = buffer.baseY - buffer.viewportY;
-			const shouldStickToBottom = distanceFromBottom <= 3;
-
-			fitAddon.fit();
-			window.connexio.terminal.resize(terminalId, nextDims.cols, nextDims.rows);
-
-			// Only intervene with scroll if user was at the bottom.
-			// xterm.js preserves scroll position internally on resize,
-			// so we should NOT override it when user has scrolled up.
-			if (shouldStickToBottom) {
-				requestAnimationFrame(() => {
-					if (disposedRef.current || xtermRef.current !== xterm) return;
-					xterm.scrollToBottom();
-				});
-			}
-		} catch (_e) {
-			// ignore — terminal may be mid-dispose
-		}
-	};
+	const safeFit = useCallback(() => {
+		forceFit();
+	}, [forceFit]);
 
 	// Effect: create and manage terminal instance
 	useEffect(() => {
@@ -334,27 +315,16 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			},
 		);
 
-		// --- Resize ---
-		let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-		const debouncedFit = () => {
-			if (disposedRef.current) return;
-			if (resizeTimer !== null) clearTimeout(resizeTimer);
-			resizeTimer = setTimeout(() => {
-				resizeTimer = null;
-				safeFit();
-			}, 100);
-		};
-
-		const resizeObserver = new ResizeObserver(() => debouncedFit());
-		resizeObserver.observe(containerRef.current);
+		// ResizeObserver is handled by useTerminalResizeV2; keep delayed initial fits
+		// here because the terminal instance is created inside this mount effect.
 
 		// --- Context menu (right-click) ---
 		const terminalEl = containerRef.current;
 		terminalEl.addEventListener("contextmenu", handleContextMenu);
 
-		const initTimer1 = setTimeout(safeFit, 50);
-		const initTimer2 = setTimeout(safeFit, 200);
-		const initTimer3 = setTimeout(safeFit, 500);
+		const initTimer1 = setTimeout(() => safeFit(), 50);
+		const initTimer2 = setTimeout(() => safeFit(), 200);
+		const initTimer3 = setTimeout(() => safeFit(), 500);
 
 		// --- Cleanup ---
 		return () => {
@@ -365,7 +335,6 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			clearTimeout(initTimer1);
 			clearTimeout(initTimer2);
 			clearTimeout(initTimer3);
-			if (resizeTimer !== null) clearTimeout(resizeTimer);
 			if (writeRafId !== null) cancelAnimationFrame(writeRafId);
 			if (writeTimeoutId !== null) clearTimeout(writeTimeoutId);
 			writeBuffer = "";
@@ -377,8 +346,7 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			selectionDisposable.dispose();
 			dataDisposable.dispose();
 
-			// 5. Disconnect resize observer & context menu & paste handlers
-			resizeObserver.disconnect();
+			// 5. Remove context menu & paste handlers
 			terminalEl.removeEventListener("contextmenu", handleContextMenu);
 			terminalEl.removeEventListener("paste", blockPaste, true);
 			document.removeEventListener("keydown", handleCtrlV, true);

@@ -14,6 +14,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
+import ContextMenu from "./ContextMenu";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { open, save } from "@tauri-apps/plugin-dialog";
@@ -1333,28 +1334,17 @@ function SSHManagerContextMenu({
 	items: Array<{ label: string; danger?: boolean; onClick: () => void | Promise<void> }>;
 	onClose: () => void;
 }) {
-	useEffect(() => {
-		const close = () => onClose();
-		window.addEventListener("click", close);
-		window.addEventListener("keydown", close);
-		return () => {
-			window.removeEventListener("click", close);
-			window.removeEventListener("keydown", close);
-		};
-	}, [onClose]);
-
 	return (
-		<div style={{ left: x, top: y }} className="fixed z-[300] min-w-44 rounded-lg border border-connexio-border bg-connexio-bg-secondary shadow-2xl py-1">
-			{items.map((item) => (
-				<button
-					key={item.label}
-					onClick={async (e) => { e.stopPropagation(); await item.onClick(); onClose(); }}
-					className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-connexio-bg-tertiary ${item.danger ? "text-red-400" : "text-connexio-text"}`}
-					type="button"
-				>
-					{item.label}
-				</button>
-			))}
-		</div>
+		<ContextMenu
+			x={x}
+			y={y}
+			onClose={onClose}
+			minWidth={176}
+			items={items.map((item) => ({
+				label: item.label,
+				danger: item.danger,
+				onClick: item.onClick,
+			}))}
+		/>
 	);
 }

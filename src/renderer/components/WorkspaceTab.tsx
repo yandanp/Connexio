@@ -1,5 +1,6 @@
 import { Code2, FileCode, Globe, GripVertical, HardDrive, Pencil, Server, Terminal, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import ContextMenu from "./ContextMenu";
 
 interface TabProps {
 	id: string;
@@ -14,6 +15,9 @@ interface TabProps {
 	status?: "active" | "running" | "exited";
 	onSelect: () => void;
 	onClose: () => void;
+	onCloseOthers?: () => void;
+	onCloseTabsToRight?: () => void;
+	onRevealInExplorer?: () => void;
 	onRename: (newLabel: string) => void;
 	onDragStart: (index: number) => void;
 	onDragOver: (index: number) => void;
@@ -37,6 +41,9 @@ export default function WorkspaceTab({
 	status,
 	onSelect,
 	onClose,
+	onCloseOthers,
+	onCloseTabsToRight,
+	onRevealInExplorer,
 	onRename,
 	onDragStart,
 	onDragOver,
@@ -283,6 +290,12 @@ export default function WorkspaceTab({
 				<TabContextMenu
 					x={contextMenu.x}
 					y={contextMenu.y}
+					canClose={canClose}
+					onClose={onClose}
+					onCloseMenu={() => setContextMenu(null)}
+					onCloseOthers={onCloseOthers}
+					onCloseTabsToRight={onCloseTabsToRight}
+					onRevealInExplorer={onRevealInExplorer}
 					onRename={() => {
 						setContextMenu(null);
 						setEditValue(label);
@@ -299,43 +312,39 @@ export default function WorkspaceTab({
 function TabContextMenu({
 	x,
 	y,
+	canClose,
+	onClose,
+	onCloseMenu,
+	onCloseOthers,
+	onCloseTabsToRight,
+	onRevealInExplorer,
 	onRename,
 }: {
 	x: number;
 	y: number;
+	canClose: boolean;
+	onClose: () => void;
+	onCloseMenu: () => void;
+	onCloseOthers?: () => void;
+	onCloseTabsToRight?: () => void;
+	onRevealInExplorer?: () => void;
 	onRename: () => void;
 }) {
-	const menuRef = useRef<HTMLDivElement>(null);
-
-	// Adjust position if menu would overflow viewport
-	const [pos, setPos] = useState({ x, y });
-	useEffect(() => {
-		if (!menuRef.current) return;
-		const rect = menuRef.current.getBoundingClientRect();
-		const newX = x + rect.width > window.innerWidth ? window.innerWidth - rect.width - 4 : x;
-		const newY = y + rect.height > window.innerHeight ? window.innerHeight - rect.height - 4 : y;
-		setPos({ x: newX, y: newY });
-	}, [x, y]);
-
 	return (
-		<div
-			ref={menuRef}
-			data-tab-context-menu=""
-			className="fixed z-[200] min-w-[140px] rounded-lg border border-connexio-border bg-connexio-bg-secondary py-1 shadow-2xl"
-			style={{ top: pos.y, left: pos.x }}
-			onMouseDown={(e) => e.stopPropagation()}
-			onClick={(e) => e.stopPropagation()}
-			onContextMenu={(e) => e.preventDefault()}
-		>
-			<button
-				onClick={onRename}
-				className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-connexio-text hover:bg-connexio-bg-tertiary transition-colors text-left"
-				type="button"
-			>
-				<Pencil size={12} className="text-connexio-text-muted" />
-				Rename
-				<span className="ml-auto text-[10px] text-connexio-text-muted">F2</span>
-			</button>
-		</div>
+		<ContextMenu
+			x={x}
+			y={y}
+			onClose={onCloseMenu}
+			minWidth={190}
+			dataAttribute="data-tab-context-menu"
+			items={[
+				{ icon: Pencil, label: "Rename", shortcut: "F2", onClick: onRename },
+				onRevealInExplorer ? { icon: FileCode, label: "Reveal in Explorer", onClick: onRevealInExplorer } : "separator",
+				"separator",
+				{ icon: X, label: "Close", shortcut: "Ctrl+W", onClick: onClose, disabled: !canClose },
+				{ icon: X, label: "Close Others", onClick: onCloseOthers ?? (() => {}), disabled: !onCloseOthers },
+				{ icon: X, label: "Close Tabs to Right", onClick: onCloseTabsToRight ?? (() => {}), disabled: !onCloseTabsToRight },
+			]}
+		/>
 	);
 }

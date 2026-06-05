@@ -9,6 +9,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { Save, X, Clipboard, Copy, Scissors, TextSelect } from "lucide-react";
+import ContextMenu from "../ContextMenu";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useThemeStore } from "../../stores/themeStore";
@@ -422,46 +423,19 @@ function EditorContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onSelectAll 
 	onPaste: () => void;
 	onSelectAll: () => void;
 }) {
-	const menuRef = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		const handleClick = (e: MouseEvent) => {
-			if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
-		};
-		const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-		document.addEventListener("mousedown", handleClick);
-		document.addEventListener("keydown", handleKey);
-		return () => {
-			document.removeEventListener("mousedown", handleClick);
-			document.removeEventListener("keydown", handleKey);
-		};
-	}, [onClose]);
-
-	const items = [
-		{ icon: Scissors, label: "Cut", shortcut: "Ctrl+X", action: onCut },
-		{ icon: Copy, label: "Copy", shortcut: "Ctrl+C", action: onCopy },
-		{ icon: Clipboard, label: "Paste", shortcut: "Ctrl+V", action: onPaste },
-		{ icon: TextSelect, label: "Select All", shortcut: "Ctrl+A", action: onSelectAll },
-	];
-
 	return (
-		<div
-			ref={menuRef}
-			className="fixed z-[300] min-w-[160px] py-1 bg-connexio-bg-secondary border border-connexio-border rounded-lg shadow-xl"
-			style={{ top: y, left: x }}
-		>
-			{items.map((item) => (
-				<button
-					key={item.label}
-					onClick={item.action}
-					className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[11px] text-connexio-text hover:bg-connexio-bg-tertiary transition-colors"
-					type="button"
-				>
-					<item.icon size={12} className="text-connexio-text-muted" />
-					<span className="flex-1 text-left">{item.label}</span>
-					<span className="text-[10px] text-connexio-text-muted">{item.shortcut}</span>
-				</button>
-			))}
-		</div>
+		<ContextMenu
+			x={x}
+			y={y}
+			onClose={onClose}
+			minWidth={176}
+			items={[
+				{ icon: Scissors, label: "Cut", shortcut: "Ctrl+X", onClick: onCut },
+				{ icon: Copy, label: "Copy", shortcut: "Ctrl+C", onClick: onCopy },
+				{ icon: Clipboard, label: "Paste", shortcut: "Ctrl+V", onClick: onPaste },
+				"separator",
+				{ icon: TextSelect, label: "Select All", shortcut: "Ctrl+A", onClick: onSelectAll },
+			]}
+		/>
 	);
 }

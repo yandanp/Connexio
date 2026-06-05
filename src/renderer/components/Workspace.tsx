@@ -8,6 +8,8 @@ import { FileExplorer } from "./explorer";
 import ShellPicker from "./ShellPicker";
 import SourcePanel from "./SourcePanel";
 import SSHPanel from "./SSHPanel";
+import SidePanelHeader from "./SidePanelHeader";
+import SidePanelRail from "./SidePanelRail";
 import SSHManagerPanel from "./SSHManagerPanel";
 import { SFTPBrowser } from "./SSHManagerPanel";
 import TaskPanel from "./TaskPanel";
@@ -51,8 +53,15 @@ export default function Workspace() {
 	const [dirtyTabs, setDirtyTabs] = useState<Set<string>>(new Set());
 	const tabBarRef = useRef<HTMLDivElement>(null);
 
+	const closeTabs = useCallback((tabIds: string[]) => {
+		if (!activeProjectId) return;
+		for (const tabId of tabIds) {
+			closeTerminalTab(activeProjectId, tabId);
+		}
+	}, [activeProjectId, closeTerminalTab]);
+
 	// Resizable side panel
-	const [panelWidth, setPanelWidth] = useState(360);
+	const [panelWidth, setPanelWidth] = useState(340);
 	const [isPanelResizing, setIsPanelResizing] = useState(false);
 	const isResizing = useRef(false);
 	const panelRef = useRef<HTMLDivElement>(null);
@@ -71,7 +80,7 @@ export default function Workspace() {
 			const containerRect = panelRef.current.parentElement?.getBoundingClientRect();
 			if (!containerRect) return;
 			const newWidth = containerRect.right - e.clientX;
-			setPanelWidth(Math.max(280, Math.min(600, newWidth)));
+			setPanelWidth(Math.max(300, Math.min(600, newWidth)));
 		};
 
 		const handleResizeEnd = () => {
@@ -188,6 +197,14 @@ export default function Workspace() {
 	const tabs = workspaceTabs[activeProjectId] || [];
 	const activeTabId = activeTabIds[activeProjectId] || null;
 	const activeTab = tabs.find((t) => t.id === activeTabId);
+	const activeFilePath = activeTab?.type === "editor" ? activeTab.filePath : null;
+	const sidePanelItems = [
+		{ id: "ai" as const, label: "AI", icon: Bot },
+		{ id: "explorer" as const, label: "Files", icon: FolderTree, badge: !!activeFilePath },
+		{ id: "source" as const, label: "Source", icon: GitBranch },
+		{ id: "tasks" as const, label: "Tasks", icon: ListTodo },
+		{ id: "ssh" as const, label: "SSH", icon: Server },
+	];
 
 	const handleDragStart = (index: number) => {
 		setDragFromIndex(index);
@@ -456,6 +473,12 @@ export default function Workspace() {
 							status={tab.status}
 							onSelect={() => setActiveTerminalTab(activeProjectId, tab.id)}
 							onClose={() => handleCloseTab(tab.id)}
+							onCloseOthers={tabs.length > 1 ? () => closeTabs(tabs.filter((item) => item.id !== tab.id).map((item) => item.id)) : undefined}
+							onCloseTabsToRight={index < tabs.length - 1 ? () => closeTabs(tabs.slice(index + 1).map((item) => item.id)) : undefined}
+							onRevealInExplorer={tab.filePath ? () => {
+								setShowSidePanel(true);
+								setSidePanelTab("explorer");
+							} : undefined}
 							onRename={(newLabel) =>
 								renameTerminalTab(activeProjectId, tab.id, newLabel)
 							}
@@ -598,7 +621,7 @@ export default function Workspace() {
 				{showSidePanel && (
 					<div
 						ref={panelRef}
-						className="glass-panel animate-panel-in relative flex flex-shrink-0 flex-col overflow-hidden shadow-[-16px_0_40px_rgba(0,0,0,0.16),inset_1px_0_0_rgba(255,255,255,0.055)]"
+						className="glass-panel animate-panel-in relative flex flex-shrink-0 flex-col overflow-hidden border-l border-connexio-border/45 shadow-[-8px_0_22px_rgba(0,0,0,0.10),inset_1px_0_0_rgba(255,255,255,0.03)]"
 						style={{ width: panelWidth }}
 					>
 						{/* Resize handle */}
@@ -606,86 +629,22 @@ export default function Workspace() {
 							className={`absolute bottom-0 left-0 top-0 z-10 w-1 cursor-col-resize transition-colors hover:bg-connexio-accent/30 active:bg-connexio-accent/50 ${isPanelResizing ? "resize-rail-active" : ""}`}
 							onMouseDown={handleResizeStart}
 						/>
-						{/* Panel header with tabs */}
-						<div className="flex flex-shrink-0 items-center overflow-x-auto bg-connexio-bg-secondary/55 px-1 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
-							<button
-								onClick={() => setSidePanelTab("ai")}
-								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
-									sidePanelTab === "ai"
-										? "text-connexio-accent border-b-2 border-connexio-accent"
-										: "text-connexio-text-muted hover:text-connexio-text-secondary"
-								}`}
-								type="button"
-							>
-								<Bot size={10} />
-								AI
-							</button>
-							<button
-								onClick={() => setSidePanelTab("explorer")}
-								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
-									sidePanelTab === "explorer"
-										? "text-connexio-accent border-b-2 border-connexio-accent"
-										: "text-connexio-text-muted hover:text-connexio-text-secondary"
-								}`}
-								type="button"
-							>
-								<FolderTree size={10} />
-								Files
-							</button>
-							<button
-								onClick={() => setSidePanelTab("source")}
-								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
-									sidePanelTab === "source"
-										? "text-connexio-accent border-b-2 border-connexio-accent"
-										: "text-connexio-text-muted hover:text-connexio-text-secondary"
-								}`}
-								type="button"
-							>
-								<GitBranch size={10} />
-								Source
-							</button>
-							<button
-								onClick={() => setSidePanelTab("tasks")}
-								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
-									sidePanelTab === "tasks"
-										? "text-connexio-accent border-b-2 border-connexio-accent"
-										: "text-connexio-text-muted hover:text-connexio-text-secondary"
-								}`}
-								type="button"
-							>
-								<ListTodo size={10} />
-								Tasks
-							</button>
-							<button
-								onClick={() => setSidePanelTab("ssh")}
-								className={`flex items-center gap-1.5 px-3 py-2 section-label transition-colors ${
-									sidePanelTab === "ssh"
-										? "text-connexio-accent border-b-2 border-connexio-accent"
-										: "text-connexio-text-muted hover:text-connexio-text-secondary"
-								}`}
-								type="button"
-							>
-								<Server size={10} />
-								SSH
-							</button>
-							<button
-								onClick={() => setShowSidePanel(false)}
-								className="ml-auto mr-1 dock-button p-1.5"
-								type="button"
-							>
-								<PanelRightClose
-									size={11}
-									className="text-connexio-text-muted"
-								/>
-							</button>
-						</div>
-
-						{/* Panel content */}
-						<div className="flex-1 min-h-0 overflow-hidden">
-							{sidePanelTab === "ai" && <AIChatPanel />}
+						<div className="flex min-h-0 flex-1 overflow-hidden">
+							{/* Panel content */}
+							<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+							{sidePanelTab === "ai" && (
+								<>
+									<SidePanelHeader icon={Bot} title="AI Assistant" subtitle={project.name} />
+									<div className="min-h-0 flex-1 overflow-hidden"><AIChatPanel /></div>
+								</>
+							)}
 						{sidePanelTab === "explorer" && (
+							<>
+								<SidePanelHeader icon={FolderTree} title="Explorer" subtitle={activeFilePath ? activeFilePath.split(/[\\/]/).pop() : project.name} />
+								<div className="min-h-0 flex-1 overflow-hidden">
 							<FileExplorer
 								projectPath={project.path}
+								activeFilePath={activeFilePath}
 								onOpenInTerminal={(path) => {
 									openTerminalTab(activeProjectId, `Terminal (${path.split(/[\\/]/).pop()})`);
 								}}
@@ -698,27 +657,50 @@ export default function Workspace() {
 									useProjectStore.getState().openEditorInSplit(activeProjectId, activeTab.id, paneId, direction, filePath);
 								}}
 							/>
+								</div>
+							</>
 						)}
 						{sidePanelTab === "source" && (
-							<SourcePanel projectPath={project.path} />
+							<>
+								<SidePanelHeader icon={GitBranch} title="Source Control" subtitle={project.name} />
+								<div className="min-h-0 flex-1 overflow-hidden"><SourcePanel projectPath={project.path} /></div>
+							</>
 						)}
 						{sidePanelTab === "tasks" && (
+							<>
+								<SidePanelHeader icon={ListTodo} title="Tasks" subtitle={project.name} />
+								<div className="min-h-0 flex-1 overflow-hidden">
 							<TaskPanel
 								projectId={activeProjectId}
 								projectPath={project.path}
 								onRunCommand={handleRunCommand}
 							/>
+								</div>
+							</>
 						)}
 							{sidePanelTab === "ssh" && (
+								<>
+									<SidePanelHeader icon={Server} title="SSH" subtitle={project.name} />
+									<div className="min-h-0 flex-1 overflow-hidden">
 								<SSHPanel
 									projectId={activeProjectId}
 									onConnect={handleSSHConnect}
 									onOpenManager={() => openSSHManagerTab(activeProjectId)}
 									onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
 								/>
+									</div>
+								</>
 							)}
 						</div>
+							<SidePanelRail
+								items={sidePanelItems}
+								activeId={sidePanelTab}
+								onSelect={setSidePanelTab}
+								onClose={() => setShowSidePanel(false)}
+								closeIcon={PanelRightClose}
+							/>
 					</div>
+				</div>
 				)}
 			</div>
 

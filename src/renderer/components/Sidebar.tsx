@@ -10,6 +10,7 @@ import {
 	Trash2,
 	X,
 } from "lucide-react";
+import ContextMenu from "./ContextMenu";
 import { useEffect, useState } from "react";
 import type { Project } from "../../shared/types";
 import { useProjectStore } from "../stores/projectStore";
@@ -610,36 +611,17 @@ function SidebarContextMenu({
 	items: Array<{ label: string; danger?: boolean; onClick: () => void | Promise<void> }>;
 	onClose: () => void;
 }) {
-	useEffect(() => {
-		const close = () => onClose();
-		window.addEventListener("click", close);
-		window.addEventListener("keydown", close);
-		return () => {
-			window.removeEventListener("click", close);
-			window.removeEventListener("keydown", close);
-		};
-	}, [onClose]);
-
 	return (
-		<div
-			style={{ left: x, top: y }}
-			className="fixed z-[300] min-w-44 rounded-lg border border-connexio-border bg-connexio-bg-secondary shadow-2xl py-1"
-			onClick={(e) => e.stopPropagation()}
-			onContextMenu={(e) => e.preventDefault()}
-		>
-			{items.map((item) => (
-				<button
-					key={item.label}
-					onClick={async () => {
-						await item.onClick();
-						onClose();
-					}}
-					className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-connexio-bg-tertiary ${item.danger ? "text-red-400" : "text-connexio-text"}`}
-					type="button"
-				>
-					{item.label}
-				</button>
-			))}
-		</div>
+		<ContextMenu
+			x={x}
+			y={y}
+			onClose={onClose}
+			minWidth={176}
+			items={items.map((item) => ({
+				label: item.label,
+				danger: item.danger,
+				onClick: item.onClick,
+			}))}
+		/>
 	);
 }

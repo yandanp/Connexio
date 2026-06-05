@@ -31,6 +31,7 @@ interface NotificationStore {
 
 	// Real-time
 	handleIncoming: (notification: ConnexioNotification) => void;
+	showToast: (notification: ConnexioNotification) => void;
 	dismissToast: () => void;
 }
 
@@ -165,6 +166,16 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 				// Ignore audio errors
 			}
 		}
+	},
+
+	showToast: (notification: ConnexioNotification) => {
+		set({ toast: notification });
+		setTimeout(() => {
+			const { toast } = get();
+			if (toast?.id === notification.id) {
+				set({ toast: null });
+			}
+		}, 3000);
 	},
 
 	dismissToast: () => {

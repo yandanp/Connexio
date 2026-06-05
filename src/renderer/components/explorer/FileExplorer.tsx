@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ExplorerContextMenu from "./ExplorerContextMenu";
 import { useGitFileStatus, type GitFileIndicator, type GitFileStatusMap } from "../../hooks/useGitFileStatus";
+import { useNotificationStore } from "../../stores/notificationStore";
 
 interface FileEntry {
 	name: string;
@@ -34,6 +35,7 @@ interface FileEntry {
 
 interface Props {
 	projectPath: string;
+	activeFilePath?: string | null;
 	onOpenInTerminal?: (path: string) => void;
 	onOpenFile?: (filePath: string, lineNumber?: number) => void;
 	onOpenFileInSplit?: (filePath: string, direction: "horizontal" | "vertical") => void;
@@ -104,6 +106,10 @@ function InlineInput({ initialValue, placeholder, onConfirm, onCancel }: {
 
 // ─── File Tree Node ──────────────────────────────────────────────────────────
 
+function normalizePath(path: string) {
+	return path.replace(/\\/g, "/");
+}
+
 // ─── Git Status Helpers ──────────────────────────────────────────────────────
 
 const GIT_STATUS_COLORS: Record<GitFileIndicator, string> = {
@@ -173,9 +179,10 @@ function getGitBadge(entry: FileEntry, gitStatusMap: GitFileStatusMap, projectPa
 	return <GitBadge status={status} />;
 }
 
-function FileTreeNode({ entry, depth, onOpenFile, onContextMenu, renamingPath, onRenameConfirm, newItem, onNewItemConfirm, onNewItemCancel, gitStatusMap, projectPath }: {
+function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu, renamingPath, onRenameConfirm, newItem, onNewItemConfirm, onNewItemCancel, gitStatusMap, projectPath }: {
 	entry: FileEntry;
 	depth: number;
+	activeFilePath?: string | null;
 	onOpenFile?: (filePath: string) => void;
 	onContextMenu?: (e: React.MouseEvent, entry: FileEntry) => void;
 	renamingPath: string | null;
@@ -189,17 +196,29 @@ function FileTreeNode({ entry, depth, onOpenFile, onContextMenu, renamingPath, o
 	const [expanded, setExpanded] = useState(false);
 	const [children, setChildren] = useState<FileEntry[] | null>(entry.children);
 	const [loading, setLoading] = useState(false);
+	const rowRef = useRef<HTMLDivElement>(null);
+	const normalizedEntryPath = normalizePath(entry.path);
+	const normalizedActivePath = activeFilePath ? normalizePath(activeFilePath) : null;
+	const isActiveFile = !entry.isDir && normalizedActivePath === normalizedEntryPath;
+	const containsActiveFile = entry.isDir && !!normalizedActivePath && normalizedActivePath.startsWith(`${normalizedEntryPath}/`);
 
-	// Auto-expand when new item targets this folder
+	// Auto-expand for inline creation and for the active editor file reveal.
 	useEffect(() => {
-		if (newItem && newItem.parent === entry.path && !expanded) {
+		const shouldExpand = (newItem && newItem.parent === entry.path) || containsActiveFile;
+		if (shouldExpand && !expanded) {
 			setExpanded(true);
 			if (!children) {
 				invoke<FileEntry[]>("explorer_list_dir", { dirPath: entry.path })
 					.then(setChildren).catch(() => {});
 			}
 		}
-	}, [newItem]);
+	}, [newItem, containsActiveFile, expanded, children, entry.path]);
+
+	useEffect(() => {
+		if (isActiveFile) {
+			rowRef.current?.scrollIntoView({ block: "nearest" });
+		}
+	}, [isActiveFile]);
 
 	const toggleExpand = useCallback(async () => {
 		if (!entry.isDir) return;
@@ -222,7 +241,8 @@ function FileTreeNode({ entry, depth, onOpenFile, onContextMenu, renamingPath, o
 	return (
 		<div>
 			<div
-				className={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-white/[0.04] ${entry.isHidden ? "opacity-60" : ""}`}
+				ref={rowRef}
+				className={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-white/[0.04] ${isActiveFile ? "bg-connexio-accent/12 text-connexio-text shadow-[inset_2px_0_0_var(--accent-color)]" : ""} ${containsActiveFile ? "bg-white/[0.025]" : ""} ${entry.isHidden ? "opacity-60" : ""}`}
 				style={{ paddingLeft: `${depth * 12 + 8}px` }}
 				onClick={handleClick}
 				onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, entry); }}
@@ -281,6 +301,7 @@ function FileTreeNode({ entry, depth, onOpenFile, onContextMenu, renamingPath, o
 							key={child.path}
 							entry={child}
 							depth={depth + 1}
+							activeFilePath={activeFilePath}
 							onOpenFile={onOpenFile}
 							onContextMenu={onContextMenu}
 							renamingPath={renamingPath}
@@ -326,7 +347,7 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean) {
 
 // ─── Main File Explorer ──────────────────────────────────────────────────────
 
-export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile, onOpenFileInSplit }: Props) {
+export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerminal, onOpenFile, onOpenFileInSplit }: Props) {
 	const [entries, setEntries] = useState<FileEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const gitStatusMap = useGitFileStatus(projectPath);
@@ -342,6 +363,7 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 	const [searched, setSearched] = useState(false);
 	const [caseSensitive, setCaseSensitive] = useState(false);
 	const searchInputRef = useRef<HTMLInputElement>(null);
+	const showToast = useNotificationStore((state) => state.showToast);
 
 	const refresh = useCallback(() => {
 		if (!projectPath) return;
@@ -426,8 +448,32 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 		}
 	};
 
-	const handleOpenExternal = (path: string) => {
-		invoke("explorer_open_path", { targetPath: path }).catch(() => {});
+	const notify = useCallback((title: string, body: string) => {
+		showToast({
+			id: `explorer-${Date.now()}`,
+			source: "system",
+			title,
+			body,
+			timestamp: Date.now(),
+			isRead: true,
+		});
+	}, [showToast]);
+
+	const handleCopyPath = async (path: string) => {
+		try {
+			await navigator.clipboard.writeText(path);
+			notify("Path copied", path);
+		} catch {
+			notify("Copy failed", "Could not copy the selected path.");
+		}
+	};
+
+	const handleOpenExternal = async (path: string) => {
+		try {
+			await invoke("explorer_open_path", { targetPath: path });
+		} catch {
+			notify("Open failed", "Could not open the selected path externally.");
+		}
 	};
 
 	// ─── Render ──────────────────────────────────────────────────────────────
@@ -599,6 +645,7 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 							key={entry.path}
 							entry={entry}
 							depth={0}
+							activeFilePath={activeFilePath}
 							onOpenFile={onOpenFile}
 							onContextMenu={(e, ent) => setContextMenu({ x: e.clientX, y: e.clientY, entry: ent })}
 							renamingPath={renamingPath}
@@ -624,7 +671,7 @@ export default function FileExplorer({ projectPath, onOpenInTerminal, onOpenFile
 					onDelete={() => { handleDelete(contextMenu.entry.path); setContextMenu(null); }}
 					onNewFile={() => { setNewItem({ parent: contextMenu.entry.isDir ? contextMenu.entry.path : projectPath, type: "file" }); setContextMenu(null); }}
 					onNewFolder={() => { setNewItem({ parent: contextMenu.entry.isDir ? contextMenu.entry.path : projectPath, type: "folder" }); setContextMenu(null); }}
-					onCopyPath={() => { navigator.clipboard.writeText(contextMenu.entry.path).catch(() => {}); setContextMenu(null); }}
+					onCopyPath={() => { handleCopyPath(contextMenu.entry.path); setContextMenu(null); }}
 					onOpenInTerminal={() => { onOpenInTerminal?.(contextMenu.entry.isDir ? contextMenu.entry.path : parentDir(contextMenu.entry.path)); setContextMenu(null); }}
 					onOpenExternal={() => { handleOpenExternal(contextMenu.entry.path); setContextMenu(null); }}
 					onOpenInSplitRight={!contextMenu.entry.isDir && onOpenFileInSplit ? () => { onOpenFileInSplit(contextMenu.entry.path, "horizontal"); setContextMenu(null); } : undefined}

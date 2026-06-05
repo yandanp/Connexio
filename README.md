@@ -12,7 +12,7 @@ Connexio is built with **Tauri v2** and a native **Rust** backend for fast start
 ## 📸 Preview
 
 <p align="center">
-  <img src="screenshots/connexio_zl0qSxHsE3.png" alt="Connexio — Project-based Terminal Manager" width="100%" />
+  <img src="screenshots/new-connexio.png" alt="Connexio v0.5.0 — Project command center and recent projects" width="100%" />
 </p>
 
 ## 🎯 Problem
@@ -21,7 +21,7 @@ When working on multiple projects, you end up with dozens of terminal windows/ta
 
 ## ✨ Solution
 
-Connexio organizes your terminals **by project**. Each project gets its own workspace with dedicated terminal tabs, persistent sessions, and productivity tools built right in.
+Connexio organizes your terminals **by project**. Each project gets its own workspace with dedicated terminal tabs, persistent sessions, remote access, and productivity tools built right in.
 
 ## 🚀 Features
 
@@ -52,7 +52,9 @@ Connexio organizes your terminals **by project**. Each project gets its own work
 
 ### Connectivity
 
+- **📱 Remote Access** — Open a secure mobile workspace with trusted-token login and remote terminal controls
 - **🔗 SSH Manager** — Save SSH connections per project + global, one-click connect with key or password auth
+- **🌐 Tailscale Support** — Generate remote URLs using detected Tailscale IPs for private-network access
 - **🤖 AI Chat** — Side panel with configurable model integration
 - **🎮 Discord Rich Presence** — Show what you're working on in Discord
 - **🔄 Auto-Updater** — Check for updates via GitHub Releases, download & install with one click
@@ -70,7 +72,6 @@ Connexio organizes your terminals **by project**. Each project gets its own work
 | -------- | -------- |
 | Windows | [Connexio_x64-setup.exe](https://github.com/yandanp/Connexio/releases/latest) |
 | macOS (Apple Silicon) | [Connexio_aarch64.dmg](https://github.com/yandanp/Connexio/releases/latest) |
-| macOS (Intel) | [Connexio_x64.dmg](https://github.com/yandanp/Connexio/releases/latest) |
 | Linux | [Connexio_amd64.AppImage](https://github.com/yandanp/Connexio/releases/latest) |
 
 Or go to [Releases](https://github.com/yandanp/Connexio/releases) for all versions including pre-releases.
@@ -126,7 +127,7 @@ npm run dev
 ### Release
 
 ```bash
-# Patch release (e.g. 0.4.2 → 0.4.3)
+# Patch release (e.g. 0.5.0 -> 0.5.1)
 npm version patch
 git push && git push --tags
 
@@ -189,6 +190,7 @@ Connexio/
 │   │       ├── tasks.rs         # Task runner (script detection)
 │   │       ├── pinned.rs        # Pinned commands
 │   │       ├── ssh.rs           # SSH connection manager
+│   │       ├── remote/          # Remote access protocol and server
 │   │       ├── theme.rs         # Theme management
 │   │       ├── explorer.rs      # File system explorer
 │   │       ├── clipboard.rs     # Native clipboard handling
@@ -209,7 +211,7 @@ Connexio/
 
 | Theme | Style |
 | --- | --- |
-| **Connexio Dark** | Default dark theme with purple accents |
+| **Connexio Dark** | Default dark theme with blue accents |
 | **Connexio Light** | Clean light theme |
 | **Midnight Ocean** | Deep blue with teal accents |
 

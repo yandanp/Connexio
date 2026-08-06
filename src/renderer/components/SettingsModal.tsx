@@ -17,13 +17,7 @@ import { useThemeStore } from "../stores/themeStore";
 import AIIntegrationsSettings from "./AIIntegrationsSettings";
 import RemoteAccessSettings from "./RemoteAccessSettings";
 
-type SettingsTab =
-	| "general"
-	| "terminal"
-	| "appearance"
-	| "notifications"
-	| "remote"
-	| "about";
+type SettingsTab = "general" | "terminal" | "appearance" | "notifications" | "remote" | "about";
 
 const MIN_SCROLLBACK = 500;
 const MAX_SCROLLBACK = 2000;
@@ -45,14 +39,8 @@ function clampScrollback(value: number): number {
 }
 
 export default function SettingsModal() {
-	const {
-		settings,
-		shells,
-		loadSettings,
-		loadShells,
-		updateSettings,
-		closeSettings,
-	} = useSettingsStore();
+	const { settings, shells, loadSettings, loadShells, updateSettings, closeSettings } =
+		useSettingsStore();
 	const { themes, currentTheme, setTheme } = useThemeStore();
 
 	const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -71,10 +59,7 @@ export default function SettingsModal() {
 		}
 	}, [settings, localSettings]);
 
-	const handleChange = <K extends keyof AppSettings>(
-		key: K,
-		value: AppSettings[K],
-	) => {
+	const handleChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
 		const current = localSettings || DEFAULT_SETTINGS;
 		setLocalSettings({ ...current, [key]: value });
 		setIsDirty(true);
@@ -115,11 +100,7 @@ export default function SettingsModal() {
 				{/* Header */}
 				<div className="flex items-center justify-between px-4 py-3 soft-separator-bottom">
 					<h2 className="text-sm font-semibold text-connexio-text">Settings</h2>
-					<button
-						onClick={handleClose}
-						className="dock-button p-1"
-						type="button"
-					>
+					<button onClick={handleClose} className="dock-button p-1" type="button">
 						<X size={14} className="text-connexio-text-secondary" />
 					</button>
 				</div>
@@ -154,10 +135,7 @@ export default function SettingsModal() {
 							/>
 						)}
 						{activeTab === "terminal" && (
-							<TerminalSettings
-								settings={effectiveSettings}
-								onChange={handleChange}
-							/>
+							<TerminalSettings settings={effectiveSettings} onChange={handleChange} />
 						)}
 						{activeTab === "appearance" && (
 							<AppearanceSettings
@@ -219,14 +197,10 @@ function GeneralSettings({
 }: {
 	settings: AppSettings;
 	shells: import("../../shared/types").ShellInfo[];
-	onChange: <K extends keyof AppSettings>(
-		key: K,
-		value: AppSettings[K],
-	) => void;
+	onChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }) {
 	return (
 		<SettingsCard title="General" description="Default behavior for new workspaces and terminals.">
-
 			{/* Default Shell */}
 			<div>
 				<label className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
@@ -293,14 +267,10 @@ function TerminalSettings({
 	onChange,
 }: {
 	settings: AppSettings;
-	onChange: <K extends keyof AppSettings>(
-		key: K,
-		value: AppSettings[K],
-	) => void;
+	onChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }) {
 	return (
 		<SettingsCard title="Terminal" description="Tune rendering, cursor, font, and scrollback.">
-
 			{/* Font Size */}
 			<div>
 				<label className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
@@ -315,9 +285,7 @@ function TerminalSettings({
 						onChange={(e) => onChange("fontSize", Number(e.target.value))}
 						className="flex-1 accent-[var(--accent-color)]"
 					/>
-					<span className="text-xs text-connexio-text w-8 text-right">
-						{settings.fontSize}px
-					</span>
+					<span className="text-xs text-connexio-text w-8 text-right">{settings.fontSize}px</span>
 				</div>
 			</div>
 
@@ -367,10 +335,7 @@ function TerminalSettings({
 						Enable blinking cursor animation
 					</p>
 				</div>
-				<ToggleSwitch
-					checked={settings.cursorBlink}
-					onChange={(v) => onChange("cursorBlink", v)}
-				/>
+				<ToggleSwitch checked={settings.cursorBlink} onChange={(v) => onChange("cursorBlink", v)} />
 			</div>
 
 			{/* Scrollback */}
@@ -385,9 +350,7 @@ function TerminalSettings({
 						max={MAX_SCROLLBACK}
 						step={100}
 						value={clampScrollback(settings.scrollback)}
-						onChange={(e) =>
-							onChange("scrollback", clampScrollback(Number(e.target.value)))
-						}
+						onChange={(e) => onChange("scrollback", clampScrollback(Number(e.target.value)))}
 						className="flex-1 accent-[var(--accent-color)]"
 					/>
 					<span className="text-xs text-connexio-text w-14 text-right">
@@ -414,8 +377,10 @@ function AppearanceSettings({
 	onChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 }) {
 	return (
-		<SettingsCard title="Appearance" description="Control the visual density and theme of Connexio.">
-
+		<SettingsCard
+			title="Appearance"
+			description="Control the visual density and theme of Connexio."
+		>
 			{/* UI Font Size */}
 			<div>
 				<label className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
@@ -444,9 +409,7 @@ function AppearanceSettings({
 
 			{/* Theme */}
 			<div>
-				<label className="block text-xs font-medium text-connexio-text-secondary mb-2">
-					Theme
-				</label>
+				<label className="block text-xs font-medium text-connexio-text-secondary mb-2">Theme</label>
 				<div className="grid grid-cols-1 gap-2">
 					{themes.map((theme) => (
 						<button
@@ -475,12 +438,8 @@ function AppearanceSettings({
 								/>
 							</div>
 							<div className="flex-1">
-								<p className="text-xs text-connexio-text font-medium">
-									{theme.name}
-								</p>
-								<p className="text-[10px] text-connexio-text-muted capitalize">
-									{theme.type}
-								</p>
+								<p className="text-xs text-connexio-text font-medium">{theme.name}</p>
+								<p className="text-[10px] text-connexio-text-muted capitalize">{theme.type}</p>
 							</div>
 							{currentThemeId === theme.id && (
 								<div className="w-2 h-2 rounded-full bg-connexio-accent" />
@@ -582,27 +541,19 @@ function AboutSettings() {
 				/>
 				<div>
 					<p className="text-sm font-semibold text-connexio-text">Connexio</p>
-					<p className="text-[11px] text-connexio-text-secondary">
-						Project-based Terminal Manager
-					</p>
+					<p className="text-[11px] text-connexio-text-secondary">Project-based Terminal Manager</p>
 					{version && (
-						<p className="text-[10px] text-connexio-text-muted mt-0.5">
-							Version {version}
-						</p>
+						<p className="text-[10px] text-connexio-text-muted mt-0.5">Version {version}</p>
 					)}
 				</div>
 			</div>
 
 			{/* Update Section */}
 			<div className="space-y-3">
-				<label className="block text-xs font-medium text-connexio-text-secondary">
-					Updates
-				</label>
+				<label className="block text-xs font-medium text-connexio-text-secondary">Updates</label>
 
 				{/* Check for Update Button */}
-				{(updateState === "idle" ||
-					updateState === "up-to-date" ||
-					updateState === "error") && (
+				{(updateState === "idle" || updateState === "up-to-date" || updateState === "error") && (
 					<div className="space-y-2">
 						<button
 							onClick={handleCheckUpdate}
@@ -623,9 +574,7 @@ function AboutSettings() {
 						{updateState === "error" && (
 							<div className="flex items-center gap-2 text-[11px] text-red-400">
 								<X size={13} />
-								<span className="truncate">
-									{errorMsg || "Failed to check for updates."}
-								</span>
+								<span className="truncate">{errorMsg || "Failed to check for updates."}</span>
 							</div>
 						)}
 					</div>
@@ -703,16 +652,12 @@ function AboutSettings() {
 
 			{/* Links */}
 			<div className="soft-separator-top space-y-1.5 pt-3">
-				<p className="text-[10px] text-connexio-text-muted">
-					Made with ♥ by Connexio Team
-				</p>
+				<p className="text-[10px] text-connexio-text-muted">Made with ♥ by Connexio Team</p>
 			</div>
 
 			{/* Support / Donate */}
 			<div className="soft-separator-top space-y-3 pt-4">
-				<h3 className="section-label">
-					Support
-				</h3>
+				<h3 className="section-label">Support</h3>
 				<p className="text-[11px] text-connexio-text-muted leading-relaxed">
 					Connexio is free and open source. If you find it useful, consider supporting development.
 				</p>
@@ -724,9 +669,7 @@ function AboutSettings() {
 							className="w-40 h-40 rounded-sm"
 						/>
 					</div>
-					<p className="text-[10px] text-connexio-text-muted text-center">
-						Scan to donate
-					</p>
+					<p className="text-[10px] text-connexio-text-muted text-center">Scan to donate</p>
 				</div>
 			</div>
 		</SettingsCard>
@@ -787,7 +730,6 @@ function NotificationsSettings() {
 		<div className="space-y-4">
 			{/* Sound Settings */}
 			<SettingsCard title="Sound" description="Control notification audio and custom alert sounds.">
-
 				{/* Sound toggle */}
 				<div className="flex items-center justify-between">
 					<div>
@@ -798,10 +740,7 @@ function NotificationsSettings() {
 							Play sound when notification arrives
 						</p>
 					</div>
-					<ToggleSwitch
-						checked={settings?.sound ?? true}
-						onChange={handleSoundToggle}
-					/>
+					<ToggleSwitch checked={settings?.sound ?? true} onChange={handleSoundToggle} />
 				</div>
 
 				{/* Volume slider */}
@@ -816,9 +755,7 @@ function NotificationsSettings() {
 								min={0}
 								max={100}
 								value={Math.round((settings?.soundVolume ?? 0.5) * 100)}
-								onChange={(e) =>
-									handleVolumeChange(Number(e.target.value) / 100)
-								}
+								onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
 								className="flex-1 accent-[var(--accent-color)]"
 							/>
 							<span className="text-xs text-connexio-text w-8 text-right">
@@ -884,11 +821,8 @@ function useNotificationSettingsState() {
 		window.connexio.notification.getSettings().then(setSettings);
 	}, []);
 
-	const updateSettings = async (
-		newSettings: import("../../shared/types").NotificationSettings,
-	) => {
-		const updated =
-			await window.connexio.notification.updateSettings(newSettings);
+	const updateSettings = async (newSettings: import("../../shared/types").NotificationSettings) => {
+		const updated = await window.connexio.notification.updateSettings(newSettings);
 		setSettings(updated);
 	};
 
@@ -908,10 +842,7 @@ function DiscordPresenceToggle() {
 					Show Connexio activity on your Discord profile
 				</p>
 			</div>
-			<ToggleSwitch
-				checked={discordPresence}
-				onChange={(v) => setDiscordPresence(v)}
-			/>
+			<ToggleSwitch checked={discordPresence} onChange={(v) => setDiscordPresence(v)} />
 		</div>
 	);
 }

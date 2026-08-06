@@ -68,31 +68,31 @@ Connexio organizes your terminals **by project**. Each project gets its own work
 
 ## 📥 Download
 
-| Platform | Download |
-| -------- | -------- |
-| Windows | [Connexio_x64-setup.exe](https://github.com/yandanp/Connexio/releases/latest) |
-| macOS (Apple Silicon) | [Connexio_aarch64.dmg](https://github.com/yandanp/Connexio/releases/latest) |
-| Linux | [Connexio_amd64.AppImage](https://github.com/yandanp/Connexio/releases/latest) |
+| Platform              | Download                                                                       |
+| --------------------- | ------------------------------------------------------------------------------ |
+| Windows               | [Connexio_x64-setup.exe](https://github.com/yandanp/Connexio/releases/latest)  |
+| macOS (Apple Silicon) | [Connexio_aarch64.dmg](https://github.com/yandanp/Connexio/releases/latest)    |
+| Linux                 | [Connexio_amd64.AppImage](https://github.com/yandanp/Connexio/releases/latest) |
 
 Or go to [Releases](https://github.com/yandanp/Connexio/releases) for all versions including pre-releases.
 
 ## 📦 Tech Stack
 
-| Technology | Purpose |
-| --- | --- |
-| **Tauri v2** | Cross-platform desktop framework |
-| **Rust** | Native backend (PTY, git, SSH, file system) |
-| **portable-pty** | Native PTY process management |
-| **React 18** | UI framework |
-| **TypeScript** | Type safety |
-| **xterm.js** | Terminal rendering (with WebGL addon) |
-| **CodeMirror 6** | Code editor |
-| **Zustand** | State management |
-| **Tailwind CSS** | Styling |
-| **Vite** | Frontend build tool |
-| **tauri-plugin-store** | Persistent storage |
-| **tauri-plugin-updater** | Auto-update via GitHub Releases |
-| **discord-rich-presence** | Discord RPC integration |
+| Technology                | Purpose                                     |
+| ------------------------- | ------------------------------------------- |
+| **Tauri v2**              | Cross-platform desktop framework            |
+| **Rust**                  | Native backend (PTY, git, SSH, file system) |
+| **portable-pty**          | Native PTY process management               |
+| **React 18**              | UI framework                                |
+| **TypeScript**            | Type safety                                 |
+| **xterm.js**              | Terminal rendering (with WebGL addon)       |
+| **CodeMirror 6**          | Code editor                                 |
+| **Zustand**               | State management                            |
+| **Tailwind CSS**          | Styling                                     |
+| **Vite**                  | Frontend build tool                         |
+| **tauri-plugin-store**    | Persistent storage                          |
+| **tauri-plugin-updater**  | Auto-update via GitHub Releases             |
+| **discord-rich-presence** | Discord RPC integration                     |
 
 ## 🛠️ Development
 
@@ -116,13 +116,13 @@ npm run dev
 
 ### Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start Tauri dev mode (hot-reload frontend + Rust backend) |
-| `npm run dev:renderer` | Start Vite dev server only (frontend) |
-| `npm run build` | Build frontend for production |
-| `npm run build:tauri` | Build full Tauri app (installer) |
-| `npm run typecheck` | Type-check all TypeScript |
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `npm run dev`          | Start Tauri dev mode (hot-reload frontend + Rust backend) |
+| `npm run dev:renderer` | Start Vite dev server only (frontend)                     |
+| `npm run build`        | Build frontend for production                             |
+| `npm run build:tauri`  | Build full Tauri app (installer)                          |
+| `npm run typecheck`    | Type-check all TypeScript                                 |
 
 ### Release
 
@@ -139,6 +139,7 @@ git push && git push --tags
 Pushing a `v*` tag triggers GitHub Actions → multi-platform build & GitHub Release.
 
 Tag patterns for release channels:
+
 - `v1.0.0` — Stable release
 - `v1.0.0-dev.1` — Dev pre-release
 - `v1.0.0-alpha.1` / `v1.0.0-beta.1` — Alpha/Beta pre-release
@@ -209,11 +210,11 @@ Connexio/
 
 ## 🎨 Themes
 
-| Theme | Style |
-| --- | --- |
-| **Connexio Dark** | Default dark theme with blue accents |
-| **Connexio Light** | Clean light theme |
-| **Midnight Ocean** | Deep blue with teal accents |
+| Theme              | Style                                |
+| ------------------ | ------------------------------------ |
+| **Connexio Dark**  | Default dark theme with blue accents |
+| **Connexio Light** | Clean light theme                    |
+| **Midnight Ocean** | Deep blue with teal accents          |
 
 Themes apply to both the app UI and terminal colors.
 
@@ -229,13 +230,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Commit Convention
 
-| Prefix | Usage |
-| --- | --- |
-| `feat:` | New feature |
-| `fix:` | Bug fix |
+| Prefix      | Usage            |
+| ----------- | ---------------- |
+| `feat:`     | New feature      |
+| `fix:`      | Bug fix          |
 | `refactor:` | Code refactoring |
-| `ci:` | CI/CD changes |
-| `chore:` | Maintenance |
+| `ci:`       | CI/CD changes    |
+| `chore:`    | Maintenance      |
 
 ## 📄 License
 

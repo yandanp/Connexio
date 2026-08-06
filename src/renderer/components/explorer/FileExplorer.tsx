@@ -20,7 +20,11 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ExplorerContextMenu from "./ExplorerContextMenu";
-import { useGitFileStatus, type GitFileIndicator, type GitFileStatusMap } from "../../hooks/useGitFileStatus";
+import {
+	useGitFileStatus,
+	type GitFileIndicator,
+	type GitFileStatusMap,
+} from "../../hooks/useGitFileStatus";
 import { useNotificationStore } from "../../stores/notificationStore";
 
 interface FileEntry {
@@ -61,16 +65,40 @@ function getFileIcon(entry: FileEntry) {
 	if (entry.isDir) return null;
 	const ext = entry.extension?.toLowerCase();
 	switch (ext) {
-		case "ts": case "tsx": case "js": case "jsx": case "py": case "rs":
-		case "go": case "java": case "c": case "cpp": case "cs": case "php":
+		case "ts":
+		case "tsx":
+		case "js":
+		case "jsx":
+		case "py":
+		case "rs":
+		case "go":
+		case "java":
+		case "c":
+		case "cpp":
+		case "cs":
+		case "php":
 			return <FileCode size={14} className="text-blue-400 flex-shrink-0" />;
-		case "json": case "yaml": case "yml": case "toml":
+		case "json":
+		case "yaml":
+		case "yml":
+		case "toml":
 			return <FileJson size={14} className="text-yellow-400 flex-shrink-0" />;
-		case "md": case "txt": case "log":
+		case "md":
+		case "txt":
+		case "log":
 			return <FileText size={14} className="text-gray-400 flex-shrink-0" />;
-		case "png": case "jpg": case "jpeg": case "gif": case "svg": case "webp":
+		case "png":
+		case "jpg":
+		case "jpeg":
+		case "gif":
+		case "svg":
+		case "webp":
 			return <Image size={14} className="text-green-400 flex-shrink-0" />;
-		case "sh": case "bash": case "ps1": case "bat": case "cmd":
+		case "sh":
+		case "bash":
+		case "ps1":
+		case "bat":
+		case "cmd":
 			return <Terminal size={14} className="text-green-300 flex-shrink-0" />;
 		default:
 			return <File size={14} className="text-connexio-text-muted flex-shrink-0" />;
@@ -79,7 +107,12 @@ function getFileIcon(entry: FileEntry) {
 
 // ─── Inline Input ────────────────────────────────────────────────────────────
 
-function InlineInput({ initialValue, placeholder, onConfirm, onCancel }: {
+function InlineInput({
+	initialValue,
+	placeholder,
+	onConfirm,
+	onCancel,
+}: {
 	initialValue?: string;
 	placeholder?: string;
 	onConfirm: (value: string) => void;
@@ -92,9 +125,15 @@ function InlineInput({ initialValue, placeholder, onConfirm, onCancel }: {
 			value={value}
 			placeholder={placeholder}
 			onChange={(e) => setValue(e.target.value)}
-			onBlur={() => { if (value.trim()) onConfirm(value.trim()); else onCancel(); }}
+			onBlur={() => {
+				if (value.trim()) onConfirm(value.trim());
+				else onCancel();
+			}}
 			onKeyDown={(e) => {
-				if (e.key === "Enter" && value.trim()) { e.preventDefault(); onConfirm(value.trim()); }
+				if (e.key === "Enter" && value.trim()) {
+					e.preventDefault();
+					onConfirm(value.trim());
+				}
 				if (e.key === "Escape") onCancel();
 				e.stopPropagation();
 			}}
@@ -113,13 +152,13 @@ function normalizePath(path: string) {
 // ─── Git Status Helpers ──────────────────────────────────────────────────────
 
 const GIT_STATUS_COLORS: Record<GitFileIndicator, string> = {
-	M: "text-yellow-400",   // Modified
-	A: "text-green-400",    // Added
-	D: "text-red-400",      // Deleted
-	R: "text-purple-400",   // Renamed
-	U: "text-orange-400",   // Unmerged
+	M: "text-yellow-400", // Modified
+	A: "text-green-400", // Added
+	D: "text-red-400", // Deleted
+	R: "text-purple-400", // Renamed
+	U: "text-orange-400", // Unmerged
 	"?": "text-emerald-500", // Untracked
-	C: "text-red-500",      // Conflict
+	C: "text-red-500", // Conflict
 };
 
 const GIT_STATUS_LABELS: Record<GitFileIndicator, string> = {
@@ -159,7 +198,11 @@ function getRelativePath(entry: FileEntry, projectPath: string): string {
 	return normalized.startsWith(base) ? normalized.slice(base.length + 1) : normalized;
 }
 
-function getGitTextColor(entry: FileEntry, gitStatusMap: GitFileStatusMap, projectPath: string): string {
+function getGitTextColor(
+	entry: FileEntry,
+	gitStatusMap: GitFileStatusMap,
+	projectPath: string,
+): string {
 	const rel = getRelativePath(entry, projectPath);
 	if (entry.isDir) {
 		const dirStatus = gitStatusMap.getDirStatus(rel);
@@ -171,7 +214,11 @@ function getGitTextColor(entry: FileEntry, gitStatusMap: GitFileStatusMap, proje
 	return "text-connexio-text";
 }
 
-function getGitBadge(entry: FileEntry, gitStatusMap: GitFileStatusMap, projectPath: string): React.ReactNode {
+function getGitBadge(
+	entry: FileEntry,
+	gitStatusMap: GitFileStatusMap,
+	projectPath: string,
+): React.ReactNode {
 	if (entry.isDir) return null;
 	const rel = getRelativePath(entry, projectPath);
 	const status = gitStatusMap.get(rel);
@@ -179,7 +226,20 @@ function getGitBadge(entry: FileEntry, gitStatusMap: GitFileStatusMap, projectPa
 	return <GitBadge status={status} />;
 }
 
-function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu, renamingPath, onRenameConfirm, newItem, onNewItemConfirm, onNewItemCancel, gitStatusMap, projectPath }: {
+function FileTreeNode({
+	entry,
+	depth,
+	activeFilePath,
+	onOpenFile,
+	onContextMenu,
+	renamingPath,
+	onRenameConfirm,
+	newItem,
+	onNewItemConfirm,
+	onNewItemCancel,
+	gitStatusMap,
+	projectPath,
+}: {
 	entry: FileEntry;
 	depth: number;
 	activeFilePath?: string | null;
@@ -200,7 +260,10 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 	const normalizedEntryPath = normalizePath(entry.path);
 	const normalizedActivePath = activeFilePath ? normalizePath(activeFilePath) : null;
 	const isActiveFile = !entry.isDir && normalizedActivePath === normalizedEntryPath;
-	const containsActiveFile = entry.isDir && !!normalizedActivePath && normalizedActivePath.startsWith(`${normalizedEntryPath}/`);
+	const containsActiveFile =
+		entry.isDir &&
+		!!normalizedActivePath &&
+		normalizedActivePath.startsWith(`${normalizedEntryPath}/`);
 
 	// Auto-expand for inline creation and for the active editor file reveal.
 	useEffect(() => {
@@ -209,7 +272,8 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 			setExpanded(true);
 			if (!children) {
 				invoke<FileEntry[]>("explorer_list_dir", { dirPath: entry.path })
-					.then(setChildren).catch(() => {});
+					.then(setChildren)
+					.catch(() => {});
 			}
 		}
 	}, [newItem, containsActiveFile, expanded, children, entry.path]);
@@ -224,7 +288,9 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 		if (!entry.isDir) return;
 		if (!expanded && !children) {
 			setLoading(true);
-			const result = await invoke<FileEntry[]>("explorer_list_dir", { dirPath: entry.path }).catch(() => []);
+			const result = await invoke<FileEntry[]>("explorer_list_dir", { dirPath: entry.path }).catch(
+				() => [],
+			);
 			setChildren(result as FileEntry[]);
 			setLoading(false);
 		}
@@ -245,7 +311,11 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 				className={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 transition-colors hover:bg-white/[0.04] ${isActiveFile ? "bg-connexio-accent/12 text-connexio-text shadow-[inset_2px_0_0_var(--accent-color)]" : ""} ${containsActiveFile ? "bg-white/[0.025]" : ""} ${entry.isHidden ? "opacity-60" : ""}`}
 				style={{ paddingLeft: `${depth * 12 + 8}px` }}
 				onClick={handleClick}
-				onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, entry); }}
+				onContextMenu={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					onContextMenu?.(e, entry);
+				}}
 				draggable={!entry.isDir}
 				onDragStart={(e) => {
 					if (!entry.isDir) {
@@ -257,8 +327,16 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 			>
 				{entry.isDir ? (
 					<>
-						{expanded ? <ChevronDown size={12} className="text-connexio-text-muted flex-shrink-0" /> : <ChevronRight size={12} className="text-connexio-text-muted flex-shrink-0" />}
-						{expanded ? <FolderOpen size={14} className="text-connexio-accent flex-shrink-0" /> : <Folder size={14} className="text-connexio-accent/70 flex-shrink-0" />}
+						{expanded ? (
+							<ChevronDown size={12} className="text-connexio-text-muted flex-shrink-0" />
+						) : (
+							<ChevronRight size={12} className="text-connexio-text-muted flex-shrink-0" />
+						)}
+						{expanded ? (
+							<FolderOpen size={14} className="text-connexio-accent flex-shrink-0" />
+						) : (
+							<Folder size={14} className="text-connexio-accent/70 flex-shrink-0" />
+						)}
 					</>
 				) : (
 					<>
@@ -275,7 +353,11 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 					/>
 				) : (
 					<>
-						<span className={`text-[12px] truncate ${getGitTextColor(entry, gitStatusMap, projectPath)}`}>{entry.name}</span>
+						<span
+							className={`text-[12px] truncate ${getGitTextColor(entry, gitStatusMap, projectPath)}`}
+						>
+							{entry.name}
+						</span>
 						{getGitBadge(entry, gitStatusMap, projectPath)}
 					</>
 				)}
@@ -284,11 +366,16 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 			{entry.isDir && expanded && (
 				<div>
 					{showNewItem && (
-						<div className="flex items-center gap-1 px-2 py-[3px]" style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}>
+						<div
+							className="flex items-center gap-1 px-2 py-[3px]"
+							style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
+						>
 							<span className="w-3 flex-shrink-0" />
-							{newItem!.type === "folder"
-								? <Folder size={14} className="text-connexio-accent/70 flex-shrink-0" />
-								: <File size={14} className="text-connexio-text-muted flex-shrink-0" />}
+							{newItem!.type === "folder" ? (
+								<Folder size={14} className="text-connexio-accent/70 flex-shrink-0" />
+							) : (
+								<File size={14} className="text-connexio-text-muted flex-shrink-0" />
+							)}
 							<InlineInput
 								placeholder={newItem!.type === "folder" ? "folder-name" : "filename.ext"}
 								onConfirm={(val) => onNewItemConfirm(entry.path, val, newItem!.type)}
@@ -314,7 +401,12 @@ function FileTreeNode({ entry, depth, activeFilePath, onOpenFile, onContextMenu,
 						/>
 					))}
 					{loading && (
-						<div className="text-[11px] text-connexio-text-muted px-2 py-1" style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}>Loading...</div>
+						<div
+							className="text-[11px] text-connexio-text-muted px-2 py-1"
+							style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
+						>
+							Loading...
+						</div>
 					)}
 				</div>
 			)}
@@ -332,11 +424,11 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean) {
 	return (
 		<>
 			{parts.map((part, i) => {
-				const isMatch = caseSensitive
-					? part === query
-					: part.toLowerCase() === query.toLowerCase();
+				const isMatch = caseSensitive ? part === query : part.toLowerCase() === query.toLowerCase();
 				return isMatch ? (
-					<span key={i} className="bg-connexio-accent/30 text-connexio-accent font-semibold">{part}</span>
+					<span key={i} className="bg-connexio-accent/30 text-connexio-accent font-semibold">
+						{part}
+					</span>
 				) : (
 					<span key={i}>{part}</span>
 				);
@@ -347,12 +439,20 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean) {
 
 // ─── Main File Explorer ──────────────────────────────────────────────────────
 
-export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerminal, onOpenFile, onOpenFileInSplit }: Props) {
+export default function FileExplorer({
+	projectPath,
+	activeFilePath,
+	onOpenInTerminal,
+	onOpenFile,
+	onOpenFileInSplit,
+}: Props) {
 	const [entries, setEntries] = useState<FileEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const gitStatusMap = useGitFileStatus(projectPath);
 	const [showHidden, setShowHidden] = useState(false);
-	const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null);
+	const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(
+		null,
+	);
 	const [renamingPath, setRenamingPath] = useState<string | null>(null);
 	const [newItem, setNewItem] = useState<{ parent: string; type: "file" | "folder" } | null>(null);
 
@@ -368,11 +468,16 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 	const refresh = useCallback(() => {
 		if (!projectPath) return;
 		invoke<FileEntry[]>("explorer_list_dir", { dirPath: projectPath })
-			.then((result) => { setEntries(result); setLoading(false); })
+			.then((result) => {
+				setEntries(result);
+				setLoading(false);
+			})
 			.catch(() => setLoading(false));
 	}, [projectPath]);
 
-	useEffect(() => { refresh(); }, [refresh]);
+	useEffect(() => {
+		refresh();
+	}, [refresh]);
 
 	// Reset search when project changes
 	useEffect(() => {
@@ -448,16 +553,19 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 		}
 	};
 
-	const notify = useCallback((title: string, body: string) => {
-		showToast({
-			id: `explorer-${Date.now()}`,
-			source: "system",
-			title,
-			body,
-			timestamp: Date.now(),
-			isRead: true,
-		});
-	}, [showToast]);
+	const notify = useCallback(
+		(title: string, body: string) => {
+			showToast({
+				id: `explorer-${Date.now()}`,
+				source: "system",
+				title,
+				body,
+				timestamp: Date.now(),
+				isRead: true,
+			});
+		},
+		[showToast],
+	);
 
 	const handleCopyPath = async (path: string) => {
 		try {
@@ -504,12 +612,18 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 						type="text"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") handleSearch();
+						}}
 						placeholder="Search in files..."
 						className="flex-1 bg-transparent text-xs text-connexio-text outline-none placeholder:text-connexio-text-muted/50"
 					/>
 					{searchQuery && (
-						<button onClick={clearSearch} className="p-0.5 rounded hover:bg-connexio-bg-secondary" type="button">
+						<button
+							onClick={clearSearch}
+							className="p-0.5 rounded hover:bg-connexio-bg-secondary"
+							type="button"
+						>
 							<X size={10} className="text-connexio-text-muted" />
 						</button>
 					)}
@@ -556,7 +670,8 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 					{!searching && searchResults.length > 0 && (
 						<div className="py-1">
 							<div className="px-2 py-0.5 text-[10px] text-connexio-text-muted">
-								{searchResults.length} result{searchResults.length !== 1 ? "s" : ""} in {Object.keys(grouped).length} file{Object.keys(grouped).length !== 1 ? "s" : ""}
+								{searchResults.length} result{searchResults.length !== 1 ? "s" : ""} in{" "}
+								{Object.keys(grouped).length} file{Object.keys(grouped).length !== 1 ? "s" : ""}
 							</div>
 							{Object.entries(grouped).map(([filePath, fileResults]) => (
 								<div key={filePath} className="mb-0.5">
@@ -566,8 +681,12 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 										type="button"
 									>
 										<FileCode size={11} className="text-connexio-accent flex-shrink-0" />
-										<span className="text-[11px] text-connexio-text font-medium truncate">{fileNameFromPath(filePath)}</span>
-										<span className="text-[10px] text-connexio-text-muted truncate ml-1">{relativePath(filePath)}</span>
+										<span className="text-[11px] text-connexio-text font-medium truncate">
+											{fileNameFromPath(filePath)}
+										</span>
+										<span className="text-[10px] text-connexio-text-muted truncate ml-1">
+											{relativePath(filePath)}
+										</span>
 									</button>
 									{fileResults.map((r) => (
 										<button
@@ -576,7 +695,9 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 											className="w-full flex items-start gap-2 px-4 py-0.5 text-left hover:bg-connexio-bg-tertiary transition-colors"
 											type="button"
 										>
-											<span className="text-[10px] text-connexio-text-muted w-5 text-right flex-shrink-0 font-mono">{r.lineNumber}</span>
+											<span className="text-[10px] text-connexio-text-muted w-5 text-right flex-shrink-0 font-mono">
+												{r.lineNumber}
+											</span>
 											<span className="text-[11px] text-connexio-text-secondary truncate font-mono">
 												{highlightMatch(r.lineContent, searchQuery, caseSensitive)}
 											</span>
@@ -591,18 +712,40 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 
 			{/* File tree header */}
 			<div className="flex items-center justify-between px-3 py-1.5 border-b border-connexio-border flex-shrink-0">
-				<span className="text-[10px] font-semibold uppercase tracking-wider text-connexio-text-muted">Files</span>
+				<span className="text-[10px] font-semibold uppercase tracking-wider text-connexio-text-muted">
+					Files
+				</span>
 				<div className="flex items-center gap-1">
-					<button onClick={() => setNewItem({ parent: projectPath, type: "file" })} className="p-0.5 rounded hover:bg-connexio-bg-tertiary" title="New File" type="button">
+					<button
+						onClick={() => setNewItem({ parent: projectPath, type: "file" })}
+						className="p-0.5 rounded hover:bg-connexio-bg-tertiary"
+						title="New File"
+						type="button"
+					>
 						<FilePlus size={12} className="text-connexio-text-muted" />
 					</button>
-					<button onClick={() => setNewItem({ parent: projectPath, type: "folder" })} className="p-0.5 rounded hover:bg-connexio-bg-tertiary" title="New Folder" type="button">
+					<button
+						onClick={() => setNewItem({ parent: projectPath, type: "folder" })}
+						className="p-0.5 rounded hover:bg-connexio-bg-tertiary"
+						title="New Folder"
+						type="button"
+					>
 						<FolderPlus size={12} className="text-connexio-text-muted" />
 					</button>
-					<button onClick={refresh} className="p-0.5 rounded hover:bg-connexio-bg-tertiary" title="Refresh" type="button">
+					<button
+						onClick={refresh}
+						className="p-0.5 rounded hover:bg-connexio-bg-tertiary"
+						title="Refresh"
+						type="button"
+					>
 						<RefreshCw size={12} className="text-connexio-text-muted" />
 					</button>
-					<button onClick={() => setShowHidden(!showHidden)} className={`text-[10px] px-1 py-0.5 rounded ${showHidden ? "bg-connexio-accent/10 text-connexio-accent" : "text-connexio-text-muted"}`} title="Toggle hidden" type="button">
+					<button
+						onClick={() => setShowHidden(!showHidden)}
+						className={`text-[10px] px-1 py-0.5 rounded ${showHidden ? "bg-connexio-accent/10 text-connexio-accent" : "text-connexio-text-muted"}`}
+						title="Toggle hidden"
+						type="button"
+					>
 						.*
 					</button>
 				</div>
@@ -612,9 +755,11 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 			{newItem && newItem.parent === projectPath && (
 				<div className="flex items-center gap-1 px-2 py-[3px]" style={{ paddingLeft: "8px" }}>
 					<span className="w-3 flex-shrink-0" />
-					{newItem.type === "folder"
-						? <Folder size={14} className="text-connexio-accent/70 flex-shrink-0" />
-						: <File size={14} className="text-connexio-text-muted flex-shrink-0" />}
+					{newItem.type === "folder" ? (
+						<Folder size={14} className="text-connexio-accent/70 flex-shrink-0" />
+					) : (
+						<File size={14} className="text-connexio-text-muted flex-shrink-0" />
+					)}
 					<InlineInput
 						placeholder={newItem.type === "folder" ? "folder-name" : "filename.ext"}
 						onConfirm={(val) => handleNewItem(projectPath, val, newItem.type)}
@@ -624,20 +769,41 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 			)}
 
 			{/* Tree */}
-			<div className="flex-1 overflow-y-auto py-1" onContextMenu={(e) => {
-				e.preventDefault();
-				// Right-click empty area = root context
-				setContextMenu({ x: e.clientX, y: e.clientY, entry: { name: "", path: projectPath, isDir: true, isHidden: false, extension: null, size: null, children: null } });
-			}}>
+			<div
+				className="flex-1 overflow-y-auto py-1"
+				onContextMenu={(e) => {
+					e.preventDefault();
+					// Right-click empty area = root context
+					setContextMenu({
+						x: e.clientX,
+						y: e.clientY,
+						entry: {
+							name: "",
+							path: projectPath,
+							isDir: true,
+							isHidden: false,
+							extension: null,
+							size: null,
+							children: null,
+						},
+					});
+				}}
+			>
 				{loading ? (
 					<div className="px-3 py-2 text-[11px] text-connexio-text-muted">Loading...</div>
 				) : filteredEntries.length === 0 ? (
 					<ExplorerEmptyState
 						icon={<Archive size={18} />}
 						title={showHidden ? "Empty directory" : "No visible files"}
-						description={showHidden ? "Create a file or folder to start working here." : "Hidden files are currently filtered out."}
+						description={
+							showHidden
+								? "Create a file or folder to start working here."
+								: "Hidden files are currently filtered out."
+						}
 						actionLabel={showHidden ? "New file" : "Show hidden"}
-						onAction={() => showHidden ? setNewItem({ parent: projectPath, type: "file" }) : setShowHidden(true)}
+						onAction={() =>
+							showHidden ? setNewItem({ parent: projectPath, type: "file" }) : setShowHidden(true)
+						}
 					/>
 				) : (
 					filteredEntries.map((entry) => (
@@ -667,15 +833,58 @@ export default function FileExplorer({ projectPath, activeFilePath, onOpenInTerm
 					y={contextMenu.y}
 					isDir={contextMenu.entry.isDir}
 					onClose={() => setContextMenu(null)}
-					onRename={() => { setRenamingPath(contextMenu.entry.path); setContextMenu(null); }}
-					onDelete={() => { handleDelete(contextMenu.entry.path); setContextMenu(null); }}
-					onNewFile={() => { setNewItem({ parent: contextMenu.entry.isDir ? contextMenu.entry.path : projectPath, type: "file" }); setContextMenu(null); }}
-					onNewFolder={() => { setNewItem({ parent: contextMenu.entry.isDir ? contextMenu.entry.path : projectPath, type: "folder" }); setContextMenu(null); }}
-					onCopyPath={() => { handleCopyPath(contextMenu.entry.path); setContextMenu(null); }}
-					onOpenInTerminal={() => { onOpenInTerminal?.(contextMenu.entry.isDir ? contextMenu.entry.path : parentDir(contextMenu.entry.path)); setContextMenu(null); }}
-					onOpenExternal={() => { handleOpenExternal(contextMenu.entry.path); setContextMenu(null); }}
-					onOpenInSplitRight={!contextMenu.entry.isDir && onOpenFileInSplit ? () => { onOpenFileInSplit(contextMenu.entry.path, "horizontal"); setContextMenu(null); } : undefined}
-					onOpenInSplitDown={!contextMenu.entry.isDir && onOpenFileInSplit ? () => { onOpenFileInSplit(contextMenu.entry.path, "vertical"); setContextMenu(null); } : undefined}
+					onRename={() => {
+						setRenamingPath(contextMenu.entry.path);
+						setContextMenu(null);
+					}}
+					onDelete={() => {
+						handleDelete(contextMenu.entry.path);
+						setContextMenu(null);
+					}}
+					onNewFile={() => {
+						setNewItem({
+							parent: contextMenu.entry.isDir ? contextMenu.entry.path : projectPath,
+							type: "file",
+						});
+						setContextMenu(null);
+					}}
+					onNewFolder={() => {
+						setNewItem({
+							parent: contextMenu.entry.isDir ? contextMenu.entry.path : projectPath,
+							type: "folder",
+						});
+						setContextMenu(null);
+					}}
+					onCopyPath={() => {
+						handleCopyPath(contextMenu.entry.path);
+						setContextMenu(null);
+					}}
+					onOpenInTerminal={() => {
+						onOpenInTerminal?.(
+							contextMenu.entry.isDir ? contextMenu.entry.path : parentDir(contextMenu.entry.path),
+						);
+						setContextMenu(null);
+					}}
+					onOpenExternal={() => {
+						handleOpenExternal(contextMenu.entry.path);
+						setContextMenu(null);
+					}}
+					onOpenInSplitRight={
+						!contextMenu.entry.isDir && onOpenFileInSplit
+							? () => {
+									onOpenFileInSplit(contextMenu.entry.path, "horizontal");
+									setContextMenu(null);
+								}
+							: undefined
+					}
+					onOpenInSplitDown={
+						!contextMenu.entry.isDir && onOpenFileInSplit
+							? () => {
+									onOpenFileInSplit(contextMenu.entry.path, "vertical");
+									setContextMenu(null);
+								}
+							: undefined
+					}
 				/>
 			)}
 		</div>

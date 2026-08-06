@@ -93,9 +93,7 @@ export default function GitHistoryPanel({ projectPath }: Props) {
 		return (
 			<div className="flex flex-col items-center justify-center py-8 px-4">
 				<GitCommit size={20} className="text-connexio-text-muted/30 mb-2" />
-				<p className="text-[11px] text-connexio-text-muted text-center">
-					No commit history
-				</p>
+				<p className="text-[11px] text-connexio-text-muted text-center">No commit history</p>
 			</div>
 		);
 	}
@@ -107,7 +105,8 @@ export default function GitHistoryPanel({ projectPath }: Props) {
 				<span className="text-[10px] font-semibold text-connexio-text-secondary uppercase tracking-wider flex-1">
 					History
 					<span className="ml-1 text-connexio-text-muted font-normal normal-case">
-						({commits.length}{hasMore ? "+" : ""})
+						({commits.length}
+						{hasMore ? "+" : ""})
 					</span>
 				</span>
 				<button

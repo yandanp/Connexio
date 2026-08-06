@@ -57,7 +57,9 @@ export default function KeyboardShortcutsModal({ open, onClose }: Props) {
 				<div className="flex items-center justify-between px-5 py-4 soft-separator-bottom">
 					<div>
 						<h2 className="text-sm font-semibold text-connexio-text">Keyboard Shortcuts</h2>
-						<p className="mt-0.5 text-xs text-connexio-text-muted">Move faster through projects, terminals, and panels.</p>
+						<p className="mt-0.5 text-xs text-connexio-text-muted">
+							Move faster through projects, terminals, and panels.
+						</p>
 					</div>
 					<button
 						onClick={onClose}
@@ -71,14 +73,17 @@ export default function KeyboardShortcutsModal({ open, onClose }: Props) {
 				<div className="grid max-h-[520px] grid-cols-2 gap-3 overflow-y-auto p-4 max-md:grid-cols-1">
 					{shortcutGroups.map((group) => (
 						<section key={group.title} className="rounded-2xl soft-card p-3">
-							<h3 className="section-label mb-2">
-								{group.title}
-							</h3>
+							<h3 className="section-label mb-2">{group.title}</h3>
 							<div className="space-y-1">
 								{group.items.map(([label, keys]) => (
-									<div key={label} className="flex items-center justify-between gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-white/[0.03]">
+									<div
+										key={label}
+										className="flex items-center justify-between gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-white/[0.03]"
+									>
 										<span className="text-xs text-connexio-text-secondary">{label}</span>
-										<span className="rounded-lg bg-connexio-bg-tertiary/80 px-2 py-1 text-[10px] font-semibold text-connexio-text">{keys}</span>
+										<span className="rounded-lg bg-connexio-bg-tertiary/80 px-2 py-1 text-[10px] font-semibold text-connexio-text">
+											{keys}
+										</span>
 									</div>
 								))}
 							</div>

@@ -18,9 +18,7 @@ export default function WelcomeScreen({
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [showThemes, setShowThemes] = useState(false);
 
-	const recentProjects = [...projects]
-		.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
-		.slice(0, 5);
+	const recentProjects = [...projects].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt).slice(0, 5);
 
 	return (
 		<div className="relative flex flex-1 items-center justify-center overflow-hidden p-8">
@@ -57,7 +55,8 @@ export default function WelcomeScreen({
 					</div>
 
 					<p className="mb-7 max-w-xl text-sm leading-6 text-connexio-text-secondary">
-						Connexio organizes terminals, tasks, files, git, SSH, previews, and AI around the project you are working on.
+						Connexio organizes terminals, tasks, files, git, SSH, previews, and AI around the
+						project you are working on.
 					</p>
 
 					<div className="mb-8 flex flex-wrap gap-3">
@@ -88,7 +87,11 @@ export default function WelcomeScreen({
 					{showThemes ? (
 						<ThemeSelector themes={themes} currentTheme={currentTheme} setTheme={setTheme} />
 					) : (
-						<RecentProjects projects={recentProjects} onAdd={() => setShowAddModal(true)} onProjectSelected={onProjectSelected} />
+						<RecentProjects
+							projects={recentProjects}
+							onAdd={() => setShowAddModal(true)}
+							onProjectSelected={onProjectSelected}
+						/>
 					)}
 				</aside>
 			</div>
@@ -120,7 +123,10 @@ function ThemeSelector({ themes, currentTheme, setTheme }: any) {
 						className={`interaction-lift flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors ${currentTheme?.id === theme.id ? "bg-connexio-accent/12 text-connexio-text shadow-[inset_2px_0_0_var(--accent-color)]" : "bg-white/[0.025] text-connexio-text-secondary hover:bg-white/[0.045]"}`}
 						type="button"
 					>
-						<span className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.colors.accentColor }} />
+						<span
+							className="h-3 w-3 rounded-full"
+							style={{ backgroundColor: theme.colors.accentColor }}
+						/>
 						<span className="text-xs font-medium">{theme.name}</span>
 					</button>
 				))}
@@ -129,7 +135,15 @@ function ThemeSelector({ themes, currentTheme, setTheme }: any) {
 	);
 }
 
-function RecentProjects({ projects, onAdd, onProjectSelected }: { projects: import("../../shared/types").Project[]; onAdd: () => void; onProjectSelected?: () => void }) {
+function RecentProjects({
+	projects,
+	onAdd,
+	onProjectSelected,
+}: {
+	projects: import("../../shared/types").Project[];
+	onAdd: () => void;
+	onProjectSelected?: () => void;
+}) {
 	return (
 		<div>
 			<div className="mb-4 flex items-center justify-between">
@@ -140,14 +154,26 @@ function RecentProjects({ projects, onAdd, onProjectSelected }: { projects: impo
 			</div>
 			{projects.length > 0 ? (
 				<div className="space-y-2">
-					{projects.map((project) => <RecentProjectItem key={project.id} project={project} onProjectSelected={onProjectSelected} />)}
+					{projects.map((project) => (
+						<RecentProjectItem
+							key={project.id}
+							project={project}
+							onProjectSelected={onProjectSelected}
+						/>
+					))}
 				</div>
 			) : (
-				<button onClick={onAdd} className="interaction-lift flex w-full items-center gap-3 rounded-2xl bg-white/[0.035] p-4 text-left transition-colors hover:bg-white/[0.055]" type="button">
+				<button
+					onClick={onAdd}
+					className="interaction-lift flex w-full items-center gap-3 rounded-2xl bg-white/[0.035] p-4 text-left transition-colors hover:bg-white/[0.055]"
+					type="button"
+				>
 					<FolderPlus size={18} className="text-connexio-accent" />
 					<div>
 						<p className="text-sm font-medium text-connexio-text">Add your first project</p>
-						<p className="text-xs text-connexio-text-muted">Create a workspace with persistent terminal tabs.</p>
+						<p className="text-xs text-connexio-text-muted">
+							Create a workspace with persistent terminal tabs.
+						</p>
 					</div>
 				</button>
 			)}
@@ -155,7 +181,13 @@ function RecentProjects({ projects, onAdd, onProjectSelected }: { projects: impo
 	);
 }
 
-function RecentProjectItem({ project, onProjectSelected }: { project: import("../../shared/types").Project; onProjectSelected?: () => void }) {
+function RecentProjectItem({
+	project,
+	onProjectSelected,
+}: {
+	project: import("../../shared/types").Project;
+	onProjectSelected?: () => void;
+}) {
 	const { setActiveProject } = useProjectStore();
 
 	return (

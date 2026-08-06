@@ -54,8 +54,10 @@ export default function ExplorerContextMenu({
 	}
 
 	if (!isDir && (onOpenInSplitRight || onOpenInSplitDown)) {
-		if (onOpenInSplitRight) items.push({ icon: Columns2, label: "Open in Split Right", onClick: onOpenInSplitRight });
-		if (onOpenInSplitDown) items.push({ icon: Rows2, label: "Open in Split Down", onClick: onOpenInSplitDown });
+		if (onOpenInSplitRight)
+			items.push({ icon: Columns2, label: "Open in Split Right", onClick: onOpenInSplitRight });
+		if (onOpenInSplitDown)
+			items.push({ icon: Rows2, label: "Open in Split Down", onClick: onOpenInSplitDown });
 		items.push("separator");
 	}
 

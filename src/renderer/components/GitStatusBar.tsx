@@ -1,11 +1,4 @@
-import {
-	AlertCircle,
-	ArrowDown,
-	ArrowUp,
-	ChevronDown,
-	GitBranch,
-	GitCommit,
-} from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, ChevronDown, GitBranch, GitCommit } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitStatus } from "../../shared/types";
 import BranchPicker from "./git/BranchPicker";
@@ -84,8 +77,7 @@ export default function GitStatusBar({ projectPath, onMessage, onRefresh }: Prop
 
 	if (!status || !status.isRepo) return null;
 
-	const hasChanges =
-		status.modified + status.staged + status.untracked + status.conflicted > 0;
+	const hasChanges = status.modified + status.staged + status.untracked + status.conflicted > 0;
 
 	return (
 		<div className="flex items-center gap-2 flex-wrap relative">
@@ -136,18 +128,12 @@ export default function GitStatusBar({ projectPath, onMessage, onRefresh }: Prop
 			{hasChanges && (
 				<div className="flex items-center gap-1.5">
 					{status.staged > 0 && (
-						<span
-							className="text-[10px] text-green-400"
-							title={`${status.staged} staged`}
-						>
+						<span className="text-[10px] text-green-400" title={`${status.staged} staged`}>
 							+{status.staged}
 						</span>
 					)}
 					{status.modified > 0 && (
-						<span
-							className="text-[10px] text-yellow-400"
-							title={`${status.modified} modified`}
-						>
+						<span className="text-[10px] text-yellow-400" title={`${status.modified} modified`}>
 							~{status.modified}
 						</span>
 					)}
@@ -177,10 +163,7 @@ export default function GitStatusBar({ projectPath, onMessage, onRefresh }: Prop
 					className="flex items-center gap-1 max-w-[150px]"
 					title={`${status.lastCommit} (${status.lastCommitTime})`}
 				>
-					<GitCommit
-						size={9}
-						className="text-connexio-text-muted flex-shrink-0"
-					/>
+					<GitCommit size={9} className="text-connexio-text-muted flex-shrink-0" />
 					<span className="text-[10px] text-connexio-text-muted truncate">
 						{status.lastCommitTime}
 					</span>

@@ -29,9 +29,7 @@ export default function TitleBar() {
 					/>
 				</div>
 				<div className="flex items-baseline gap-2">
-					<span className="text-xs font-semibold tracking-wide text-connexio-text">
-						Connexio
-					</span>
+					<span className="text-xs font-semibold tracking-wide text-connexio-text">Connexio</span>
 					{version && (
 						<span className="rounded-full bg-connexio-bg-tertiary/70 px-1.5 py-0.5 text-[9px] font-medium text-connexio-text-muted">
 							v{version}
@@ -46,10 +44,18 @@ export default function TitleBar() {
 				<button onClick={openSettings} className={controlClass} title="Settings" type="button">
 					<Settings size={12} />
 				</button>
-				<button onClick={() => window.connexio.app.minimize()} className={controlClass} type="button">
+				<button
+					onClick={() => window.connexio.app.minimize()}
+					className={controlClass}
+					type="button"
+				>
 					<Minus size={12} />
 				</button>
-				<button onClick={() => window.connexio.app.maximize()} className={controlClass} type="button">
+				<button
+					onClick={() => window.connexio.app.maximize()}
+					className={controlClass}
+					type="button"
+				>
 					<Square size={10} />
 				</button>
 				<button

@@ -12,9 +12,7 @@ export default function (pi: any) {
 		let body = "Task completed";
 
 		if (event.messages && event.messages.length > 0) {
-			const lastAssistant = [...event.messages]
-				.reverse()
-				.find((m: any) => m.role === "assistant");
+			const lastAssistant = [...event.messages].reverse().find((m: any) => m.role === "assistant");
 			if (lastAssistant) {
 				const content = (lastAssistant as any).content;
 				if (typeof content === "string" && content.length > 0) {

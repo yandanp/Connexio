@@ -13,7 +13,12 @@ interface SidePanelHeaderProps {
 	actions?: SidePanelHeaderAction[];
 }
 
-export default function SidePanelHeader({ icon: Icon, title, subtitle, actions = [] }: SidePanelHeaderProps) {
+export default function SidePanelHeader({
+	icon: Icon,
+	title,
+	subtitle,
+	actions = [],
+}: SidePanelHeaderProps) {
 	return (
 		<div className="flex flex-shrink-0 items-center gap-3 border-b border-connexio-border bg-connexio-bg-secondary/45 px-4 py-3">
 			<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-connexio-accent/10 text-connexio-accent ring-1 ring-connexio-accent/15">
@@ -21,7 +26,9 @@ export default function SidePanelHeader({ icon: Icon, title, subtitle, actions =
 			</div>
 			<div className="min-w-0 flex-1">
 				<div className="truncate text-sm font-semibold text-connexio-text">{title}</div>
-				{subtitle && <div className="truncate text-[11px] text-connexio-text-muted">{subtitle}</div>}
+				{subtitle && (
+					<div className="truncate text-[11px] text-connexio-text-muted">{subtitle}</div>
+				)}
 			</div>
 			{actions.length > 0 && (
 				<div className="flex items-center gap-1">

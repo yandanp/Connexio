@@ -36,10 +36,7 @@ export default function ShellPicker({ onSelect }: Props) {
 		if (!isOpen) return;
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Node;
-			if (
-				triggerRef.current?.contains(target) ||
-				dropdownRef.current?.contains(target)
-			) {
+			if (triggerRef.current?.contains(target) || dropdownRef.current?.contains(target)) {
 				return;
 			}
 			setIsOpen(false);
@@ -100,25 +97,16 @@ export default function ShellPicker({ onSelect }: Props) {
 								className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-connexio-bg-tertiary transition-colors"
 								type="button"
 							>
-								<Terminal
-									size={12}
-									className="text-connexio-text-muted flex-shrink-0"
-								/>
+								<Terminal size={12} className="text-connexio-text-muted flex-shrink-0" />
 								<div className="flex-1 min-w-0">
-									<p className="text-xs text-connexio-text truncate">
-										{shell.name}
-									</p>
-									<p className="text-[10px] text-connexio-text-muted truncate">
-										{shell.path}
-									</p>
+									<p className="text-xs text-connexio-text truncate">{shell.name}</p>
+									<p className="text-[10px] text-connexio-text-muted truncate">{shell.path}</p>
 								</div>
 							</button>
 						))}
 						{shells.length === 0 && (
 							<div className="px-3 py-3 text-center">
-								<p className="text-xs text-connexio-text-muted">
-									Detecting shells...
-								</p>
+								<p className="text-xs text-connexio-text-muted">Detecting shells...</p>
 							</div>
 						)}
 					</div>,

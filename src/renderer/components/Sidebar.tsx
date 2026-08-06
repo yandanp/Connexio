@@ -34,12 +34,9 @@ export default function Sidebar() {
 		renameProjectGroup,
 	} = useProjectStore();
 
-	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-		new Set(["default"]),
-	);
+	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["default"]));
 	const [showAddModal, setShowAddModal] = useState(false);
-	const [deleteConfirmProject, setDeleteConfirmProject] =
-		useState<Project | null>(null);
+	const [deleteConfirmProject, setDeleteConfirmProject] = useState<Project | null>(null);
 	const [contextMenu, setContextMenu] = useState<
 		| { type: "project"; x: number; y: number; project: Project }
 		| { type: "group"; x: number; y: number; group: string }
@@ -243,10 +240,7 @@ export default function Sidebar() {
 							className="p-1.5 rounded-lg hover:bg-connexio-bg-tertiary transition-colors"
 							type="button"
 						>
-							<PanelLeftClose
-								size={14}
-								className="text-connexio-text-secondary"
-							/>
+							<PanelLeftClose size={14} className="text-connexio-text-secondary" />
 						</button>
 					</div>
 				</div>
@@ -299,10 +293,7 @@ export default function Sidebar() {
 								{expandedGroups.has(group) ? (
 									<ChevronDown size={12} className="text-connexio-text-muted" />
 								) : (
-									<ChevronRight
-										size={12}
-										className="text-connexio-text-muted"
-									/>
+									<ChevronRight size={12} className="text-connexio-text-muted" />
 								)}
 								{editingGroup === group ? (
 									<input
@@ -329,9 +320,7 @@ export default function Sidebar() {
 										{group}
 									</span>
 								)}
-								<span className="text-[11px] text-connexio-text-muted ml-auto">
-									{items.length}
-								</span>
+								<span className="text-[11px] text-connexio-text-muted ml-auto">{items.length}</span>
 							</button>
 
 							{/* Project items */}
@@ -375,10 +364,7 @@ export default function Sidebar() {
 										>
 											{/* Drag handle */}
 											<div className="flex-shrink-0 opacity-0 group-hover:opacity-40 hover:!opacity-80 cursor-grab active:cursor-grabbing transition-opacity">
-												<GripVertical
-													size={10}
-													className="text-connexio-text-muted"
-												/>
+												<GripVertical size={10} className="text-connexio-text-muted" />
 											</div>
 											<FolderOpen
 												size={13}
@@ -409,7 +395,8 @@ export default function Sidebar() {
 													</span>
 													{activeProjectId === project.id && (
 														<span className="block truncate text-[9px] text-connexio-text-muted">
-															{getProjectTabCount(project.id)} tab{getProjectTabCount(project.id) !== 1 ? "s" : ""}
+															{getProjectTabCount(project.id)} tab
+															{getProjectTabCount(project.id) !== 1 ? "s" : ""}
 														</span>
 													)}
 												</div>
@@ -433,9 +420,7 @@ export default function Sidebar() {
 
 					{Object.keys(filteredGroups).length === 0 && (
 						<div className="text-center py-8">
-							<p className="text-xs text-connexio-text-muted">
-								No projects found
-							</p>
+							<p className="text-xs text-connexio-text-muted">No projects found</p>
 						</div>
 					)}
 				</div>
@@ -449,21 +434,30 @@ export default function Sidebar() {
 					items={
 						contextMenu.type === "project"
 							? [
-								{ label: "Open Project", onClick: () => setActiveProject(contextMenu.project.id) },
-								{ label: "Rename Project", onClick: () => renameProjectFromMenu(contextMenu.project) },
-								{ label: "Change Group", onClick: () => moveProjectFromMenu(contextMenu.project) },
-								{ label: "Remove Project", danger: true, onClick: () => setDeleteConfirmProject(contextMenu.project) },
-							]
-							: [
-								{ label: "Rename Group", onClick: () => renameGroupFromMenu(contextMenu.group) },
-							]
+									{
+										label: "Open Project",
+										onClick: () => setActiveProject(contextMenu.project.id),
+									},
+									{
+										label: "Rename Project",
+										onClick: () => renameProjectFromMenu(contextMenu.project),
+									},
+									{
+										label: "Change Group",
+										onClick: () => moveProjectFromMenu(contextMenu.project),
+									},
+									{
+										label: "Remove Project",
+										danger: true,
+										onClick: () => setDeleteConfirmProject(contextMenu.project),
+									},
+								]
+							: [{ label: "Rename Group", onClick: () => renameGroupFromMenu(contextMenu.group) }]
 					}
 				/>
 			)}
 
-			{showAddModal && (
-				<AddProjectModal onClose={() => setShowAddModal(false)} />
-			)}
+			{showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
 
 			{inputDialog && (
 				<SidebarInputDialog
@@ -558,7 +552,9 @@ function SidebarInputDialog({
 							className="w-full rounded border border-connexio-border bg-connexio-bg-tertiary px-3 py-2 text-sm text-connexio-text outline-none transition-colors focus:border-connexio-accent"
 						>
 							{options.map((option) => (
-								<option key={option} value={option}>{option}</option>
+								<option key={option} value={option}>
+									{option}
+								</option>
 							))}
 							<option value="__custom">New group...</option>
 						</select>

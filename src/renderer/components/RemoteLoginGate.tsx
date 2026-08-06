@@ -6,9 +6,7 @@ import { authenticate, isAuthenticated, logout } from "../lib/remote-api";
  * Remote login gate — shows PIN login when accessed from browser.
  * After auth, WebSocket connects and state is pushed instantly.
  */
-export default function RemoteLoginGate({
-	children,
-}: { children: React.ReactNode }) {
+export default function RemoteLoginGate({ children }: { children: React.ReactNode }) {
 	const [authed, setAuthed] = useState(isAuthenticated());
 	const [pin, setPin] = useState("");
 	const [error, setError] = useState("");
@@ -92,9 +90,7 @@ export default function RemoteLoginGate({
 					{loading ? "Connecting..." : "Connect"}
 				</button>
 
-				{error && (
-					<p className="text-xs text-red-400 text-center">{error}</p>
-				)}
+				{error && <p className="text-xs text-red-400 text-center">{error}</p>}
 			</div>
 		</div>
 	);

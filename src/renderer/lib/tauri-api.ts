@@ -85,29 +85,49 @@ listen<string>("terminal:exit", (event) => {
 });
 
 export const terminal = {
-	create: async (projectPath: string, shell?: string, context?: TerminalContext): Promise<string> => {
+	create: async (
+		projectPath: string,
+		shell?: string,
+		context?: TerminalContext,
+	): Promise<string> => {
 		try {
-			return await invoke("terminal_create", { projectPath, shell: shell || null, context: context || null });
+			return await invoke("terminal_create", {
+				projectPath,
+				shell: shell || null,
+				context: context || null,
+			});
 		} catch (e) {
 			console.error("[Tauri] terminal_create failed:", e);
 			throw e;
 		}
 	},
 
-	createCommand: async (projectPath: string, command: string[], context?: TerminalContext): Promise<string> =>
+	createCommand: async (
+		projectPath: string,
+		command: string[],
+		context?: TerminalContext,
+	): Promise<string> =>
 		invoke("terminal_create_command", { projectPath, command, context: context || null }),
 
-	createSsh: async (connection: SSHConnection, password?: string, cols?: number, rows?: number): Promise<string> =>
-		invoke("terminal_create_ssh", { connection, password: password || null, cols: cols || null, rows: rows || null }),
+	createSsh: async (
+		connection: SSHConnection,
+		password?: string,
+		cols?: number,
+		rows?: number,
+	): Promise<string> =>
+		invoke("terminal_create_ssh", {
+			connection,
+			password: password || null,
+			cols: cols || null,
+			rows: rows || null,
+		}),
 
-	write: (id: string, data: string): Promise<void> =>
-		invoke("terminal_write", { id, data }),
+	write: (id: string, data: string): Promise<void> => invoke("terminal_write", { id, data }),
 
 	resize: (id: string, cols: number, rows: number): Promise<void> =>
 		invoke("terminal_resize", { id, cols: Math.round(cols), rows: Math.round(rows) }),
 
-	close: (id: string): Promise<void> =>
-		invoke("terminal_close", { id }),
+	close: (id: string): Promise<void> => invoke("terminal_close", { id }),
 
 	onData: (callback: (id: string, data: string) => void): (() => void) => {
 		terminalDataListeners.add(callback);
@@ -134,17 +154,13 @@ export const terminal = {
 export const project = {
 	list: (): Promise<Project[]> => invoke("projects_list"),
 
-	add: (proj: Project): Promise<Project[]> =>
-		invoke("projects_add", { project: proj }),
+	add: (proj: Project): Promise<Project[]> => invoke("projects_add", { project: proj }),
 
-	update: (proj: Project): Promise<Project[]> =>
-		invoke("projects_update", { project: proj }),
+	update: (proj: Project): Promise<Project[]> => invoke("projects_update", { project: proj }),
 
-	reorder: (ids: string[]): Promise<Project[]> =>
-		invoke("projects_reorder", { ids }),
+	reorder: (ids: string[]): Promise<Project[]> => invoke("projects_reorder", { ids }),
 
-	delete: (id: string): Promise<Project[]> =>
-		invoke("projects_delete", { id }),
+	delete: (id: string): Promise<Project[]> => invoke("projects_delete", { id }),
 
 	selectDir: async (): Promise<string | null> => {
 		const selected = await open({ directory: true, multiple: false });
@@ -157,11 +173,9 @@ export const project = {
 // ─── Session ─────────────────────────────────────────────────────────────────
 
 export const session = {
-	save: (sess: Session): Promise<void> =>
-		invoke("session_save", { session: sess }),
+	save: (sess: Session): Promise<void> => invoke("session_save", { session: sess }),
 
-	load: (id: string): Promise<Session | null> =>
-		invoke("session_load", { id }),
+	load: (id: string): Promise<Session | null> => invoke("session_load", { id }),
 
 	list: (): Promise<Session[]> => invoke("session_list"),
 
@@ -173,8 +187,7 @@ export const session = {
 export const settings = {
 	get: (): Promise<AppSettings> => invoke("settings_get"),
 
-	set: (s: AppSettings): Promise<AppSettings> =>
-		invoke("settings_set", { settings: s }),
+	set: (s: AppSettings): Promise<AppSettings> => invoke("settings_set", { settings: s }),
 
 	getShells: (): Promise<ShellInfo[]> => invoke("settings_get_shells"),
 
@@ -186,22 +199,19 @@ export const settings = {
 export const workspace = {
 	getState: (): Promise<WorkspaceState> => invoke("workspace_get_state"),
 
-	saveState: (state: WorkspaceState): Promise<void> =>
-		invoke("workspace_save_state", { state }),
+	saveState: (state: WorkspaceState): Promise<void> => invoke("workspace_save_state", { state }),
 };
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export const tasks = {
-	detect: (projectPath: string): Promise<TaskScript[]> =>
-		invoke("tasks_detect", { projectPath }),
+	detect: (projectPath: string): Promise<TaskScript[]> => invoke("tasks_detect", { projectPath }),
 };
 
 // ─── Pinned Commands ─────────────────────────────────────────────────────────
 
 export const pinned = {
-	list: (projectId: string): Promise<PinnedCommand[]> =>
-		invoke("pinned_list", { projectId }),
+	list: (projectId: string): Promise<PinnedCommand[]> => invoke("pinned_list", { projectId }),
 
 	save: (projectId: string, commands: PinnedCommand[]): Promise<void> =>
 		invoke("pinned_save", { projectId, commands }),
@@ -210,8 +220,7 @@ export const pinned = {
 // ─── SSH ─────────────────────────────────────────────────────────────────────
 
 export const ssh = {
-	list: (projectId: string): Promise<SSHConnection[]> =>
-		invoke("ssh_list", { projectId }),
+	list: (projectId: string): Promise<SSHConnection[]> => invoke("ssh_list", { projectId }),
 
 	save: (projectId: string, connections: SSHConnection[]): Promise<void> =>
 		invoke("ssh_save", { projectId, connections }),
@@ -227,20 +236,20 @@ export const ssh = {
 	buildCommandArgs: (connection: SSHConnection): Promise<string[]> =>
 		invoke("ssh_build_command_args", { connection }),
 
-	testConnection: (connection: SSHConnection, password?: string): Promise<SSHConnectionTestResult> =>
+	testConnection: (
+		connection: SSHConnection,
+		password?: string,
+	): Promise<SSHConnectionTestResult> =>
 		invoke("ssh_test_connection", { connection, password: password || null }),
 
 	setSecret: (key: string, value: string): Promise<void> =>
 		invoke("ssh_secret_set", { key, value }),
 
-	getSecret: (key: string): Promise<string | null> =>
-		invoke("ssh_secret_get", { key }),
+	getSecret: (key: string): Promise<string | null> => invoke("ssh_secret_get", { key }),
 
-	deleteSecret: (key: string): Promise<void> =>
-		invoke("ssh_secret_delete", { key }),
+	deleteSecret: (key: string): Promise<void> => invoke("ssh_secret_delete", { key }),
 
-	listKnownHosts: (): Promise<SSHKnownHost[]> =>
-		invoke("ssh_known_hosts_list"),
+	listKnownHosts: (): Promise<SSHKnownHost[]> => invoke("ssh_known_hosts_list"),
 
 	trustHost: (host: string, port: number, fingerprintSha256: string): Promise<void> =>
 		invoke("ssh_trust_host", { host, port, fingerprintSha256 }),
@@ -251,25 +260,50 @@ export const ssh = {
 	sftpList: (connection: SSHConnection, path: string, password?: string): Promise<SFTPEntry[]> =>
 		invoke("ssh_sftp_list", { connection, path, password: password || null }),
 
-	sftpDownload: (connection: SSHConnection, remotePath: string, localPath: string, password?: string): Promise<void> =>
+	sftpDownload: (
+		connection: SSHConnection,
+		remotePath: string,
+		localPath: string,
+		password?: string,
+	): Promise<void> =>
 		invoke("ssh_sftp_download", { connection, remotePath, localPath, password: password || null }),
 
-	sftpUpload: (connection: SSHConnection, localPath: string, remotePath: string, password?: string): Promise<void> =>
+	sftpUpload: (
+		connection: SSHConnection,
+		localPath: string,
+		remotePath: string,
+		password?: string,
+	): Promise<void> =>
 		invoke("ssh_sftp_upload", { connection, localPath, remotePath, password: password || null }),
 
 	sftpRead: (connection: SSHConnection, path: string, password?: string): Promise<string> =>
 		invoke("ssh_sftp_read", { connection, path, password: password || null }),
 
-	sftpWrite: (connection: SSHConnection, path: string, content: string, password?: string): Promise<void> =>
+	sftpWrite: (
+		connection: SSHConnection,
+		path: string,
+		content: string,
+		password?: string,
+	): Promise<void> =>
 		invoke("ssh_sftp_write", { connection, path, content, password: password || null }),
 
 	sftpMkdir: (connection: SSHConnection, path: string, password?: string): Promise<void> =>
 		invoke("ssh_sftp_mkdir", { connection, path, password: password || null }),
 
-	sftpDelete: (connection: SSHConnection, path: string, isDir: boolean, password?: string): Promise<void> =>
+	sftpDelete: (
+		connection: SSHConnection,
+		path: string,
+		isDir: boolean,
+		password?: string,
+	): Promise<void> =>
 		invoke("ssh_sftp_delete", { connection, path, isDir, password: password || null }),
 
-	sftpRename: (connection: SSHConnection, oldPath: string, newPath: string, password?: string): Promise<void> =>
+	sftpRename: (
+		connection: SSHConnection,
+		oldPath: string,
+		newPath: string,
+		password?: string,
+	): Promise<void> =>
 		invoke("ssh_sftp_rename", { connection, oldPath, newPath, password: password || null }),
 
 	forgetOpenSSHHost: (host: string, port: number): Promise<string> =>
@@ -283,15 +317,13 @@ export const ssh = {
 		return selected as string | null;
 	},
 
-	keyExists: (keyPath: string): Promise<boolean> =>
-		invoke("ssh_key_exists", { keyPath }),
+	keyExists: (keyPath: string): Promise<boolean> => invoke("ssh_key_exists", { keyPath }),
 };
 
 // ─── Git ─────────────────────────────────────────────────────────────────────
 
 export const git = {
-	status: (projectPath: string): Promise<GitStatus> =>
-		invoke("git_status", { projectPath }),
+	status: (projectPath: string): Promise<GitStatus> => invoke("git_status", { projectPath }),
 
 	changedFiles: (projectPath: string): Promise<any[]> =>
 		invoke("git_changed_files", { projectPath }),
@@ -305,14 +337,12 @@ export const git = {
 	stage: (projectPath: string, filePath: string): Promise<void> =>
 		invoke("git_stage", { projectPath, filePath }),
 
-	stageAll: (projectPath: string): Promise<void> =>
-		invoke("git_stage_all", { projectPath }),
+	stageAll: (projectPath: string): Promise<void> => invoke("git_stage_all", { projectPath }),
 
 	unstage: (projectPath: string, filePath: string): Promise<void> =>
 		invoke("git_unstage", { projectPath, filePath }),
 
-	unstageAll: (projectPath: string): Promise<void> =>
-		invoke("git_unstage_all", { projectPath }),
+	unstageAll: (projectPath: string): Promise<void> => invoke("git_unstage_all", { projectPath }),
 
 	discard: (projectPath: string, filePath: string): Promise<void> =>
 		invoke("git_discard", { projectPath, filePath }),
@@ -323,20 +353,16 @@ export const git = {
 	commit: (projectPath: string, message: string): Promise<any> =>
 		invoke("git_commit", { projectPath, message }),
 
-	push: (projectPath: string): Promise<any> =>
-		invoke("git_push", { projectPath }),
+	push: (projectPath: string): Promise<any> => invoke("git_push", { projectPath }),
 
-	pull: (projectPath: string): Promise<any> =>
-		invoke("git_pull", { projectPath }),
+	pull: (projectPath: string): Promise<any> => invoke("git_pull", { projectPath }),
 
-	fetch: (projectPath: string): Promise<any> =>
-		invoke("git_fetch", { projectPath }),
+	fetch: (projectPath: string): Promise<any> => invoke("git_fetch", { projectPath }),
 
 	history: (projectPath: string, limit?: number): Promise<any[]> =>
 		invoke("git_history", { projectPath, limit: limit || null }),
 
-	branches: (projectPath: string): Promise<any[]> =>
-		invoke("git_branches", { projectPath }),
+	branches: (projectPath: string): Promise<any[]> => invoke("git_branches", { projectPath }),
 
 	checkout: (projectPath: string, branch: string): Promise<any> =>
 		invoke("git_checkout", { projectPath, branch }),
@@ -347,8 +373,7 @@ export const git = {
 	publishBranch: (projectPath: string): Promise<any> =>
 		invoke("git_publish_branch", { projectPath }),
 
-	stashList: (projectPath: string): Promise<any[]> =>
-		invoke("git_stash_list", { projectPath }),
+	stashList: (projectPath: string): Promise<any[]> => invoke("git_stash_list", { projectPath }),
 
 	stashSave: (projectPath: string, message?: string): Promise<any> =>
 		invoke("git_stash_save", { projectPath, message: message || null }),
@@ -421,7 +446,8 @@ export const updater = {
 		try {
 			const update = await checkUpdate();
 			if (update) {
-				for (const cb of updaterCallbacks.onAvailable) cb({ version: update.version, body: update.body });
+				for (const cb of updaterCallbacks.onAvailable)
+					cb({ version: update.version, body: update.body });
 				return { available: true, version: update.version };
 			} else {
 				for (const cb of updaterCallbacks.onNotAvailable) cb();
@@ -439,10 +465,12 @@ export const updater = {
 				let downloaded = 0;
 				await update.downloadAndInstall((event) => {
 					if (event.event === "Started") {
-						for (const cb of updaterCallbacks.onProgress) cb({ percent: 0, total: event.data.contentLength });
+						for (const cb of updaterCallbacks.onProgress)
+							cb({ percent: 0, total: event.data.contentLength });
 					} else if (event.event === "Progress") {
 						downloaded += event.data.chunkLength;
-						for (const cb of updaterCallbacks.onProgress) cb({ percent: downloaded, transferred: downloaded });
+						for (const cb of updaterCallbacks.onProgress)
+							cb({ percent: downloaded, transferred: downloaded });
 					} else if (event.event === "Finished") {
 						for (const cb of updaterCallbacks.onDownloaded) cb({ version: update.version });
 					}
@@ -455,12 +483,42 @@ export const updater = {
 	install: async (): Promise<void> => {
 		await relaunch();
 	},
-	onChecking: (cb: () => void) => { updaterCallbacks.onChecking.add(cb); return () => { updaterCallbacks.onChecking.delete(cb); }; },
-	onAvailable: (cb: (info: any) => void) => { updaterCallbacks.onAvailable.add(cb); return () => { updaterCallbacks.onAvailable.delete(cb); }; },
-	onNotAvailable: (cb: () => void) => { updaterCallbacks.onNotAvailable.add(cb); return () => { updaterCallbacks.onNotAvailable.delete(cb); }; },
-	onProgress: (cb: (progress: any) => void) => { updaterCallbacks.onProgress.add(cb); return () => { updaterCallbacks.onProgress.delete(cb); }; },
-	onDownloaded: (cb: (info: any) => void) => { updaterCallbacks.onDownloaded.add(cb); return () => { updaterCallbacks.onDownloaded.delete(cb); }; },
-	onError: (cb: (error: string) => void) => { updaterCallbacks.onError.add(cb); return () => { updaterCallbacks.onError.delete(cb); }; },
+	onChecking: (cb: () => void) => {
+		updaterCallbacks.onChecking.add(cb);
+		return () => {
+			updaterCallbacks.onChecking.delete(cb);
+		};
+	},
+	onAvailable: (cb: (info: any) => void) => {
+		updaterCallbacks.onAvailable.add(cb);
+		return () => {
+			updaterCallbacks.onAvailable.delete(cb);
+		};
+	},
+	onNotAvailable: (cb: () => void) => {
+		updaterCallbacks.onNotAvailable.add(cb);
+		return () => {
+			updaterCallbacks.onNotAvailable.delete(cb);
+		};
+	},
+	onProgress: (cb: (progress: any) => void) => {
+		updaterCallbacks.onProgress.add(cb);
+		return () => {
+			updaterCallbacks.onProgress.delete(cb);
+		};
+	},
+	onDownloaded: (cb: (info: any) => void) => {
+		updaterCallbacks.onDownloaded.add(cb);
+		return () => {
+			updaterCallbacks.onDownloaded.delete(cb);
+		};
+	},
+	onError: (cb: (error: string) => void) => {
+		updaterCallbacks.onError.add(cb);
+		return () => {
+			updaterCallbacks.onError.delete(cb);
+		};
+	},
 };
 
 // ─── Notification ────────────────────────────────────────────────────────────
@@ -490,19 +548,26 @@ export const notification = {
 	remove: (id: string): Promise<void> => invoke("notification_remove", { id }),
 	clear: (): Promise<void> => invoke("notification_clear"),
 	getSettings: (): Promise<any> => invoke("notification_get_settings"),
-	updateSettings: (settings: any): Promise<any> => invoke("notification_update_settings", { settings }),
+	updateSettings: (settings: any): Promise<any> =>
+		invoke("notification_update_settings", { settings }),
 	getPort: (): Promise<number | null> => invoke("notification_get_port"),
 	onReceived: (cb: (n: any) => void) => {
 		notificationReceivedListeners.add(cb);
-		return () => { notificationReceivedListeners.delete(cb); };
+		return () => {
+			notificationReceivedListeners.delete(cb);
+		};
 	},
 	onNavigate: (cb: (n: any) => void) => {
 		notificationNavigateListeners.add(cb);
-		return () => { notificationNavigateListeners.delete(cb); };
+		return () => {
+			notificationNavigateListeners.delete(cb);
+		};
 	},
 	getProviders: (): Promise<any[]> => invoke("notification_get_providers"),
-	installHook: (providerId: string): Promise<void> => invoke("notification_install_hook", { providerId }),
-	uninstallHook: (providerId: string): Promise<void> => invoke("notification_uninstall_hook", { providerId }),
+	installHook: (providerId: string): Promise<void> =>
+		invoke("notification_install_hook", { providerId }),
+	uninstallHook: (providerId: string): Promise<void> =>
+		invoke("notification_uninstall_hook", { providerId }),
 	uploadSound: async (): Promise<any> => {
 		const selected = await open({
 			multiple: false,
@@ -547,8 +612,7 @@ export interface RemoteStatus {
 }
 
 export const remote = {
-	start: (port?: number): Promise<RemoteStatus> =>
-		invoke("remote_start", { port: port || null }),
+	start: (port?: number): Promise<RemoteStatus> => invoke("remote_start", { port: port || null }),
 	stop: (): Promise<void> => invoke("remote_stop"),
 	status: (): Promise<RemoteStatus> => invoke("remote_status"),
 	regeneratePin: (): Promise<string> => invoke("remote_regenerate_pin"),

@@ -1,4 +1,14 @@
-import { Bot, Columns2, FolderTree, GitBranch, Globe, ListTodo, PanelRightClose, Rows2, Server } from "lucide-react";
+import {
+	Bot,
+	Columns2,
+	FolderTree,
+	GitBranch,
+	Globe,
+	ListTodo,
+	PanelRightClose,
+	Rows2,
+	Server,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectStore, type TerminalTab } from "../stores/projectStore";
 import { AIChatPanel } from "./ai";
@@ -47,18 +57,19 @@ export default function Workspace() {
 	const [dragSide, setDragSide] = useState<"left" | "right" | null>(null);
 	const [showSidePanel, setShowSidePanel] = useState(false);
 	const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>("tasks");
-	const [closeConfirmTabId, setCloseConfirmTabId] = useState<string | null>(
-		null,
-	);
+	const [closeConfirmTabId, setCloseConfirmTabId] = useState<string | null>(null);
 	const [dirtyTabs, setDirtyTabs] = useState<Set<string>>(new Set());
 	const tabBarRef = useRef<HTMLDivElement>(null);
 
-	const closeTabs = useCallback((tabIds: string[]) => {
-		if (!activeProjectId) return;
-		for (const tabId of tabIds) {
-			closeTerminalTab(activeProjectId, tabId);
-		}
-	}, [activeProjectId, closeTerminalTab]);
+	const closeTabs = useCallback(
+		(tabIds: string[]) => {
+			if (!activeProjectId) return;
+			for (const tabId of tabIds) {
+				closeTerminalTab(activeProjectId, tabId);
+			}
+		},
+		[activeProjectId, closeTerminalTab],
+	);
 
 	// Resizable side panel
 	const [panelWidth, setPanelWidth] = useState(340);
@@ -106,7 +117,13 @@ export default function Workspace() {
 			const detail = (e as CustomEvent).detail;
 			if (detail === "close") {
 				setShowSidePanel(false);
-			} else if (detail === "ai" || detail === "explorer" || detail === "source" || detail === "tasks" || detail === "ssh") {
+			} else if (
+				detail === "ai" ||
+				detail === "explorer" ||
+				detail === "source" ||
+				detail === "tasks" ||
+				detail === "ssh"
+			) {
 				setSidePanelTab(detail as SidePanelTab);
 				setShowSidePanel(true);
 			}
@@ -225,11 +242,7 @@ export default function Workspace() {
 	};
 
 	const handleDragEnd = () => {
-		if (
-			dragFromIndex !== null &&
-			dragOverIndex !== null &&
-			dragFromIndex !== dragOverIndex
-		) {
+		if (dragFromIndex !== null && dragOverIndex !== null && dragFromIndex !== dragOverIndex) {
 			reorderTabs(activeProjectId, dragFromIndex, dragOverIndex);
 		}
 		setDragFromIndex(null);
@@ -248,7 +261,8 @@ export default function Workspace() {
 	};
 
 	const getTabDetail = (tab: TerminalTab) => {
-		if (tab.type === "editor" || tab.type === "remoteEditor" || tab.type === "preview") return tab.filePath;
+		if (tab.type === "editor" || tab.type === "remoteEditor" || tab.type === "preview")
+			return tab.filePath;
 		if (tab.type === "sftp") return tab.sftpConnection?.host;
 		if (tab.type === "sshManager") return "SSH connections";
 		return tab.status ? `${tab.shell || "terminal"} · ${tab.status}` : tab.shell || "terminal";
@@ -256,7 +270,10 @@ export default function Workspace() {
 
 	const getSplitCount = (tab: TerminalTab) => {
 		if (!tab.splitLayout) return 1;
-		const countLeaves = (node: any): number => node.type === "leaf" ? 1 : node.children.reduce((sum: number, child: any) => sum + countLeaves(child), 0);
+		const countLeaves = (node: any): number =>
+			node.type === "leaf"
+				? 1
+				: node.children.reduce((sum: number, child: any) => sum + countLeaves(child), 0);
 		return countLeaves(tab.splitLayout.root);
 	};
 
@@ -286,7 +303,9 @@ export default function Workspace() {
 		if (tab.type === "editor" || tab.type === "remoteEditor") {
 			if (dirtyTabs.has(tabId)) {
 				// Let the editor's internal unsaved-changes dialog handle it
-				window.dispatchEvent(new CustomEvent("connexio:editor-request-close", { detail: { filePath: tab.filePath } }));
+				window.dispatchEvent(
+					new CustomEvent("connexio:editor-request-close", { detail: { filePath: tab.filePath } }),
+				);
 			} else {
 				closeTerminalTab(activeProjectId, tabId);
 			}
@@ -346,7 +365,9 @@ export default function Workspace() {
 									const paneId = activeTab.splitLayout.activePaneId;
 									splitTerminal(activeProjectId, activeTab.id, paneId, "horizontal");
 								} else if (activeTab.type === "editor") {
-									useProjectStore.getState().splitTerminalFromEditor(activeProjectId, activeTab.id, "horizontal");
+									useProjectStore
+										.getState()
+										.splitTerminalFromEditor(activeProjectId, activeTab.id, "horizontal");
 								} else {
 									splitTerminal(activeProjectId, activeTab.id, activeTab.id, "horizontal");
 								}
@@ -363,7 +384,9 @@ export default function Workspace() {
 									const paneId = activeTab.splitLayout.activePaneId;
 									splitTerminal(activeProjectId, activeTab.id, paneId, "vertical");
 								} else if (activeTab.type === "editor") {
-									useProjectStore.getState().splitTerminalFromEditor(activeProjectId, activeTab.id, "vertical");
+									useProjectStore
+										.getState()
+										.splitTerminalFromEditor(activeProjectId, activeTab.id, "vertical");
 								} else {
 									splitTerminal(activeProjectId, activeTab.id, activeTab.id, "vertical");
 								}
@@ -382,9 +405,7 @@ export default function Workspace() {
 					<button
 						onClick={() => toggleSidePanel("ai")}
 						className={`p-1 dock-button ${
-							showSidePanel && sidePanelTab === "ai"
-								? "dock-button-active"
-								: ""
+							showSidePanel && sidePanelTab === "ai" ? "dock-button-active" : ""
 						}`}
 						title="AI Chat"
 						type="button"
@@ -394,9 +415,7 @@ export default function Workspace() {
 					<button
 						onClick={() => toggleSidePanel("explorer")}
 						className={`p-1 dock-button ${
-							showSidePanel && sidePanelTab === "explorer"
-								? "dock-button-active"
-								: ""
+							showSidePanel && sidePanelTab === "explorer" ? "dock-button-active" : ""
 						}`}
 						title="File Explorer"
 						type="button"
@@ -406,9 +425,7 @@ export default function Workspace() {
 					<button
 						onClick={() => toggleSidePanel("source")}
 						className={`p-1 dock-button ${
-							showSidePanel && sidePanelTab === "source"
-								? "dock-button-active"
-								: ""
+							showSidePanel && sidePanelTab === "source" ? "dock-button-active" : ""
 						}`}
 						title="Source Control"
 						type="button"
@@ -418,9 +435,7 @@ export default function Workspace() {
 					<button
 						onClick={() => toggleSidePanel("tasks")}
 						className={`p-1 dock-button ${
-							showSidePanel && sidePanelTab === "tasks"
-								? "dock-button-active"
-								: ""
+							showSidePanel && sidePanelTab === "tasks" ? "dock-button-active" : ""
 						}`}
 						title="Tasks & Pinned Commands"
 						type="button"
@@ -430,9 +445,7 @@ export default function Workspace() {
 					<button
 						onClick={() => toggleSidePanel("ssh")}
 						className={`p-1 dock-button ${
-							showSidePanel && sidePanelTab === "ssh"
-								? "dock-button-active"
-								: ""
+							showSidePanel && sidePanelTab === "ssh" ? "dock-button-active" : ""
 						}`}
 						title="SSH Connections"
 						type="button"
@@ -473,15 +486,26 @@ export default function Workspace() {
 							status={tab.status}
 							onSelect={() => setActiveTerminalTab(activeProjectId, tab.id)}
 							onClose={() => handleCloseTab(tab.id)}
-							onCloseOthers={tabs.length > 1 ? () => closeTabs(tabs.filter((item) => item.id !== tab.id).map((item) => item.id)) : undefined}
-							onCloseTabsToRight={index < tabs.length - 1 ? () => closeTabs(tabs.slice(index + 1).map((item) => item.id)) : undefined}
-							onRevealInExplorer={tab.filePath ? () => {
-								setShowSidePanel(true);
-								setSidePanelTab("explorer");
-							} : undefined}
-							onRename={(newLabel) =>
-								renameTerminalTab(activeProjectId, tab.id, newLabel)
+							onCloseOthers={
+								tabs.length > 1
+									? () =>
+											closeTabs(tabs.filter((item) => item.id !== tab.id).map((item) => item.id))
+									: undefined
 							}
+							onCloseTabsToRight={
+								index < tabs.length - 1
+									? () => closeTabs(tabs.slice(index + 1).map((item) => item.id))
+									: undefined
+							}
+							onRevealInExplorer={
+								tab.filePath
+									? () => {
+											setShowSidePanel(true);
+											setSidePanelTab("explorer");
+										}
+									: undefined
+							}
+							onRename={(newLabel) => renameTerminalTab(activeProjectId, tab.id, newLabel)}
 							onDragStart={handleDragStart}
 							onDragOver={handleDragOver}
 							onDragEnd={handleDragEnd}
@@ -494,11 +518,7 @@ export default function Workspace() {
 
 					{/* Add tab — inline after last tab */}
 					<div className="flex-shrink-0 ml-0.5">
-						<ShellPicker
-							onSelect={(shell) =>
-								openTerminalTab(activeProjectId, undefined, shell)
-							}
-						/>
+						<ShellPicker onSelect={(shell) => openTerminalTab(activeProjectId, undefined, shell)} />
 					</div>
 				</div>
 			</div>
@@ -510,7 +530,10 @@ export default function Workspace() {
 					className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-connexio-bg"
 					data-file-drop-zone=""
 					onDragOver={(e) => {
-						if (e.dataTransfer.types.includes("application/connexio-file") || e.dataTransfer.types.includes("Files")) {
+						if (
+							e.dataTransfer.types.includes("application/connexio-file") ||
+							e.dataTransfer.types.includes("Files")
+						) {
 							e.preventDefault();
 							e.dataTransfer.dropEffect = "copy";
 						}
@@ -537,44 +560,49 @@ export default function Workspace() {
 					}}
 				>
 					{/* Editor tabs — only render those WITHOUT splitLayout (split ones go to TerminalLayer) */}
-					{tabs.filter((t) => t.type === "editor" && t.filePath && !t.splitLayout).map((tab) => (
-						<div
-							key={`editor-${tab.id}`}
-							className={activeTabId === tab.id ? "flex-1 min-h-0" : "hidden"}
-						>
-							<CodeEditor
-								filePath={tab.filePath!}
-								onClose={() => closeTerminalTab(activeProjectId, tab.id)}
-								onDirtyChange={(dirty) => {
-									setDirtyTabs((prev) => {
-										const next = new Set(prev);
-										if (dirty) next.add(tab.id);
-										else next.delete(tab.id);
-										return next;
-									});
-								}}
-							/>
-						</div>
-					))}
+					{tabs
+						.filter((t) => t.type === "editor" && t.filePath && !t.splitLayout)
+						.map((tab) => (
+							<div
+								key={`editor-${tab.id}`}
+								className={activeTabId === tab.id ? "flex-1 min-h-0" : "hidden"}
+							>
+								<CodeEditor
+									filePath={tab.filePath!}
+									onClose={() => closeTerminalTab(activeProjectId, tab.id)}
+									onDirtyChange={(dirty) => {
+										setDirtyTabs((prev) => {
+											const next = new Set(prev);
+											if (dirty) next.add(tab.id);
+											else next.delete(tab.id);
+											return next;
+										});
+									}}
+								/>
+							</div>
+						))}
 
 					{/* Remote editor tab */}
-					{activeTab?.type === "remoteEditor" && activeTab.filePath && activeTab.remoteConnection && activeTab.remotePath && (
-						<div className="flex-1 min-h-0">
-							<RemoteEditorWrapper
-								key={activeTab.id}
-								tab={activeTab}
-								onClose={() => closeTerminalTab(activeProjectId, activeTab.id)}
-								onDirtyChange={(dirty) => {
-									setDirtyTabs((prev) => {
-										const next = new Set(prev);
-										if (dirty) next.add(activeTab.id);
-										else next.delete(activeTab.id);
-										return next;
-									});
-								}}
-							/>
-						</div>
-					)}
+					{activeTab?.type === "remoteEditor" &&
+						activeTab.filePath &&
+						activeTab.remoteConnection &&
+						activeTab.remotePath && (
+							<div className="flex-1 min-h-0">
+								<RemoteEditorWrapper
+									key={activeTab.id}
+									tab={activeTab}
+									onClose={() => closeTerminalTab(activeProjectId, activeTab.id)}
+									onDirtyChange={(dirty) => {
+										setDirtyTabs((prev) => {
+											const next = new Set(prev);
+											if (dirty) next.add(activeTab.id);
+											else next.delete(activeTab.id);
+											return next;
+										});
+									}}
+								/>
+							</div>
+						)}
 
 					{/* SSH manager tab */}
 					{activeTab?.type === "sshManager" && (
@@ -588,16 +616,20 @@ export default function Workspace() {
 					)}
 
 					{/* SFTP tabs — persist all, hide inactive to preserve state */}
-					{tabs.filter((t) => t.type === "sftp" && t.sftpConnection).map((tab) => (
-						<div
-							key={`sftp-${tab.id}`}
-							className={activeTabId === tab.id ? "flex-1 min-h-0 bg-connexio-bg text-connexio-text" : "hidden"}
-						>
-							<SFTPBrowser
-								connection={tab.sftpConnection!}
-							/>
-						</div>
-					))}
+					{tabs
+						.filter((t) => t.type === "sftp" && t.sftpConnection)
+						.map((tab) => (
+							<div
+								key={`sftp-${tab.id}`}
+								className={
+									activeTabId === tab.id
+										? "flex-1 min-h-0 bg-connexio-bg text-connexio-text"
+										: "hidden"
+								}
+							>
+								<SFTPBrowser connection={tab.sftpConnection!} />
+							</div>
+						))}
 
 					{/* Preview tab (shown when active tab is preview type) */}
 					{activeTab?.type === "preview" && (
@@ -612,7 +644,19 @@ export default function Workspace() {
 					)}
 
 					{/* Terminal/Split area (hidden only when pure editor or preview is active) */}
-					<div className={((activeTab?.type === "editor" || activeTab?.type === "remoteEditor" || activeTab?.type === "sshManager" || activeTab?.type === "sftp") && !activeTab?.splitLayout) || activeTab?.type === "preview" ? "hidden" : "flex-1 min-h-0 relative"} data-terminal-layer-container="">
+					<div
+						className={
+							((activeTab?.type === "editor" ||
+								activeTab?.type === "remoteEditor" ||
+								activeTab?.type === "sshManager" ||
+								activeTab?.type === "sftp") &&
+								!activeTab?.splitLayout) ||
+							activeTab?.type === "preview"
+								? "hidden"
+								: "flex-1 min-h-0 relative"
+						}
+						data-terminal-layer-container=""
+					>
 						<TerminalLayer />
 					</div>
 				</div>
@@ -632,66 +676,91 @@ export default function Workspace() {
 						<div className="flex min-h-0 flex-1 overflow-hidden">
 							{/* Panel content */}
 							<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-							{sidePanelTab === "ai" && (
-								<>
-									<SidePanelHeader icon={Bot} title="AI Assistant" subtitle={project.name} />
-									<div className="min-h-0 flex-1 overflow-hidden"><AIChatPanel /></div>
-								</>
-							)}
-						{sidePanelTab === "explorer" && (
-							<>
-								<SidePanelHeader icon={FolderTree} title="Explorer" subtitle={activeFilePath ? activeFilePath.split(/[\\/]/).pop() : project.name} />
-								<div className="min-h-0 flex-1 overflow-hidden">
-							<FileExplorer
-								projectPath={project.path}
-								activeFilePath={activeFilePath}
-								onOpenInTerminal={(path) => {
-									openTerminalTab(activeProjectId, `Terminal (${path.split(/[\\/]/).pop()})`);
-								}}
-								onOpenFile={(filePath, lineNumber) => openEditorTab(activeProjectId, filePath, lineNumber)}
-								onOpenFileInSplit={(filePath, direction) => {
-									if (!activeTab) return;
-									const paneId = activeTab.splitLayout
-										? activeTab.splitLayout.activePaneId
-										: activeTab.id;
-									useProjectStore.getState().openEditorInSplit(activeProjectId, activeTab.id, paneId, direction, filePath);
-								}}
-							/>
-								</div>
-							</>
-						)}
-						{sidePanelTab === "source" && (
-							<>
-								<SidePanelHeader icon={GitBranch} title="Source Control" subtitle={project.name} />
-								<div className="min-h-0 flex-1 overflow-hidden"><SourcePanel projectPath={project.path} /></div>
-							</>
-						)}
-						{sidePanelTab === "tasks" && (
-							<>
-								<SidePanelHeader icon={ListTodo} title="Tasks" subtitle={project.name} />
-								<div className="min-h-0 flex-1 overflow-hidden">
-							<TaskPanel
-								projectId={activeProjectId}
-								projectPath={project.path}
-								onRunCommand={handleRunCommand}
-							/>
-								</div>
-							</>
-						)}
-							{sidePanelTab === "ssh" && (
-								<>
-									<SidePanelHeader icon={Server} title="SSH" subtitle={project.name} />
-									<div className="min-h-0 flex-1 overflow-hidden">
-								<SSHPanel
-									projectId={activeProjectId}
-									onConnect={handleSSHConnect}
-									onOpenManager={() => openSSHManagerTab(activeProjectId)}
-									onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
-								/>
-									</div>
-								</>
-							)}
-						</div>
+								{sidePanelTab === "ai" && (
+									<>
+										<SidePanelHeader icon={Bot} title="AI Assistant" subtitle={project.name} />
+										<div className="min-h-0 flex-1 overflow-hidden">
+											<AIChatPanel />
+										</div>
+									</>
+								)}
+								{sidePanelTab === "explorer" && (
+									<>
+										<SidePanelHeader
+											icon={FolderTree}
+											title="Explorer"
+											subtitle={activeFilePath ? activeFilePath.split(/[\\/]/).pop() : project.name}
+										/>
+										<div className="min-h-0 flex-1 overflow-hidden">
+											<FileExplorer
+												projectPath={project.path}
+												activeFilePath={activeFilePath}
+												onOpenInTerminal={(path) => {
+													openTerminalTab(
+														activeProjectId,
+														`Terminal (${path.split(/[\\/]/).pop()})`,
+													);
+												}}
+												onOpenFile={(filePath, lineNumber) =>
+													openEditorTab(activeProjectId, filePath, lineNumber)
+												}
+												onOpenFileInSplit={(filePath, direction) => {
+													if (!activeTab) return;
+													const paneId = activeTab.splitLayout
+														? activeTab.splitLayout.activePaneId
+														: activeTab.id;
+													useProjectStore
+														.getState()
+														.openEditorInSplit(
+															activeProjectId,
+															activeTab.id,
+															paneId,
+															direction,
+															filePath,
+														);
+												}}
+											/>
+										</div>
+									</>
+								)}
+								{sidePanelTab === "source" && (
+									<>
+										<SidePanelHeader
+											icon={GitBranch}
+											title="Source Control"
+											subtitle={project.name}
+										/>
+										<div className="min-h-0 flex-1 overflow-hidden">
+											<SourcePanel projectPath={project.path} />
+										</div>
+									</>
+								)}
+								{sidePanelTab === "tasks" && (
+									<>
+										<SidePanelHeader icon={ListTodo} title="Tasks" subtitle={project.name} />
+										<div className="min-h-0 flex-1 overflow-hidden">
+											<TaskPanel
+												projectId={activeProjectId}
+												projectPath={project.path}
+												onRunCommand={handleRunCommand}
+											/>
+										</div>
+									</>
+								)}
+								{sidePanelTab === "ssh" && (
+									<>
+										<SidePanelHeader icon={Server} title="SSH" subtitle={project.name} />
+										<div className="min-h-0 flex-1 overflow-hidden">
+											<SSHPanel
+												projectId={activeProjectId}
+												onConnect={handleSSHConnect}
+												onOpenManager={() => openSSHManagerTab(activeProjectId)}
+												onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
+											/>
+										</div>
+									</>
+								)}
+							</div>
 							<SidePanelRail
 								items={sidePanelItems}
 								activeId={sidePanelTab}
@@ -699,8 +768,8 @@ export default function Workspace() {
 								onClose={() => setShowSidePanel(false)}
 								closeIcon={PanelRightClose}
 							/>
+						</div>
 					</div>
-				</div>
 				)}
 			</div>
 
@@ -719,7 +788,11 @@ export default function Workspace() {
 
 // === Remote Editor Wrapper ===
 // Stabilizes loadContent/saveContent references to prevent CodeEditor re-mount loops
-function RemoteEditorWrapper({ tab, onClose, onDirtyChange }: {
+function RemoteEditorWrapper({
+	tab,
+	onClose,
+	onDirtyChange,
+}: {
 	tab: TerminalTab;
 	onClose: () => void;
 	onDirtyChange: (dirty: boolean) => void;
@@ -729,32 +802,44 @@ function RemoteEditorWrapper({ tab, onClose, onDirtyChange }: {
 	// Stable loadContent — only recreated when tab.id changes
 	const loadContent = useCallback(async () => {
 		return tab.remoteContent || "";
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [tab.id]);
 
 	// Stable saveContent — uses refs internally
 	const tabRef = useRef(tab);
 	tabRef.current = tab;
 
-	const saveContent = useCallback(async (content: string) => {
-		const currentTab = tabRef.current;
-		const conn = currentTab.remoteConnection!;
-		const ref = conn.authMethod === "key" ? conn.passphraseSecretRef : conn.passwordSecretRef;
-		const password = ref?.key ? await window.connexio.ssh.getSecret(ref.key) : null;
-		if (conn.authMethod !== "agent" && !password) {
-			throw new Error("Saved SSH secret is required to save this remote file. Reopen SFTP and save the password/passphrase first.");
-		}
-		await window.connexio.ssh.sftpWrite(conn, currentTab.remotePath!, content, password || undefined);
-		// Update store immutably
-		const store = useProjectStore.getState();
-		const projId = store.activeProjectId;
-		if (projId) {
-			const tabs = store.workspaceTabs[projId] || [];
-			const updated = tabs.map((t) => t.id === currentTab.id ? { ...t, remoteContent: content } : t);
-			useProjectStore.setState({ workspaceTabs: { ...store.workspaceTabs, [projId]: updated } });
-		}
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [tab.id]);
+	const saveContent = useCallback(
+		async (content: string) => {
+			const currentTab = tabRef.current;
+			const conn = currentTab.remoteConnection!;
+			const ref = conn.authMethod === "key" ? conn.passphraseSecretRef : conn.passwordSecretRef;
+			const password = ref?.key ? await window.connexio.ssh.getSecret(ref.key) : null;
+			if (conn.authMethod !== "agent" && !password) {
+				throw new Error(
+					"Saved SSH secret is required to save this remote file. Reopen SFTP and save the password/passphrase first.",
+				);
+			}
+			await window.connexio.ssh.sftpWrite(
+				conn,
+				currentTab.remotePath!,
+				content,
+				password || undefined,
+			);
+			// Update store immutably
+			const store = useProjectStore.getState();
+			const projId = store.activeProjectId;
+			if (projId) {
+				const tabs = store.workspaceTabs[projId] || [];
+				const updated = tabs.map((t) =>
+					t.id === currentTab.id ? { ...t, remoteContent: content } : t,
+				);
+				useProjectStore.setState({ workspaceTabs: { ...store.workspaceTabs, [projId]: updated } });
+			}
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		},
+		[tab.id],
+	);
 
 	return (
 		<CodeEditor

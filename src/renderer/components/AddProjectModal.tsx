@@ -36,9 +36,7 @@ export default function AddProjectModal({ onClose }: Props) {
 			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[420px] shadow-2xl">
 				{/* Header */}
 				<div className="flex items-center justify-between px-4 py-3 border-b border-connexio-border">
-					<h2 className="text-sm font-semibold text-connexio-text">
-						Add Project
-					</h2>
+					<h2 className="text-sm font-semibold text-connexio-text">Add Project</h2>
 					<button
 						onClick={onClose}
 						className="p-1 rounded hover:bg-connexio-bg-tertiary transition-colors"
@@ -82,10 +80,7 @@ export default function AddProjectModal({ onClose }: Props) {
 								onClick={handleSelectDir}
 								className="px-3 py-2 bg-connexio-bg-tertiary border border-connexio-border rounded hover:bg-connexio-accent/10 hover:border-connexio-accent/30 transition-colors"
 							>
-								<FolderOpen
-									size={14}
-									className="text-connexio-text-secondary"
-								/>
+								<FolderOpen size={14} className="text-connexio-text-secondary" />
 							</button>
 						</div>
 					</div>

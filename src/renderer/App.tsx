@@ -35,7 +35,8 @@ export default function App() {
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 	const [showStartPage, setShowStartPage] = useState(false);
 	const { loadTheme, loadThemes } = useThemeStore();
-	const { isSettingsOpen, settings, loadSettings, loadShells, discordPresence } = useSettingsStore();
+	const { isSettingsOpen, settings, loadSettings, loadShells, discordPresence } =
+		useSettingsStore();
 	const {
 		loadNotifications,
 		loadSettings: loadNotifSettings,
@@ -68,7 +69,9 @@ export default function App() {
 			loadNotifSettings();
 		};
 		init();
-		return () => { mounted = false; };
+		return () => {
+			mounted = false;
+		};
 	}, []);
 
 	// Prevent default browser behavior for file drops (navigating away).
@@ -131,7 +134,8 @@ export default function App() {
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const target = e.target as HTMLElement;
-			const isEditable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+			const isEditable =
+				target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 			const isTerminalTarget = Boolean(target.closest(".xterm, .terminal-container"));
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
 				if (isTerminalTarget) return;
@@ -161,9 +165,7 @@ export default function App() {
 
 	// Navigate when native OS notification is clicked
 	useEffect(() => {
-		const unsubscribe = window.connexio.notification.onNavigate(
-			navigateToNotification,
-		);
+		const unsubscribe = window.connexio.notification.onNavigate(navigateToNotification);
 		return unsubscribe;
 	}, [navigateToNotification]);
 
@@ -186,9 +188,10 @@ export default function App() {
 	}, []);
 
 	const remoteMobile = useIsRemoteMobile();
-	const mainContent = activeProjectId && !showStartPage
-		? <Workspace />
-		: (
+	const mainContent =
+		activeProjectId && !showStartPage ? (
+			<Workspace />
+		) : (
 			<WelcomeScreen
 				canClose={Boolean(activeProjectId && showStartPage)}
 				onClose={() => setShowStartPage(false)}
@@ -210,9 +213,7 @@ export default function App() {
 					{!isRemoteMode() && <TitleBar />}
 					<div className="relative flex flex-1 overflow-hidden">
 						<Sidebar />
-						<div className="flex flex-col flex-1 overflow-hidden">
-							{mainContent}
-						</div>
+						<div className="flex flex-col flex-1 overflow-hidden">{mainContent}</div>
 					</div>
 					<AppFooter />
 

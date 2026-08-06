@@ -37,10 +37,7 @@ export default function CommitBox({
 	const menuRef = useRef<HTMLDivElement>(null);
 
 	const canCommit =
-		stagedCount > 0 &&
-		commitMessage.trim().length > 0 &&
-		!isCommitting &&
-		!isPushing;
+		stagedCount > 0 && commitMessage.trim().length > 0 && !isCommitting && !isPushing;
 	const isBusy = isCommitting || isPushing || isFetching || isPulling;
 
 	// Close menu on outside click
@@ -91,8 +88,7 @@ export default function CommitBox({
 			}
 			setIsCommitting(false);
 			setIsPushing(true);
-			const pushResult: GitActionResult =
-				await window.connexio.git.push(projectPath);
+			const pushResult: GitActionResult = await window.connexio.git.push(projectPath);
 			if (pushResult.success) {
 				onMessage({ type: "success", text: "Committed and pushed" });
 				setCommitMessage("");
@@ -112,8 +108,7 @@ export default function CommitBox({
 		if (isBusy) return;
 		setIsPushing(true);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.push(projectPath);
+			const result: GitActionResult = await window.connexio.git.push(projectPath);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onRefresh();
@@ -131,8 +126,7 @@ export default function CommitBox({
 		setIsFetching(true);
 		setShowMenu(false);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.fetch(projectPath);
+			const result: GitActionResult = await window.connexio.git.fetch(projectPath);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onRefresh();
@@ -150,8 +144,7 @@ export default function CommitBox({
 		setIsPulling(true);
 		setShowMenu(false);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.pull(projectPath);
+			const result: GitActionResult = await window.connexio.git.pull(projectPath);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onRefresh();
@@ -169,8 +162,7 @@ export default function CommitBox({
 		setIsPushing(true);
 		setShowMenu(false);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.publishBranch(projectPath);
+			const result: GitActionResult = await window.connexio.git.publishBranch(projectPath);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onRefresh();
@@ -187,8 +179,7 @@ export default function CommitBox({
 		if (isBusy) return;
 		setShowMenu(false);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.stashSave(projectPath);
+			const result: GitActionResult = await window.connexio.git.stashSave(projectPath);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onRefresh();
@@ -204,8 +195,7 @@ export default function CommitBox({
 		if (isBusy) return;
 		setShowMenu(false);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.stashPop(projectPath);
+			const result: GitActionResult = await window.connexio.git.stashPop(projectPath);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onRefresh();
@@ -256,11 +246,7 @@ export default function CommitBox({
 					}
 					type="button"
 				>
-					{isCommitting ? (
-						<Loader2 size={10} className="animate-spin" />
-					) : (
-						<GitCommit size={10} />
-					)}
+					{isCommitting ? <Loader2 size={10} className="animate-spin" /> : <GitCommit size={10} />}
 					Commit
 				</button>
 

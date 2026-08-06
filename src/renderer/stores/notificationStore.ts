@@ -1,8 +1,5 @@
 import { create } from "zustand";
-import type {
-	ConnexioNotification,
-	NotificationSettings,
-} from "../../shared/types";
+import type { ConnexioNotification, NotificationSettings } from "../../shared/types";
 
 // Shared audio instance to prevent overlapping sounds
 // biome-ignore lint/style/useLet: reassigned in handleIncoming
@@ -61,9 +58,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 	markRead: async (id: string) => {
 		await window.connexio.notification.markRead(id);
 		const { notifications } = get();
-		const updated = notifications.map((n) =>
-			n.id === id ? { ...n, isRead: true } : n,
-		);
+		const updated = notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n));
 		set({
 			notifications: updated,
 			unreadCount: updated.filter((n) => !n.isRead).length,
@@ -148,8 +143,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 				if (settings.customSoundPath) {
 					soundUrl = `file://${settings.customSoundPath.replace(/\\/g, "/")}`;
 				} else {
-					soundUrl = new URL("../assets/notification.wav", import.meta.url)
-						.href;
+					soundUrl = new URL("../assets/notification.wav", import.meta.url).href;
 				}
 
 				// Reuse or create audio instance

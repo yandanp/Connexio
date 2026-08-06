@@ -1,9 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import type {
-	GitDiffHunk,
-	GitDiffLine,
-	GitDiffResult,
-} from "../../shared/types";
+import type { GitDiffHunk, GitDiffLine, GitDiffResult } from "../../shared/types";
 
 // ============================================
 // Lazy-loaded Syntax Highlighter
@@ -39,12 +35,7 @@ function highlightLineSync(
 ): string {
 	if (!code) return "";
 	// Guard: skip highlighting if hljs not loaded, no language, or line too long
-	if (
-		!hljs ||
-		!language ||
-		language === "plaintext" ||
-		code.length > MAX_HIGHLIGHT_LINE_LENGTH
-	) {
+	if (!hljs || !language || language === "plaintext" || code.length > MAX_HIGHLIGHT_LINE_LENGTH) {
 		return escapeHtml(code);
 	}
 	try {
@@ -146,10 +137,7 @@ export default function DiffViewer({
 	const Body = view === "split" ? SplitDiffView : UnifiedDiffView;
 
 	return (
-		<div
-			className="font-mono leading-[1.5]"
-			style={{ fontSize: `${fontSize}px` }}
-		>
+		<div className="font-mono leading-[1.5]" style={{ fontSize: `${fontSize}px` }}>
 			<Body
 				hunks={limitedHunks}
 				language={diff.language}
@@ -157,9 +145,7 @@ export default function DiffViewer({
 				searchQuery={searchQuery}
 				hljs={shouldHighlight ? hljs : null}
 			/>
-			{wasLimited && (
-				<TruncatedPreviewNotice onRequestFullView={onRequestFullView} />
-			)}
+			{wasLimited && <TruncatedPreviewNotice onRequestFullView={onRequestFullView} />}
 			{diff.truncated && !wasLimited && <TruncatedNotice />}
 		</div>
 	);
@@ -209,13 +195,7 @@ interface ViewProps {
 	hljs: HljsModule | null;
 }
 
-function UnifiedDiffView({
-	hunks,
-	language,
-	wrapLines,
-	searchQuery,
-	hljs,
-}: ViewProps) {
+function UnifiedDiffView({ hunks, language, wrapLines, searchQuery, hljs }: ViewProps) {
 	return (
 		<>
 			{hunks.map((hunk, i) => (
@@ -280,11 +260,7 @@ const UnifiedLine = memo(function UnifiedLine({
 	hljs,
 }: UnifiedLineProps) {
 	const bgClass =
-		line.type === "add"
-			? "bg-green-500/[0.08]"
-			: line.type === "remove"
-				? "bg-red-500/[0.08]"
-				: "";
+		line.type === "add" ? "bg-green-500/[0.08]" : line.type === "remove" ? "bg-red-500/[0.08]" : "";
 
 	const prefix = line.type === "add" ? "+" : line.type === "remove" ? "-" : " ";
 	const prefixColor =
@@ -312,11 +288,7 @@ const UnifiedLine = memo(function UnifiedLine({
 			<span className="w-12 text-right px-2 text-connexio-text-muted/40 select-none flex-shrink-0 border-r border-connexio-border/20 text-[10px]">
 				{line.newLineNo ?? ""}
 			</span>
-			<span
-				className={`w-5 text-center select-none flex-shrink-0 ${prefixColor}`}
-			>
-				{prefix}
-			</span>
+			<span className={`w-5 text-center select-none flex-shrink-0 ${prefixColor}`}>{prefix}</span>
 			<code
 				className={`flex-1 px-2 hljs-line ${wrapLines ? "whitespace-pre-wrap break-all" : "whitespace-pre"} text-connexio-text`}
 				// biome-ignore lint/security/noDangerouslySetInnerHtml: syntax highlighting needs HTML
@@ -372,13 +344,7 @@ function pairLines(lines: GitDiffLine[]): SplitPair[] {
 	return pairs;
 }
 
-function SplitDiffView({
-	hunks,
-	language,
-	wrapLines,
-	searchQuery,
-	hljs,
-}: ViewProps) {
+function SplitDiffView({ hunks, language, wrapLines, searchQuery, hljs }: ViewProps) {
 	return (
 		<>
 			{hunks.map((hunk, i) => (
@@ -526,26 +492,12 @@ function SplitSide({
 // Shared Components
 // ============================================
 
-function EmptyState({
-	title,
-	message,
-	hint,
-}: {
-	title: string;
-	message: string;
-	hint?: string;
-}) {
+function EmptyState({ title, message, hint }: { title: string; message: string; hint?: string }) {
 	return (
 		<div className="flex flex-col items-center justify-center py-12 px-6 text-center">
 			<p className="text-sm font-medium text-connexio-text mb-1">{title}</p>
-			<p className="text-xs text-connexio-text-muted mb-2 break-all">
-				{message}
-			</p>
-			{hint && (
-				<p className="text-[11px] text-connexio-text-muted/60 max-w-sm">
-					{hint}
-				</p>
-			)}
+			<p className="text-xs text-connexio-text-muted mb-2 break-all">{message}</p>
+			{hint && <p className="text-[11px] text-connexio-text-muted/60 max-w-sm">{hint}</p>}
 		</div>
 	);
 }
@@ -558,11 +510,7 @@ function TruncatedNotice() {
 	);
 }
 
-function TruncatedPreviewNotice({
-	onRequestFullView,
-}: {
-	onRequestFullView?: () => void;
-}) {
+function TruncatedPreviewNotice({ onRequestFullView }: { onRequestFullView?: () => void }) {
 	return (
 		<div className="px-3 py-2 text-[11px] text-connexio-text-muted bg-connexio-bg-tertiary/40 border-t border-connexio-border italic flex items-center justify-between gap-2">
 			<span>Preview limited for performance</span>

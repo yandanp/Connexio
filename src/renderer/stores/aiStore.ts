@@ -2,7 +2,14 @@ import { create } from "zustand";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type AIProviderType = "openai" | "anthropic" | "google" | "groq" | "deepseek" | "openrouter" | "local";
+export type AIProviderType =
+	| "openai"
+	| "anthropic"
+	| "google"
+	| "groq"
+	| "deepseek"
+	| "openrouter"
+	| "local";
 
 export interface AIProviderConfig {
 	id: string;
@@ -129,7 +136,11 @@ const DEFAULT_PROVIDERS: AIProviderConfig[] = [
 		type: "openrouter",
 		name: "OpenRouter",
 		apiKey: "",
-		models: ["anthropic/claude-sonnet-4-20250514", "openai/gpt-4o", "google/gemini-2.0-flash-exp:free"],
+		models: [
+			"anthropic/claude-sonnet-4-20250514",
+			"openai/gpt-4o",
+			"google/gemini-2.0-flash-exp:free",
+		],
 		defaultModel: "anthropic/claude-sonnet-4-20250514",
 		enabled: true,
 	},
@@ -302,9 +313,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
 					(chunk) => {
 						set((state) => ({
 							messages: state.messages.map((m) =>
-								m.id === assistantMessage.id
-									? { ...m, content: m.content + chunk }
-									: m,
+								m.id === assistantMessage.id ? { ...m, content: m.content + chunk } : m,
 							),
 						}));
 					},
@@ -313,18 +322,14 @@ export const useAIStore = create<AIStore>((set, get) => ({
 				const response = await fetchAIResponse(provider, config.activeModel, allMessages);
 				set((state) => ({
 					messages: state.messages.map((m) =>
-						m.id === assistantMessage.id
-							? { ...m, content: response }
-							: m,
+						m.id === assistantMessage.id ? { ...m, content: response } : m,
 					),
 				}));
 			}
 
 			set((state) => ({
 				messages: state.messages.map((m) =>
-					m.id === assistantMessage.id
-						? { ...m, isStreaming: false }
-						: m,
+					m.id === assistantMessage.id ? { ...m, isStreaming: false } : m,
 				),
 				isLoading: false,
 			}));
@@ -333,9 +338,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
 			if (error.name === "AbortError") {
 				set((state) => ({
 					messages: state.messages.map((m) =>
-						m.id === assistantMessage.id
-							? { ...m, isStreaming: false }
-							: m,
+						m.id === assistantMessage.id ? { ...m, isStreaming: false } : m,
 					),
 					isLoading: false,
 				}));
@@ -427,9 +430,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
 		if (activeChatId) {
 			// Update existing session
 			const updated = chatSessions.map((s) =>
-				s.id === activeChatId
-					? { ...s, messages, title, updatedAt: now }
-					: s,
+				s.id === activeChatId ? { ...s, messages, title, updatedAt: now } : s,
 			);
 			set({ chatSessions: updated });
 			saveChatSessions(updated);
@@ -569,9 +570,7 @@ async function fetchAIResponse(
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						systemInstruction: systemMsg
-							? { parts: [{ text: systemMsg.content }] }
-							: undefined,
+						systemInstruction: systemMsg ? { parts: [{ text: systemMsg.content }] } : undefined,
 						contents: chatMessages,
 					}),
 				},
@@ -706,9 +705,7 @@ async function fetchAIResponseStreaming(
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						systemInstruction: systemMsg
-							? { parts: [{ text: systemMsg.content }] }
-							: undefined,
+						systemInstruction: systemMsg ? { parts: [{ text: systemMsg.content }] } : undefined,
 						contents: chatMessages,
 					}),
 					signal,
@@ -740,12 +737,18 @@ async function fetchAIResponseStreaming(
 function getBaseUrl(provider: AIProviderConfig): string {
 	if (provider.baseUrl) return provider.baseUrl;
 	switch (provider.type) {
-		case "openai": return "https://api.openai.com/v1";
-		case "groq": return "https://api.groq.com/openai/v1";
-		case "deepseek": return "https://api.deepseek.com/v1";
-		case "openrouter": return "https://openrouter.ai/api/v1";
-		case "local": return "http://localhost:1234/v1";
-		default: return "https://api.openai.com/v1";
+		case "openai":
+			return "https://api.openai.com/v1";
+		case "groq":
+			return "https://api.groq.com/openai/v1";
+		case "deepseek":
+			return "https://api.deepseek.com/v1";
+		case "openrouter":
+			return "https://openrouter.ai/api/v1";
+		case "local":
+			return "http://localhost:1234/v1";
+		default:
+			return "https://api.openai.com/v1";
 	}
 }
 

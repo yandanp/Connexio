@@ -36,13 +36,7 @@ interface Props {
 const MIN_FONT = 10;
 const MAX_FONT = 20;
 
-export default function DiffModal({
-	projectPath,
-	files,
-	initialIndex,
-	onClose,
-	onRefresh,
-}: Props) {
+export default function DiffModal({ projectPath, files, initialIndex, onClose, onRefresh }: Props) {
 	const [currentIndex, setCurrentIndex] = useState(initialIndex);
 	const [diff, setDiff] = useState<GitDiffResult | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -66,10 +60,7 @@ export default function DiffModal({
 		try {
 			let result: GitDiffResult;
 			if (current.group === "untracked") {
-				result = await window.connexio.git.diffUntracked(
-					projectPath,
-					current.file.path,
-				);
+				result = await window.connexio.git.diffUntracked(projectPath, current.file.path);
 			} else {
 				result = await window.connexio.git.diff(
 					projectPath,
@@ -146,8 +137,7 @@ export default function DiffModal({
 				const header = h.header;
 				const lines = h.lines
 					.map((l) => {
-						const prefix =
-							l.type === "add" ? "+" : l.type === "remove" ? "-" : " ";
+						const prefix = l.type === "add" ? "+" : l.type === "remove" ? "-" : " ";
 						return prefix + l.content;
 					})
 					.join("\n");
@@ -193,15 +183,9 @@ export default function DiffModal({
 
 	// Stats
 	const addCount =
-		diff?.hunks.reduce(
-			(acc, h) => acc + h.lines.filter((l) => l.type === "add").length,
-			0,
-		) ?? 0;
+		diff?.hunks.reduce((acc, h) => acc + h.lines.filter((l) => l.type === "add").length, 0) ?? 0;
 	const removeCount =
-		diff?.hunks.reduce(
-			(acc, h) => acc + h.lines.filter((l) => l.type === "remove").length,
-			0,
-		) ?? 0;
+		diff?.hunks.reduce((acc, h) => acc + h.lines.filter((l) => l.type === "remove").length, 0) ?? 0;
 
 	return (
 		<>
@@ -223,10 +207,7 @@ export default function DiffModal({
 					{/* Header */}
 					<div className="flex items-center gap-2 px-3 py-2 border-b border-connexio-border bg-connexio-bg-primary flex-shrink-0">
 						{/* File info */}
-						<FileText
-							size={14}
-							className="text-connexio-text-muted flex-shrink-0"
-						/>
+						<FileText size={14} className="text-connexio-text-muted flex-shrink-0" />
 						<div className="flex-1 min-w-0 flex items-baseline gap-2">
 							<span className="text-xs font-medium text-connexio-text truncate">
 								{current.file.path}
@@ -337,9 +318,7 @@ export default function DiffModal({
 						{/* Font size */}
 						<div className="flex items-center rounded border border-connexio-border overflow-hidden">
 							<button
-								onClick={() =>
-									setFontSize((f) => Math.max(MIN_FONT, f - 1))
-								}
+								onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 1))}
 								disabled={fontSize <= MIN_FONT}
 								className="px-1.5 py-1 text-connexio-text-muted hover:bg-connexio-bg-tertiary transition-colors disabled:opacity-30"
 								type="button"
@@ -351,9 +330,7 @@ export default function DiffModal({
 								{fontSize}
 							</span>
 							<button
-								onClick={() =>
-									setFontSize((f) => Math.min(MAX_FONT, f + 1))
-								}
+								onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 1))}
 								disabled={fontSize >= MAX_FONT}
 								className="px-1.5 py-1 text-connexio-text-muted hover:bg-connexio-bg-tertiary transition-colors disabled:opacity-30"
 								type="button"
@@ -442,10 +419,7 @@ export default function DiffModal({
 					{/* Search bar */}
 					{showSearch && (
 						<div className="flex items-center gap-2 px-3 py-1.5 border-b border-connexio-border bg-connexio-bg-primary flex-shrink-0">
-							<Search
-								size={11}
-								className="text-connexio-text-muted flex-shrink-0"
-							/>
+							<Search size={11} className="text-connexio-text-muted flex-shrink-0" />
 							<input
 								ref={searchInputRef}
 								type="text"
@@ -468,10 +442,7 @@ export default function DiffModal({
 					)}
 
 					{/* Diff body */}
-					<div
-						ref={scrollRef}
-						className="flex-1 overflow-auto bg-connexio-bg-primary"
-					>
+					<div ref={scrollRef} className="flex-1 overflow-auto bg-connexio-bg-primary">
 						{loading ? (
 							<div className="flex items-center justify-center py-12 gap-2 text-connexio-text-muted">
 								<Loader2 size={14} className="animate-spin" />
@@ -495,25 +466,20 @@ export default function DiffModal({
 					{/* Footer / Status bar */}
 					<div className="flex items-center gap-3 px-3 py-1 border-t border-connexio-border bg-connexio-bg-secondary flex-shrink-0 text-[10px] text-connexio-text-muted">
 						<span>
-							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Esc</kbd>{" "}
-							close
+							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Esc</kbd> close
 						</span>
 						<span>
-							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Alt+←/→</kbd>{" "}
-							navigate
+							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Alt+←/→</kbd> navigate
 						</span>
 						<span>
-							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Ctrl+F</kbd>{" "}
-							search
+							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Ctrl+F</kbd> search
 						</span>
 						<span>
-							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Ctrl +/-</kbd>{" "}
-							zoom
+							<kbd className="px-1 rounded bg-connexio-bg-tertiary">Ctrl +/-</kbd> zoom
 						</span>
 						{diff?.language && diff.language !== "plaintext" && (
 							<span className="ml-auto">
-								Language:{" "}
-								<span className="text-connexio-accent">{diff.language}</span>
+								Language: <span className="text-connexio-accent">{diff.language}</span>
 							</span>
 						)}
 					</div>

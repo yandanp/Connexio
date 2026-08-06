@@ -67,9 +67,7 @@ export default function ConfirmDialog({
 
 				{/* Body */}
 				<div className="px-4 py-3">
-					<p className="text-xs text-connexio-text-secondary leading-relaxed">
-						{message}
-					</p>
+					<p className="text-xs text-connexio-text-secondary leading-relaxed">{message}</p>
 				</div>
 
 				{/* Footer */}

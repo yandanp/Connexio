@@ -11,7 +11,9 @@ export default function RemoteAccessSettings() {
 	const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 	const [qrTarget, setQrTarget] = useState<"lan" | "tailscale">("lan");
 	const [wolMac, setWolMac] = useState(localStorage.getItem("connexio_wol_mac") || "");
-	const [wolBroadcast, setWolBroadcast] = useState(localStorage.getItem("connexio_wol_broadcast") || "255.255.255.255");
+	const [wolBroadcast, setWolBroadcast] = useState(
+		localStorage.getItem("connexio_wol_broadcast") || "255.255.255.255",
+	);
 	const [wolPort, setWolPort] = useState(Number(localStorage.getItem("connexio_wol_port") || "9"));
 	const [wolStatus, setWolStatus] = useState<string | null>(null);
 
@@ -31,9 +33,10 @@ export default function RemoteAccessSettings() {
 		return () => clearInterval(interval);
 	}, [fetchStatus]);
 
-	const selectedLoginUrl = qrTarget === "tailscale" && status?.tailscaleLoginUrl
-		? status.tailscaleLoginUrl
-		: status?.loginUrl;
+	const selectedLoginUrl =
+		qrTarget === "tailscale" && status?.tailscaleLoginUrl
+			? status.tailscaleLoginUrl
+			: status?.loginUrl;
 
 	useEffect(() => {
 		if (!selectedLoginUrl) {
@@ -113,14 +116,12 @@ export default function RemoteAccessSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-2">
 				<Globe size={14} className="text-connexio-accent" />
-				<h3 className="section-label">
-					Remote Access
-				</h3>
+				<h3 className="section-label">Remote Access</h3>
 			</div>
 
 			<p className="text-[11px] text-connexio-text-secondary leading-relaxed">
-				Access your terminals from a phone or another device on the same
-				network. Enable the server, then open the URL in your mobile browser.
+				Access your terminals from a phone or another device on the same network. Enable the server,
+				then open the URL in your mobile browser.
 			</p>
 
 			{/* Status Card */}
@@ -162,9 +163,7 @@ export default function RemoteAccessSettings() {
 					<div className="soft-separator-top space-y-2 pt-3">
 						{/* URL */}
 						<div className="flex items-center justify-between">
-							<span className="text-[11px] text-connexio-text-secondary">
-								Login link
-							</span>
+							<span className="text-[11px] text-connexio-text-secondary">Login link</span>
 							<div className="flex items-center gap-1.5">
 								<code className="text-[11px] text-connexio-accent font-mono">
 									{selectedLoginUrl || status.loginUrl || `http://${status.localIp}:${status.port}`}
@@ -205,7 +204,9 @@ export default function RemoteAccessSettings() {
 						{status.tailscaleLoginUrl && (
 							<div className="flex items-center justify-between">
 								<span className="text-[11px] text-connexio-text-secondary">Tailscale</span>
-								<code className="text-[11px] text-connexio-accent font-mono">{status.tailscaleLoginUrl}</code>
+								<code className="text-[11px] text-connexio-accent font-mono">
+									{status.tailscaleLoginUrl}
+								</code>
 							</div>
 						)}
 
@@ -227,9 +228,7 @@ export default function RemoteAccessSettings() {
 
 						{/* PIN */}
 						<div className="flex items-center justify-between">
-							<span className="text-[11px] text-connexio-text-secondary">
-								PIN
-							</span>
+							<span className="text-[11px] text-connexio-text-secondary">PIN</span>
 							<div className="flex items-center gap-1.5">
 								<code className="text-sm font-mono font-bold text-connexio-text tracking-[0.3em]">
 									{status.pin}
@@ -240,30 +239,22 @@ export default function RemoteAccessSettings() {
 									title="Regenerate PIN"
 									type="button"
 								>
-									<RefreshCw
-										size={11}
-										className="text-connexio-text-secondary"
-									/>
+									<RefreshCw size={11} className="text-connexio-text-secondary" />
 								</button>
 							</div>
 						</div>
 
 						{/* Connected Clients */}
 						<div className="flex items-center justify-between">
-							<span className="text-[11px] text-connexio-text-secondary">
-								Connected
-							</span>
+							<span className="text-[11px] text-connexio-text-secondary">Connected</span>
 							<span className="text-[11px] text-connexio-text">
-								{status.connectedClients}{" "}
-								{status.connectedClients === 1 ? "device" : "devices"}
+								{status.connectedClients} {status.connectedClients === 1 ? "device" : "devices"}
 							</span>
 						</div>
 
 						{clients.length > 0 && (
 							<div className="soft-separator-top space-y-1 pt-3">
-								<p className="text-[11px] text-connexio-text-secondary">
-									Connected devices
-								</p>
+								<p className="text-[11px] text-connexio-text-secondary">Connected devices</p>
 								{clients.map((client) => (
 									<div
 										key={client.id}
@@ -281,9 +272,7 @@ export default function RemoteAccessSettings() {
 
 			{/* Wake-on-LAN helper */}
 			<div className="soft-card space-y-3 p-3">
-				<p className="text-[11px] font-medium text-connexio-text">
-					Wake-on-LAN setup
-				</p>
+				<p className="text-[11px] font-medium text-connexio-text">Wake-on-LAN setup</p>
 				<div className="grid grid-cols-3 gap-2">
 					<input
 						value={wolMac}
@@ -318,16 +307,16 @@ export default function RemoteAccessSettings() {
 					<li>Enable Wake-on-LAN / PCI-E wake in BIOS</li>
 					<li>Use Ethernet when possible; WiFi WoL is often unreliable</li>
 					<li>Enable Windows NIC option: Allow this device to wake the computer</li>
-					<li>For sleeping/off host PC, send WoL from phone/router/relay, then open the login link</li>
+					<li>
+						For sleeping/off host PC, send WoL from phone/router/relay, then open the login link
+					</li>
 				</ol>
 			</div>
 
 			{/* Instructions */}
 			{isRunning && (
 				<div className="bg-connexio-bg-tertiary/80  rounded-md p-3">
-					<p className="text-[11px] font-medium text-connexio-text mb-2">
-						How to connect:
-					</p>
+					<p className="text-[11px] font-medium text-connexio-text mb-2">How to connect:</p>
 					<ol className="text-[11px] text-connexio-text-secondary space-y-1 list-decimal list-inside">
 						<li>Make sure your phone is on the same WiFi network</li>
 						<li>Open the URL above in your phone's browser</li>
@@ -339,9 +328,7 @@ export default function RemoteAccessSettings() {
 
 			{/* Error */}
 			{error && (
-				<p className="rounded-lg bg-red-500/10 px-2 py-1.5 text-[11px] text-red-400">
-					{error}
-				</p>
+				<p className="rounded-lg bg-red-500/10 px-2 py-1.5 text-[11px] text-red-400">{error}</p>
 			)}
 		</div>
 	);

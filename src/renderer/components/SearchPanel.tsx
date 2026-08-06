@@ -89,7 +89,11 @@ export default function SearchPanel({ projectPath, onOpenFile }: Props) {
 						className="flex-1 bg-transparent text-xs text-connexio-text outline-none placeholder:text-connexio-text-muted/50"
 					/>
 					{query && (
-						<button onClick={handleClear} className="p-0.5 rounded hover:bg-connexio-bg-secondary" type="button">
+						<button
+							onClick={handleClear}
+							className="p-0.5 rounded hover:bg-connexio-bg-secondary"
+							type="button"
+						>
 							<X size={10} className="text-connexio-text-muted" />
 						</button>
 					)}
@@ -133,7 +137,8 @@ export default function SearchPanel({ projectPath, onOpenFile }: Props) {
 				{!searching && results.length > 0 && (
 					<div className="py-1">
 						<div className="px-2 py-1 text-[10px] text-connexio-text-muted">
-							{results.length} result{results.length !== 1 ? "s" : ""} in {Object.keys(grouped).length} file{Object.keys(grouped).length !== 1 ? "s" : ""}
+							{results.length} result{results.length !== 1 ? "s" : ""} in{" "}
+							{Object.keys(grouped).length} file{Object.keys(grouped).length !== 1 ? "s" : ""}
 						</div>
 						{Object.entries(grouped).map(([filePath, fileResults]) => (
 							<div key={filePath} className="mb-1">
@@ -185,9 +190,7 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean) {
 	return (
 		<>
 			{parts.map((part, i) => {
-				const isMatch = caseSensitive
-					? part === query
-					: part.toLowerCase() === query.toLowerCase();
+				const isMatch = caseSensitive ? part === query : part.toLowerCase() === query.toLowerCase();
 				return isMatch ? (
 					<span key={i} className="bg-connexio-accent/30 text-connexio-accent font-semibold">
 						{part}

@@ -50,10 +50,12 @@ AGENTS.md  docs/STYLEGUIDE.md  .github/workflows/ci.yml
 ### Task 1: Formatter, linter, dan pre-commit
 
 **Files:**
+
 - Modify: `package.json` (scripts, devDeps, lint-staged)
 - Create: `.oxlintrc.json`, `.oxfmtrc.json`, `.husky/pre-commit`
 
 **Interfaces:**
+
 - Produces: `npm run format`, `npm run lint`, pre-commit hook — dipakai semua task berikutnya dan CI (Task 2).
 
 - [ ] **Step 1: Install tooling**
@@ -123,7 +125,7 @@ Perbaiki issue trivial; jika ada rule yang terlalu bising untuk codebase ini, no
 
 ```bash
 echo "// test" >> src/renderer/App.tsx
-git add src/renderer/App.tsx && git commit -m "chore: verify pre-commit" 
+git add src/renderer/App.tsx && git commit -m "chore: verify pre-commit"
 # hook harus menjalankan lint-staged; kemudian:
 git reset --hard HEAD~1
 ```
@@ -140,10 +142,12 @@ git commit -m "chore: add oxfmt + oxlint + husky/lint-staged"
 ### Task 2: Vitest, max-lines ratchet, boundary checker, dan CI
 
 **Files:**
+
 - Create: `config/vitest.config.ts`, `config/check-max-lines.mjs`, `config/max-lines-baseline.txt`, `config/check-feature-imports.mjs`, `.github/workflows/ci.yml`
 - Modify: `package.json` (devDeps vitest; scripts test/check:lines/check:boundaries)
 
 **Interfaces:**
+
 - Consumes: lint/format dari Task 1.
 - Produces: `npm run test`, `npm run check:lines`, `npm run check:boundaries`, workflow CI `ci.yml` — dipakai semua task berikutnya.
 
@@ -219,7 +223,9 @@ if (existsSync(baselinePath)) {
 }
 
 const files = execSync("git ls-files -- '*.ts' '*.tsx' '*.rs'", { encoding: "utf8" })
-	.trim().split("\n").filter((f) => f.startsWith("src/"));
+	.trim()
+	.split("\n")
+	.filter((f) => f.startsWith("src/"));
 
 let failed = false;
 for (const f of files) {
@@ -254,8 +260,11 @@ Tambahkan header comment `# path<TAB>max-lines — hanya boleh turun; entri diha
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
-const files = execSync("git ls-files -- 'src/renderer/*.ts' 'src/renderer/*.tsx'", { encoding: "utf8" })
-	.trim().split("\n");
+const files = execSync("git ls-files -- 'src/renderer/*.ts' 'src/renderer/*.tsx'", {
+	encoding: "utf8",
+})
+	.trim()
+	.split("\n");
 
 let failed = false;
 const rel = (from, spec) => {
@@ -288,9 +297,15 @@ for (const f of files) {
 		if (spec.startsWith(".")) {
 			const target = rel(f, spec);
 			const theirFeature = featureOf(target) ?? featureOf(target + "/index.ts");
-			if (myFeature && theirFeature && theirFeature !== myFeature
-				&& !/features\/[^/]+$/.test(target)) {
-				console.error(`boundary FAIL: ${f} imports internal of features/${theirFeature} (use its index)`);
+			if (
+				myFeature &&
+				theirFeature &&
+				theirFeature !== myFeature &&
+				!/features\/[^/]+$/.test(target)
+			) {
+				console.error(
+					`boundary FAIL: ${f} imports internal of features/${theirFeature} (use its index)`,
+				);
 				failed = true;
 			}
 		}
@@ -371,9 +386,11 @@ git commit -m "ci: add vitest, max-lines ratchet, boundary checks, and CI workfl
 ### Task 3: AGENTS.md dan STYLEGUIDE.md
 
 **Files:**
+
 - Create: `AGENTS.md`, `docs/STYLEGUIDE.md`
 
 **Interfaces:**
+
 - Produces: acuan review & konvensi untuk semua task dan AI agent selanjutnya.
 
 - [ ] **Step 1: Tulis `AGENTS.md`** dengan isi minimal (ringkas, satu baris per aturan):
@@ -382,26 +399,32 @@ git commit -m "ci: add vitest, max-lines ratchet, boundary checks, and CI workfl
 # Connexio — Agent Guide
 
 ## Layout
+
 - `src/renderer/core/` = kernel (api, ui, hooks, stores). `src/renderer/features/<domain>/` = fitur; API publik hanya lewat `index.ts`.
 - `src/shared/` = tipe murni frontend↔Rust. Backend: `src-tauri/src/modules/`.
 
 ## Boundaries (dipaksa config/check-feature-imports.mjs)
+
 - Feature dilarang impor internal feature lain — lewat index.ts atau core/.
 - `invoke()`/`listen()` hanya di `src/renderer/core/api*/`. Plugin dialog boleh di feature.
 
 ## Naming
+
 - Komponen: PascalCase.tsx. Modul: kebab-case.ts (Rust snake_case.rs). Dilarang: utils/helpers/common/misc.
 - Nama file menyebut konsep domain (`split-layout-geometry.ts`), bukan peran generik.
 
 ## Style
+
 - Komentar singkat, hanya yang non-obvious (WHY, bukan HOW).
 - File ≤400 baris (lihat config/max-lines-baseline.txt untuk pengecualian yang sedang di-split).
 
 ## IPC & cross-platform
+
 - Kontrak command Tauri terpusat di core/api; jangan tambah command ad-hoc dari komponen.
 - App berjalan di Windows/macOS/Linux — jangan asumsikan path separator atau shell tertentu.
 
 ## Testing
+
 - Test colocated (`foo.test.ts`). Logika murni yang disentuh WAJIB punya test.
 - Gate PR: typecheck, lint, test, check:lines, check:boundaries, cargo fmt/clippy/test.
 ```
@@ -429,11 +452,13 @@ git commit -m "docs: add AGENTS.md and STYLEGUIDE.md conventions"
 ### Task 4: core/api — split `tauri-api.ts`
 
 **Files:**
+
 - Create: `src/renderer/core/api/{terminal-event-bus,terminal,projects,session,settings,workspace,tasks,pinned,ssh,git,theme,app,updater,notification,discord,remote,index}.ts`, `src/renderer/core/api/api-shape.test.ts`
 - Modify: `src/renderer/lib/tauri-shim.ts`
 - Delete: `src/renderer/lib/tauri-api.ts` (setelah migrasi)
 
 **Interfaces:**
+
 - Consumes: gate Task 2 (ratchet, boundaries — hapus entri allowlist legacy untuk tauri-api di Task 5).
 - Produces: `src/renderer/core/api/index.ts` dengan named export `connexioApi` (bentuk IDENTIK 15 key) — dipakai `tauri-shim.ts`; pola yang sama diulang untuk remote-api (Task 5).
 
@@ -452,9 +477,21 @@ vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 it("connexioApi exposes exactly the 15 public domains", async () => {
 	const { connexioApi } = await import("./index");
 	expect(Object.keys(connexioApi)).toEqual([
-		"terminal", "project", "session", "settings", "workspace",
-		"tasks", "pinned", "ssh", "git", "theme", "app", "updater",
-		"notification", "discord", "remote",
+		"terminal",
+		"project",
+		"session",
+		"settings",
+		"workspace",
+		"tasks",
+		"pinned",
+		"ssh",
+		"git",
+		"theme",
+		"app",
+		"updater",
+		"notification",
+		"discord",
+		"remote",
 	]);
 });
 ```
@@ -470,24 +507,24 @@ npm run test
 
 Pindahkan (cut-paste, logika TIDAK diubah) sesuai blok header `─── X ───` di file asal:
 
-| Baris asal (pendekatan) | File baru | Ekspor |
-|---|---|---|
+| Baris asal (pendekatan)                                          | File baru               | Ekspor                                                             |
+| ---------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------ |
 | 32–85 (listener set, buffer, `listen("terminal:data"/…)` global) | `terminal-event-bus.ts` | `onTerminalData`, `onTerminalExit`, `terminalDataBuffer` internals |
-| 86–130 (object terminal) | `terminal.ts` | `terminal` |
-| 134–155 | `projects.ts` | `project` (nama objek TETAP `project`, bukan `projects`) |
-| 157–169 | `session.ts` | `session` |
-| 171–182 | `settings.ts` | `settings` |
-| 184–191 | `workspace.ts` | `workspace` |
-| 193–198 | `tasks.ts` | `tasks` |
-| 200–208 | `pinned.ts` | `pinned` |
-| 210–288 | `ssh.ts` | `ssh` |
-| 290–364 | `git.ts` | `git` |
-| 366–376 | `theme.ts` | `theme` |
-| 378–393 | `app.ts` | `app` |
-| 395–464 (termasuk import plugin-updater/process) | `updater.ts` | `updater` |
-| 466–517 (listener notification global) | `notification.ts` | `notification` |
-| 519–527 | `discord.ts` | `discord` |
-| 529–557 (+ `RemoteClientInfo`, `RemoteStatus`) | `remote.ts` | `remote` + kedua tipe |
+| 86–130 (object terminal)                                         | `terminal.ts`           | `terminal`                                                         |
+| 134–155                                                          | `projects.ts`           | `project` (nama objek TETAP `project`, bukan `projects`)           |
+| 157–169                                                          | `session.ts`            | `session`                                                          |
+| 171–182                                                          | `settings.ts`           | `settings`                                                         |
+| 184–191                                                          | `workspace.ts`          | `workspace`                                                        |
+| 193–198                                                          | `tasks.ts`              | `tasks`                                                            |
+| 200–208                                                          | `pinned.ts`             | `pinned`                                                           |
+| 210–288                                                          | `ssh.ts`                | `ssh`                                                              |
+| 290–364                                                          | `git.ts`                | `git`                                                              |
+| 366–376                                                          | `theme.ts`              | `theme`                                                            |
+| 378–393                                                          | `app.ts`                | `app`                                                              |
+| 395–464 (termasuk import plugin-updater/process)                 | `updater.ts`            | `updater`                                                          |
+| 466–517 (listener notification global)                           | `notification.ts`       | `notification`                                                     |
+| 519–527                                                          | `discord.ts`            | `discord`                                                          |
+| 529–557 (+ `RemoteClientInfo`, `RemoteStatus`)                   | `remote.ts`             | `remote` + kedua tipe                                              |
 
 Setiap modul mengimpor `invoke`/`listen` dari `@tauri-apps/api/core|event` dan tipe dari `@shared/types` sesuai kebutuhan. Import baris 14–28 di file asal didistribusikan ke modul yang memakai.
 
@@ -511,9 +548,21 @@ import { discord } from "./discord";
 import { remote } from "./remote";
 
 export const connexioApi = {
-	terminal, project, session, settings, workspace,
-	tasks, pinned, ssh, git, theme, app, updater,
-	notification, discord, remote,
+	terminal,
+	project,
+	session,
+	settings,
+	workspace,
+	tasks,
+	pinned,
+	ssh,
+	git,
+	theme,
+	app,
+	updater,
+	notification,
+	discord,
+	remote,
 };
 
 export default connexioApi;
@@ -554,11 +603,13 @@ git commit -m "refactor: split tauri-api into core/api domain modules"
 ### Task 5: core/api-remote — split `remote-api.ts`
 
 **Files:**
+
 - Create: `src/renderer/core/api-remote/` (mirror struktur Task 4 + `index.ts`), `src/renderer/core/api-remote/api-remote-shape.test.ts`
 - Modify: `src/renderer/lib/tauri-shim.ts`, `config/check-feature-imports.mjs` (hapus allowlist LEGACY)
 - Delete: `src/renderer/lib/remote-api.ts`
 
 **Interfaces:**
+
 - Consumes: pola Task 4.
 - Produces: named export `connexioRemoteApi` dengan 15 key identik.
 
@@ -570,14 +621,31 @@ Sama seperti Task 4 Step 1, tetapi import `./index` di `core/api-remote/` dan mo
 import { expect, it, vi } from "vitest";
 
 vi.stubGlobal("fetch", vi.fn());
-vi.stubGlobal("WebSocket", class { close() {} });
+vi.stubGlobal(
+	"WebSocket",
+	class {
+		close() {}
+	},
+);
 
 it("connexioRemoteApi exposes exactly the 15 public domains", async () => {
 	const { connexioRemoteApi } = await import("./index");
 	expect(Object.keys(connexioRemoteApi)).toEqual([
-		"terminal", "project", "session", "settings", "workspace",
-		"tasks", "pinned", "ssh", "git", "theme", "app", "updater",
-		"notification", "discord", "remote",
+		"terminal",
+		"project",
+		"session",
+		"settings",
+		"workspace",
+		"tasks",
+		"pinned",
+		"ssh",
+		"git",
+		"theme",
+		"app",
+		"updater",
+		"notification",
+		"discord",
+		"remote",
 	]);
 });
 ```
@@ -618,12 +686,14 @@ git commit -m "refactor: split remote-api into core/api-remote domain modules"
 ### Task 6: core/ui, core/hooks, core/stores
 
 **Files:**
+
 - Create/move ke `src/renderer/core/ui/`: `ContextMenu.tsx`, `TerminalContextMenu.tsx`, `ConfirmDialog.tsx`, `SidePanelRail.tsx`, `SidePanelHeader.tsx`, `KeyboardShortcutsModal.tsx`, `TitleBar.tsx`, `AppFooter.tsx`, `CommandPalette.tsx`, `WelcomeScreen.tsx`, `UpdateNotification.tsx`
 - Move ke `src/renderer/core/hooks/`: `useDiscordPresence.ts`, `use-terminal-resize-v2.ts`, `useGitFileStatus.ts`
 - Move ke `src/renderer/core/stores/`: `settingsStore.ts`, `themeStore.ts`, `notificationStore.ts`
 - Setelah pindah, `src/renderer/stores/` hanya berisi `projectStore.ts` dan `aiStore.ts` (keduanya dibelah di Task 7–8 dan Task 12; folder dihapus saat entri terakhir pindah). Update semua import.
 
 **Interfaces:**
+
 - Consumes: core/ dari Task 4–5.
 - Produces: primitif UI & store global di lokasi final; import path baru dipakai Task 7–12.
 
@@ -663,10 +733,12 @@ git commit -m "refactor: move primitives, hooks, and global stores into core/"
 ### Task 7: split-layout — ekstrak logika murni projectStore + tests
 
 **Files:**
+
 - Create: `src/renderer/features/workspace/split-layout.ts`, `split-layout-geometry.ts`, `workspace-persistence.ts` + 3 file test
 - Modify: `src/renderer/stores/projectStore.ts` (hapus bagian yang pindah, re-export sementara)
 
 **Interfaces:**
+
 - Produces:
   - `split-layout.ts`: `type SplitDirection`, `interface SplitLeaf {type:"leaf";id;kind;terminalId;filePath?}`, `interface SplitBranch {type:"branch";id;direction;children;ratios?}`, `type SplitNode`, `interface SplitLayout {root;activePaneId}`, `findNode(node,id)`, `findParent(root,targetId)`, `replaceNode(root,targetId,replacement)`, `removeNode(root,targetId): SplitNode|null`, `collectLeaves(node)`, `collectTerminalIds(node)`
   - `split-layout-geometry.ts`: `interface PaneBounds {paneId;kind;terminalId;filePath?;top;left;width;height}`, `interface ResizeHandleBounds {branchId;dividerIndex;direction;top;left;branchTop;branchLeft;branchWidth;branchHeight}`, `computePaneBounds(node,bounds?)`, `computeResizeHandleBounds(node,bounds?)`
@@ -678,13 +750,28 @@ git commit -m "refactor: move primitives, hooks, and global stores into core/"
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { collectLeaves, collectTerminalIds, findNode, removeNode, replaceNode } from "./split-layout";
+import {
+	collectLeaves,
+	collectTerminalIds,
+	findNode,
+	removeNode,
+	replaceNode,
+} from "./split-layout";
 import type { SplitBranch, SplitLeaf, SplitNode } from "./split-layout";
 
-const leaf = (id: string, terminalId: string | null = null): SplitLeaf =>
-	({ type: "leaf", id, kind: "terminal", terminalId });
-const branch = (id: string, children: SplitNode[], ratios?: number[]): SplitBranch =>
-	({ type: "branch", id, direction: "horizontal", children, ratios });
+const leaf = (id: string, terminalId: string | null = null): SplitLeaf => ({
+	type: "leaf",
+	id,
+	kind: "terminal",
+	terminalId,
+});
+const branch = (id: string, children: SplitNode[], ratios?: number[]): SplitBranch => ({
+	type: "branch",
+	id,
+	direction: "horizontal",
+	children,
+	ratios,
+});
 
 const tree = branch("b1", [leaf("l1", "t1"), branch("b2", [leaf("l2", "t2"), leaf("l3", "t3")])]);
 
@@ -728,7 +815,12 @@ import type { SplitBranch, SplitLeaf } from "./split-layout";
 const leaf = (id: string): SplitLeaf => ({ type: "leaf", id, kind: "terminal", terminalId: null });
 
 it("two-way horizontal split yields left/right halves", () => {
-	const b: SplitBranch = { type: "branch", id: "b", direction: "horizontal", children: [leaf("l"), leaf("r")] };
+	const b: SplitBranch = {
+		type: "branch",
+		id: "b",
+		direction: "horizontal",
+		children: [leaf("l"), leaf("r")],
+	};
 	const bounds = computePaneBounds(b);
 	expect(bounds).toHaveLength(2);
 	const byId = Object.fromEntries(bounds.map((p) => [p.paneId, p]));
@@ -739,14 +831,25 @@ it("two-way horizontal split yields left/right halves", () => {
 });
 
 it("ratios override equal split", () => {
-	const b: SplitBranch = { type: "branch", id: "b", direction: "vertical", children: [leaf("t"), leaf("d")], ratios: [0.25, 0.75] };
+	const b: SplitBranch = {
+		type: "branch",
+		id: "b",
+		direction: "vertical",
+		children: [leaf("t"), leaf("d")],
+		ratios: [0.25, 0.75],
+	};
 	const byId = Object.fromEntries(computePaneBounds(b).map((p) => [p.paneId, p]));
 	expect(byId["t"].height).toBeCloseTo(0.25);
 	expect(byId["d"].top).toBeCloseTo(0.25);
 });
 
 it("one resize handle per divider", () => {
-	const b: SplitBranch = { type: "branch", id: "b", direction: "horizontal", children: [leaf("l"), leaf("m"), leaf("r")] };
+	const b: SplitBranch = {
+		type: "branch",
+		id: "b",
+		direction: "horizontal",
+		children: [leaf("l"), leaf("m"), leaf("r")],
+	};
 	const handles = computeResizeHandleBounds(b);
 	expect(handles).toHaveLength(2);
 	expect(handles[0].branchId).toBe("b");
@@ -763,7 +866,10 @@ import type { SplitBranch } from "./split-layout";
 
 it("serialize/deserialize round-trips tree shape", () => {
 	const tree: SplitBranch = {
-		type: "branch", id: "b1", direction: "vertical", ratios: [0.4, 0.6],
+		type: "branch",
+		id: "b1",
+		direction: "vertical",
+		ratios: [0.4, 0.6],
 		children: [
 			{ type: "leaf", id: "l1", kind: "terminal", terminalId: "t1" },
 			{ type: "leaf", id: "l2", kind: "editor", terminalId: null, filePath: "/a/b.ts" },
@@ -771,7 +877,10 @@ it("serialize/deserialize round-trips tree shape", () => {
 	};
 	const restored = deserializeNode(serializeNode(tree, "pwsh"));
 	expect(restored).toMatchObject({
-		type: "branch", id: "b1", direction: "vertical", ratios: [0.4, 0.6],
+		type: "branch",
+		id: "b1",
+		direction: "vertical",
+		ratios: [0.4, 0.6],
 		children: [
 			{ type: "leaf", id: "l1", kind: "terminal", terminalId: null },
 			{ type: "leaf", id: "l2", kind: "editor", filePath: "/a/b.ts" },
@@ -810,11 +919,13 @@ git commit -m "refactor: extract split-layout pure modules from projectStore"
 ### Task 8: Belah store — projects-store + workspace-store
 
 **Files:**
+
 - Create: `src/renderer/features/projects/projects-store.ts`, `src/renderer/features/projects/index.ts`, `src/renderer/features/workspace/workspace-store.ts`, `src/renderer/features/workspace/index.ts`
 - Modify: semua konsumen `useProjectStore` (temukan dengan `git grep -l "useProjectStore"`)
 - Delete: `src/renderer/stores/projectStore.ts`
 
 **Interfaces:**
+
 - Consumes: modul Task 7.
 - Produces:
   - `useProjectsStore` — state: `projects, activeProjectId, searchQuery, sidebarCollapsed`; actions: `loadProjects, addProject, deleteProject, renameProject, setActiveProject, setSearchQuery, toggleSidebar, updateProjectLastOpened, reorderProjects, moveProjectToGroup, renameProjectGroup`
@@ -867,12 +978,14 @@ git commit -m "refactor: split projectStore into projects-store and workspace-st
 ### Task 9: Slice settings
 
 **Files:**
+
 - Create/move ke `src/renderer/features/settings/`: `SettingsModal.tsx` (shell), `GeneralSettings.tsx`, `TerminalSettings.tsx`, `AppearanceSettings.tsx`, `NotificationsSettings.tsx`, `AboutSettings.tsx`, `index.ts`
 - Move ke `src/renderer/features/remote/`: `RemoteAccessSettings.tsx` + `features/remote/index.ts`
 - Create `src/renderer/core/ui/SettingsCard.tsx`, `src/renderer/core/ui/ToggleSwitch.tsx`
 - Delete: `src/renderer/components/SettingsModal.tsx`, `RemoteAccessSettings.tsx`
 
 **Interfaces:**
+
 - Consumes: core/stores (Task 6).
 - Produces: `features/settings/index.ts` → `export { default as SettingsModal } from "./SettingsModal"`.
 
@@ -908,10 +1021,12 @@ git commit -m "refactor: split SettingsModal into features/settings slice"
 ### Task 10: Slice ssh
 
 **Files:**
+
 - Create/move ke `src/renderer/features/ssh/`: `SSHManagerPanel.tsx` (shell), `SSHHostsView.tsx`, `SSHIdentitiesView.tsx`, `SSHKnownHostsView.tsx`, `SSHConnectPrompt.tsx`, `SSHEditForm.tsx`, `SFTPBrowser.tsx`, `use-ssh-connections.ts`, `SSHPanel.tsx`, `index.ts`
 - Delete: `src/renderer/components/SSHManagerPanel.tsx`, `SSHPanel.tsx`
 
 **Interfaces:**
+
 - Consumes: core/ui (ContextMenu, ConfirmDialog).
 - Produces: `features/ssh/index.ts` → `SSHManagerPanel`, `SSHPanel`, `SFTPBrowser` (Workspace mengimpor `{ SFTPBrowser }`).
 - Hook `use-ssh-connections.ts`: `useSshConnections(projectId)` → `{ connections, globalConnections, saveProjectConnections, saveGlobal, matchesSearch, filteredProjectConnections, filteredGlobalConnections }` — state & handler yang sekarang di baris 33–72 & 149–160 `SSHManagerPanel.tsx`.
@@ -944,11 +1059,13 @@ git commit -m "refactor: split SSHManagerPanel into features/ssh slice"
 ### Task 11: Slice git/source
 
 **Files:**
+
 - Create/move ke `src/renderer/features/git/`: `SourcePanel.tsx` (ramping), `git-diff-cache.ts`, `git-file-grouping.ts`, `git-file-status-icon.tsx`, `ChangedFileItem.tsx`, `SkeletonList.tsx`, `GitStatusBar.tsx`, `DiffViewer.tsx`, `DiffModal.tsx`, `use-git-file-status.ts`, `index.ts` + pindahan `components/git/{BranchPicker,CommitBox,GitHistoryPanel}.tsx`
 - Test: `git-file-grouping.test.ts`
 - Delete: `src/renderer/components/SourcePanel.tsx` dkk.
 
 **Interfaces:**
+
 - Consumes: core/api via `window.connexio`.
 - Produces: `features/git/index.ts` → `SourcePanel`, `GitStatusBar`, `DiffViewer`, `DiffModal`, `BranchPicker`, `CommitBox`, `GitHistoryPanel`.
 - `git-diff-cache.ts`: konstanta & Map module-level (baris ~50–113 SourcePanel): `filesCache, lastFetchTime, diffCache, inflightFetches, FETCH_COOLDOWN_MS, cacheKey, invalidateDiffCache, evictOldProjectsIfNeeded, trimDiffCache` + limit `MAX_CACHED_PROJECTS/MAX_CACHED_DIFFS/INITIAL_VISIBLE_FILES_PER_GROUP/LOAD_MORE_FILES_STEP`.
@@ -964,7 +1081,7 @@ import { filterFiles, getFileName, groupFiles } from "./git-file-grouping";
 import type { GitChangedFile } from "@shared/types";
 
 const f = (path: string, indexStatus: string, worktreeStatus = " "): GitChangedFile =>
-	({ path, indexStatus, worktreeStatus } as GitChangedFile);
+	({ path, indexStatus, worktreeStatus }) as GitChangedFile;
 
 it("groups by git status", () => {
 	const files = [f("a.ts", "M"), f("new.ts", "?"), f("s.ts", "M", "M"), f("c.ts", "U")];
@@ -1011,11 +1128,13 @@ git commit -m "refactor: split SourcePanel into features/git slice"
 ### Task 12: Slice ai
 
 **Files:**
+
 - Create/move ke `src/renderer/features/ai/`: `ai-types.ts`, `ai-providers.ts`, `ai-client.ts`, `ai-storage.ts`, `ai-store.ts`, `AIChatPanel.tsx`, `AIIntegrationsSettings.tsx`, `index.ts`
 - Test: `ai-client.test.ts`
 - Delete: `src/renderer/stores/aiStore.ts`, `src/renderer/components/ai/`
 
 **Interfaces:**
+
 - Produces:
   - `ai-types.ts`: `AIProviderType, AIProviderConfig, AIMessage, AIConfig, ChatSession` (baris 5–45 aiStore lama)
   - `ai-providers.ts`: `DEFAULT_PROVIDERS` (~79–146), `DEFAULT_CONFIG` (~147–155), `getBaseUrl(provider)` (~740–750)
@@ -1063,6 +1182,7 @@ git commit -m "refactor: split aiStore into features/ai slice"
 ### Task 13: Slice workspace + terminal (komposisi akhir renderer)
 
 **Files:**
+
 - Move ke `src/renderer/features/terminal/`: `Terminal.tsx`, `TerminalLayer.tsx`, `ShellPicker.tsx`, `SearchPanel.tsx`
 - Move ke `src/renderer/features/workspace/`: `Workspace.tsx` (ramping), `WorkspaceTab.tsx`, `WorkspaceTabBar.tsx` (baru), `SidePanelHost.tsx` (baru), `WebPreview.tsx`
 - Move ke `src/renderer/features/editor/`: `CodeEditor.tsx` (+ index), `RemoteEditorWrapper.tsx` (potong dari Workspace.tsx ~720–768)
@@ -1074,6 +1194,7 @@ git commit -m "refactor: split aiStore into features/ai slice"
 - Modify: `src/renderer/App.tsx` (composition root), `Workspace.tsx`
 
 **Interfaces:**
+
 - Consumes: semua feature sebelumnya.
 - Produces: struktur final renderer §3 spec; setiap feature punya `index.ts`.
 
@@ -1103,11 +1224,13 @@ git commit -m "refactor: finalize feature slices and slim Workspace composition"
 ### Task 14: Rust — split `ssh.rs` + cargo test + fmt/clippy gate
 
 **Files:**
+
 - Convert: `src-tauri/src/modules/ssh.rs` → `src-tauri/src/modules/ssh/`
   - `mod.rs` (re-export publik), `types.rs`, `storage.rs`, `command_builder.rs`, `trust.rs`, `connection.rs`, `sftp.rs`, `secrets.rs`
 - Modify: `config/max-lines-baseline.txt` (hapus entri ssh.rs)
 
 **Interfaces:**
+
 - Produces: path publik TIDAK berubah — `modules::ssh::ssh_list` dkk. tetap resolve via re-export `mod.rs`, sehingga `lib.rs` (invoke_handler) tidak perlu diubah.
 
 - [ ] **Step 1: Tulis test characterization dulu** — tambah di calon `command_builder.rs` (test inline `#[cfg(test)]`):
@@ -1153,6 +1276,7 @@ mkdir src-tauri/src/modules/ssh && git mv src-tauri/src/modules/ssh.rs src-tauri
 ```
 
 Pindahkan berdasarkan tanggung jawab (baris pendekatan):
+
 - `types.rs`: struct/enum baris ~30–167
 - `storage.rs`: path helpers ~12–26 + `ssh_list/ssh_save/ssh_list_global/ssh_save_global` ~169–211 + load/save known-hosts ~307–316
 - `command_builder.rs`: `shell_quote` + `ssh_build_command` + `ssh_build_command_args` ~213–291
@@ -1186,11 +1310,13 @@ git commit -m "refactor: split ssh.rs into focused submodules with tests"
 ### Task 15: Rust — split `remote/server.rs` + cargo test
 
 **Files:**
+
 - Modify: `src-tauri/src/modules/remote/server.rs` (ramping), `src-tauri/src/modules/remote/mod.rs`
 - Create di `src-tauri/src/modules/remote/`: `state.rs`, `commands.rs`, `http.rs`, `websocket.rs`, `pty_bridge.rs`, `wol.rs`, `power.rs`, `tailscale.rs`
 - Modify: `config/max-lines-baseline.txt`
 
 **Interfaces:**
+
 - Produces: `RemoteAccessState` & tauri commands tetap resolve dari `modules::remote` (re-export via `mod.rs` — lib.rs tidak berubah).
 
 - [ ] **Step 1: Tulis test dulu (failing)** — di `wol.rs`:
@@ -1260,10 +1386,12 @@ git commit -m "refactor: split remote server.rs into focused submodules with tes
 ### Task 16: Perketat ratchet, bersihkan legacy, finalisasi docs
 
 **Files:**
+
 - Modify: `config/max-lines-baseline.txt`, `README.md` (bagian Project Structure), `AGENTS.md` (final pass)
 - Verify: semua kriteria sukses spec §11
 
 **Interfaces:**
+
 - Consumes: hasil Task 1–15.
 - Produces: keadaan final Phase 1 yang releasable.
 

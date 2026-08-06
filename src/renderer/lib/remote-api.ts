@@ -38,7 +38,10 @@ let _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let _lastConnectUsedToken = false;
 
 type RemoteConnectionStatus = "connected" | "connecting" | "reconnecting" | "disconnected";
-type StatusListener = (status: { status: RemoteConnectionStatus; latencyMs: number | null }) => void;
+type StatusListener = (status: {
+	status: RemoteConnectionStatus;
+	latencyMs: number | null;
+}) => void;
 const statusListeners = new Set<StatusListener>();
 let _connectionStatus: RemoteConnectionStatus = "disconnected";
 
@@ -362,7 +365,9 @@ export const terminal = {
 
 	onData: (callback: (id: string, data: string) => void): (() => void) => {
 		terminalDataListeners.add(callback);
-		return () => { terminalDataListeners.delete(callback); };
+		return () => {
+			terminalDataListeners.delete(callback);
+		};
 	},
 };
 
@@ -470,7 +475,10 @@ export const ssh = {
 	saveGlobal: (_connections: SSHConnection[]): Promise<void> => Promise.resolve(),
 	buildCommand: (_connection: SSHConnection): Promise<string> => Promise.resolve(""),
 	buildCommandArgs: (_connection: SSHConnection): Promise<string[]> => Promise.resolve([]),
-	testConnection: (_connection: SSHConnection, _password?: string): Promise<SSHConnectionTestResult> =>
+	testConnection: (
+		_connection: SSHConnection,
+		_password?: string,
+	): Promise<SSHConnectionTestResult> =>
 		Promise.resolve({ success: false, error: "Not available in remote mode" } as any),
 	setSecret: (_key: string, _value: string): Promise<void> => Promise.resolve(),
 	getSecret: (_key: string): Promise<string | null> => Promise.resolve(null),
@@ -478,7 +486,8 @@ export const ssh = {
 	listKnownHosts: (): Promise<SSHKnownHost[]> => Promise.resolve([]),
 	trustHost: (_host: string, _port: number, _fp: string): Promise<void> => Promise.resolve(),
 	forgetHost: (_host: string, _port: number): Promise<void> => Promise.resolve(),
-	sftpList: (_c: SSHConnection, _p: string, _pw?: string): Promise<SFTPEntry[]> => Promise.resolve([]),
+	sftpList: (_c: SSHConnection, _p: string, _pw?: string): Promise<SFTPEntry[]> =>
+		Promise.resolve([]),
 	sftpDownload: (): Promise<void> => Promise.reject(new Error("Not available")),
 	sftpUpload: (): Promise<void> => Promise.reject(new Error("Not available")),
 	sftpRead: (_c: SSHConnection, _p: string, _pw?: string): Promise<string> => Promise.resolve(""),
@@ -495,7 +504,14 @@ export const ssh = {
 
 export const git = {
 	status: (_projectPath: string): Promise<GitStatus> =>
-		Promise.resolve({ branch: "", ahead: 0, behind: 0, staged: 0, modified: 0, untracked: 0 } as any),
+		Promise.resolve({
+			branch: "",
+			ahead: 0,
+			behind: 0,
+			staged: 0,
+			modified: 0,
+			untracked: 0,
+		} as any),
 	changedFiles: (_projectPath: string): Promise<any[]> => Promise.resolve([]),
 	diff: (): Promise<any> => Promise.resolve(null),
 	diffUntracked: (): Promise<any> => Promise.resolve(null),
@@ -620,31 +636,35 @@ export const remote = {
 	onStatus: (cb: StatusListener) => {
 		statusListeners.add(cb);
 		cb({ status: _connectionStatus, latencyMs: _latencyMs });
-		return () => { statusListeners.delete(cb); };
+		return () => {
+			statusListeners.delete(cb);
+		};
 	},
-	start: (): Promise<RemoteStatus> => Promise.resolve({
-		isRunning: true,
-		port: parseInt(window.location.port) || 9876,
-		pin: "------",
-		localIp: window.location.hostname,
-		connectedClients: 1,
-		clients: [],
-		loginUrl: null,
-		tailscaleIp: null,
-		tailscaleLoginUrl: null,
-	}),
+	start: (): Promise<RemoteStatus> =>
+		Promise.resolve({
+			isRunning: true,
+			port: parseInt(window.location.port) || 9876,
+			pin: "------",
+			localIp: window.location.hostname,
+			connectedClients: 1,
+			clients: [],
+			loginUrl: null,
+			tailscaleIp: null,
+			tailscaleLoginUrl: null,
+		}),
 	stop: () => Promise.resolve(),
-	status: (): Promise<RemoteStatus> => Promise.resolve({
-		isRunning: true,
-		port: parseInt(window.location.port) || 9876,
-		pin: "------",
-		localIp: window.location.hostname,
-		connectedClients: 1,
-		clients: [],
-		loginUrl: null,
-		tailscaleIp: null,
-		tailscaleLoginUrl: null,
-	}),
+	status: (): Promise<RemoteStatus> =>
+		Promise.resolve({
+			isRunning: true,
+			port: parseInt(window.location.port) || 9876,
+			pin: "------",
+			localIp: window.location.hostname,
+			connectedClients: 1,
+			clients: [],
+			loginUrl: null,
+			tailscaleIp: null,
+			tailscaleLoginUrl: null,
+		}),
 	regeneratePin: () => Promise.resolve("------"),
 	lockHost: (): Promise<void> => sendCommand<void>({ ch: "cmd_power", action: "lock" }),
 	sleepHost: (): Promise<void> => sendCommand<void>({ ch: "cmd_power", action: "sleep" }),

@@ -18,14 +18,7 @@ import {
 	Undo2,
 	X,
 } from "lucide-react";
-import {
-	memo,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GitChangedFile, GitDiffResult } from "../../shared/types";
 import ConfirmDialog from "./ConfirmDialog";
 import DiffModal, { type DiffFileContext } from "./DiffModal";
@@ -124,12 +117,7 @@ function groupFiles(files: GitChangedFile[]): GroupedFiles {
 		const y = file.workTreeStatus as string;
 
 		// Conflict detection
-		if (
-			x === "U" ||
-			y === "U" ||
-			(x === "A" && y === "A") ||
-			(x === "D" && y === "D")
-		) {
+		if (x === "U" || y === "U" || (x === "A" && y === "A") || (x === "D" && y === "D")) {
 			grouped.conflicted.push(file);
 			continue;
 		}
@@ -171,8 +159,7 @@ function getStatusLabel(status: string): string {
 }
 
 function getStatusIcon(status: string, group: FileGroup) {
-	if (group === "untracked")
-		return <FileQuestion size={12} className="text-connexio-text-muted" />;
+	if (group === "untracked") return <FileQuestion size={12} className="text-connexio-text-muted" />;
 	switch (status) {
 		case "M":
 			return <FileCode size={12} className="text-yellow-400" />;
@@ -212,11 +199,7 @@ const MESSAGE_AUTO_HIDE_MS = 4000;
 // Filter helper
 // ============================================
 
-function filterFiles(
-	files: GitChangedFile[],
-	query: string,
-	group: FileGroup,
-): GitChangedFile[] {
+function filterFiles(files: GitChangedFile[], query: string, group: FileGroup): GitChangedFile[] {
 	const q = query.trim().toLowerCase();
 	if (!q) return files;
 
@@ -269,9 +252,7 @@ const ChangedFileItem = memo(function ChangedFileItem({
 	onMessage,
 }: FileItemProps) {
 	const key = cacheKey(projectPath, group, file.path);
-	const [diff, setDiff] = useState<GitDiffResult | null>(
-		() => diffCache.get(key) ?? null,
-	);
+	const [diff, setDiff] = useState<GitDiffResult | null>(() => diffCache.get(key) ?? null);
 	const [loading, setLoading] = useState(false);
 	const [discardConfirm, setDiscardConfirm] = useState(false);
 	const [actionLoading, setActionLoading] = useState(false);
@@ -290,16 +271,9 @@ const ChangedFileItem = memo(function ChangedFileItem({
 		try {
 			let result: GitDiffResult;
 			if (group === "untracked") {
-				result = await window.connexio.git.diffUntracked(
-					projectPath,
-					file.path,
-				);
+				result = await window.connexio.git.diffUntracked(projectPath, file.path);
 			} else {
-				result = await window.connexio.git.diff(
-					projectPath,
-					file.path,
-					group === "staged",
-				);
+				result = await window.connexio.git.diff(projectPath, file.path, group === "staged");
 			}
 			diffCache.set(key, result);
 			trimDiffCache(projectPath);
@@ -366,9 +340,7 @@ const ChangedFileItem = memo(function ChangedFileItem({
 				role="button"
 				tabIndex={0}
 				className={`group flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded mx-1 ${
-					isExpanded
-						? "bg-connexio-bg-tertiary/80"
-						: "hover:bg-white/[0.04]"
+					isExpanded ? "bg-connexio-bg-tertiary/80" : "hover:bg-white/[0.04]"
 				}`}
 				onClick={handleToggle}
 				onKeyDown={(e) => {
@@ -488,19 +460,16 @@ const ChangedFileItem = memo(function ChangedFileItem({
 							Unable to load diff
 						</div>
 					)}
-					{diff &&
-						!diff.isBinary &&
-						!diff.isTooLarge &&
-						diff.hunks.length > 0 && (
-							<button
-								onClick={onMaximize}
-								className="w-full px-2 py-1 text-[10px] text-connexio-text-muted hover:text-connexio-accent hover:bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors flex items-center justify-center gap-1"
-								type="button"
-							>
-								<Maximize2 size={9} />
-								Open full-screen viewer
-							</button>
-						)}
+					{diff && !diff.isBinary && !diff.isTooLarge && diff.hunks.length > 0 && (
+						<button
+							onClick={onMaximize}
+							className="w-full px-2 py-1 text-[10px] text-connexio-text-muted hover:text-connexio-accent hover:bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors flex items-center justify-center gap-1"
+							type="button"
+						>
+							<Maximize2 size={9} />
+							Open full-screen viewer
+						</button>
+					)}
 				</div>
 			)}
 
@@ -546,17 +515,11 @@ function SkeletonList() {
 
 export default function SourcePanel({ projectPath }: Props) {
 	// Seed from cache to avoid flash of empty state on tab switch
-	const [files, setFiles] = useState<GitChangedFile[]>(
-		() => filesCache.get(projectPath) ?? [],
-	);
-	const [isInitialLoad, setIsInitialLoad] = useState(
-		() => !filesCache.has(projectPath),
-	);
+	const [files, setFiles] = useState<GitChangedFile[]>(() => filesCache.get(projectPath) ?? []);
+	const [isInitialLoad, setIsInitialLoad] = useState(() => !filesCache.has(projectPath));
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
-	const [collapsedGroups, setCollapsedGroups] = useState<Set<FileGroup>>(
-		new Set(),
-	);
+	const [collapsedGroups, setCollapsedGroups] = useState<Set<FileGroup>>(new Set());
 	const [visibleLimits, setVisibleLimits] = useState<Record<FileGroup, number>>({
 		staged: INITIAL_VISIBLE_FILES_PER_GROUP,
 		modified: INITIAL_VISIBLE_FILES_PER_GROUP,
@@ -716,9 +679,15 @@ export default function SourcePanel({ projectPath }: Props) {
 	}, [grouped, filterQuery]);
 
 	const totalChanges =
-		grouped.staged.length + grouped.modified.length + grouped.untracked.length + grouped.conflicted.length;
+		grouped.staged.length +
+		grouped.modified.length +
+		grouped.untracked.length +
+		grouped.conflicted.length;
 	const filteredTotal =
-		filteredGrouped.staged.length + filteredGrouped.modified.length + filteredGrouped.untracked.length + filteredGrouped.conflicted.length;
+		filteredGrouped.staged.length +
+		filteredGrouped.modified.length +
+		filteredGrouped.untracked.length +
+		filteredGrouped.conflicted.length;
 
 	const modalFiles = useMemo<DiffFileContext[]>(() => {
 		return [
@@ -730,7 +699,12 @@ export default function SourcePanel({ projectPath }: Props) {
 				group: "untracked" as const,
 			})),
 		];
-	}, [filteredGrouped.conflicted, filteredGrouped.staged, filteredGrouped.modified, filteredGrouped.untracked]);
+	}, [
+		filteredGrouped.conflicted,
+		filteredGrouped.staged,
+		filteredGrouped.modified,
+		filteredGrouped.untracked,
+	]);
 
 	const toggleFile = useCallback((key: string) => {
 		setExpandedFiles((prev) => {
@@ -804,9 +778,7 @@ export default function SourcePanel({ projectPath }: Props) {
 
 	const openModal = useCallback(
 		(file: GitChangedFile, group: FileGroup) => {
-			const idx = modalFiles.findIndex(
-				(f) => f.file.path === file.path && f.group === group,
-			);
+			const idx = modalFiles.findIndex((f) => f.file.path === file.path && f.group === group);
 			setModalInitialIndex(idx >= 0 ? idx : 0);
 			setModalOpen(true);
 		},
@@ -814,20 +786,13 @@ export default function SourcePanel({ projectPath }: Props) {
 	);
 
 	// Stable handlers per (group, path) for memoized item
-	const makeToggle = useCallback(
-		(key: string) => () => toggleFile(key),
-		[toggleFile],
-	);
+	const makeToggle = useCallback((key: string) => () => toggleFile(key), [toggleFile]);
 	const makeMaximize = useCallback(
 		(file: GitChangedFile, group: FileGroup) => () => openModal(file, group),
 		[openModal],
 	);
 
-	const renderGroup = (
-		group: FileGroup,
-		label: string,
-		items: GitChangedFile[],
-	) => {
+	const renderGroup = (group: FileGroup, label: string, items: GitChangedFile[]) => {
 		if (items.length === 0) return null;
 		const isCollapsed = collapsedGroups.has(group);
 		const visibleLimit = visibleLimits[group];
@@ -849,20 +814,30 @@ export default function SourcePanel({ projectPath }: Props) {
 					}}
 				>
 					{isCollapsed ? (
-						<ChevronRight size={11} className={group === "conflicted" ? "text-red-400" : "text-connexio-text-muted"} />
+						<ChevronRight
+							size={11}
+							className={group === "conflicted" ? "text-red-400" : "text-connexio-text-muted"}
+						/>
 					) : (
-						<ChevronDown size={11} className={group === "conflicted" ? "text-red-400" : "text-connexio-text-muted"} />
+						<ChevronDown
+							size={11}
+							className={group === "conflicted" ? "text-red-400" : "text-connexio-text-muted"}
+						/>
 					)}
-					<span className={`text-[10px] font-semibold uppercase tracking-wider flex-1 ${
-						group === "conflicted" ? "text-red-300" : "text-connexio-text-secondary"
-					}`}>
+					<span
+						className={`text-[10px] font-semibold uppercase tracking-wider flex-1 ${
+							group === "conflicted" ? "text-red-300" : "text-connexio-text-secondary"
+						}`}
+					>
 						{label}
 					</span>
-					<span className={`text-[10px] px-1.5 rounded-full ${
-						group === "conflicted"
-							? "text-red-300 bg-red-500/15"
-							: "text-connexio-text-muted bg-connexio-bg-tertiary/80"
-					}`}>
+					<span
+						className={`text-[10px] px-1.5 rounded-full ${
+							group === "conflicted"
+								? "text-red-300 bg-red-500/15"
+								: "text-connexio-text-muted bg-connexio-bg-tertiary/80"
+						}`}
+					>
 						{items.length}
 					</span>
 
@@ -918,7 +893,8 @@ export default function SourcePanel({ projectPath }: Props) {
 								className="mx-2 my-1 w-[calc(100%-1rem)] rounded  px-2 py-1.5 text-[10px] text-connexio-text-muted hover:border-connexio-accent/50 hover:text-connexio-accent hover:bg-white/[0.04] transition-colors"
 								type="button"
 							>
-								Show {Math.min(hiddenCount, LOAD_MORE_FILES_STEP)} more of {hiddenCount} hidden files
+								Show {Math.min(hiddenCount, LOAD_MORE_FILES_STEP)} more of {hiddenCount} hidden
+								files
 							</button>
 						)}
 					</div>
@@ -932,7 +908,11 @@ export default function SourcePanel({ projectPath }: Props) {
 			<div className="flex h-full flex-col bg-connexio-bg-secondary/35">
 				{/* Git status bar */}
 				<div className="px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] relative overflow-visible">
-					<GitStatusBar projectPath={projectPath} onMessage={showMessage} onRefresh={handleRefresh} />
+					<GitStatusBar
+						projectPath={projectPath}
+						onMessage={showMessage}
+						onRefresh={handleRefresh}
+					/>
 				</div>
 
 				{/* Tab switcher: Changes / History */}
@@ -984,186 +964,183 @@ export default function SourcePanel({ projectPath }: Props) {
 							onRefresh={handleRefresh}
 						/>
 
-				<div className="flex items-center gap-1 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
-					<span className="text-[10px] text-connexio-text-muted flex-1">
-						{filteredTotal !== totalChanges && filterQuery
-							? `${filteredTotal} of ${totalChanges} files`
-							: `${totalChanges} file${totalChanges !== 1 ? "s" : ""}`}
-					</span>
-					<button
-						onClick={() => {
-							setShowFilter(!showFilter);
-							if (!showFilter) {
-								setTimeout(() => filterInputRef.current?.focus(), 0);
-							} else {
-								setFilterQuery("");
-							}
-						}}
-						className={`p-1 rounded transition-colors ${
-							showFilter
-								? "bg-connexio-accent/10 text-connexio-accent"
-								: "hover:bg-white/[0.04] text-connexio-text-muted"
-						}`}
-						title="Filter files (Ctrl+F)"
-						type="button"
-					>
-						<Search size={11} />
-					</button>
-					<button
-						onClick={handleRefresh}
-						className="p-1 rounded hover:bg-white/[0.04] transition-colors"
-						title="Refresh"
-						type="button"
-						disabled={isRefreshing}
-					>
-						<RefreshCw
-							size={11}
-							className={`text-connexio-text-muted ${isRefreshing ? "animate-spin" : ""}`}
-						/>
-					</button>
-					{grouped.modified.length + grouped.untracked.length > 0 && (
-						<button
-							onClick={handleStageAll}
-							className="p-1 rounded hover:bg-white/[0.04] transition-colors"
-							title="Stage all changes"
-							type="button"
-							disabled={globalActionLoading === "stage-all"}
-						>
-							{globalActionLoading === "stage-all" ? (
-								<Loader2 size={11} className="text-green-400 animate-spin" />
-							) : (
-								<Plus size={11} className="text-green-400" />
-							)}
-						</button>
-					)}
-					{grouped.staged.length > 0 && (
-						<button
-							onClick={handleUnstageAll}
-							className="p-1 rounded hover:bg-white/[0.04] transition-colors"
-							title="Unstage all"
-							type="button"
-							disabled={globalActionLoading === "unstage-all"}
-						>
-							{globalActionLoading === "unstage-all" ? (
-								<Loader2 size={11} className="text-yellow-400 animate-spin" />
-							) : (
-								<RotateCcw size={11} className="text-yellow-400" />
-							)}
-						</button>
-					)}
-				</div>
-
-				{/* Filter bar */}
-				{showFilter && (
-					<div className="flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] bg-connexio-bg-primary">
-						<Search size={10} className="text-connexio-text-muted flex-shrink-0" />
-						<input
-							ref={filterInputRef}
-							type="text"
-							value={filterQuery}
-							onChange={(e) => setFilterQuery(e.target.value)}
-							placeholder="Filter files... (path, name, M/A/D/?)"
-							className="flex-1 bg-transparent text-[11px] text-connexio-text outline-none placeholder:text-connexio-text-muted/60"
-							onKeyDown={(e) => {
-								if (e.key === "Escape") {
-									setShowFilter(false);
-									setFilterQuery("");
-								}
-							}}
-						/>
-						{filterQuery && (
-							<span className="text-[9px] text-connexio-text-muted tabular-nums">
-								{filteredTotal}/{totalChanges}
+						<div className="flex items-center gap-1 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
+							<span className="text-[10px] text-connexio-text-muted flex-1">
+								{filteredTotal !== totalChanges && filterQuery
+									? `${filteredTotal} of ${totalChanges} files`
+									: `${totalChanges} file${totalChanges !== 1 ? "s" : ""}`}
 							</span>
-						)}
-						<button
-							onClick={() => {
-								setShowFilter(false);
-								setFilterQuery("");
-							}}
-							className="p-0.5 rounded hover:bg-white/[0.04] transition-colors"
-							type="button"
-						>
-							<X size={10} className="text-connexio-text-muted" />
-						</button>
-					</div>
-				)}
+							<button
+								onClick={() => {
+									setShowFilter(!showFilter);
+									if (!showFilter) {
+										setTimeout(() => filterInputRef.current?.focus(), 0);
+									} else {
+										setFilterQuery("");
+									}
+								}}
+								className={`p-1 rounded transition-colors ${
+									showFilter
+										? "bg-connexio-accent/10 text-connexio-accent"
+										: "hover:bg-white/[0.04] text-connexio-text-muted"
+								}`}
+								title="Filter files (Ctrl+F)"
+								type="button"
+							>
+								<Search size={11} />
+							</button>
+							<button
+								onClick={handleRefresh}
+								className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+								title="Refresh"
+								type="button"
+								disabled={isRefreshing}
+							>
+								<RefreshCw
+									size={11}
+									className={`text-connexio-text-muted ${isRefreshing ? "animate-spin" : ""}`}
+								/>
+							</button>
+							{grouped.modified.length + grouped.untracked.length > 0 && (
+								<button
+									onClick={handleStageAll}
+									className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+									title="Stage all changes"
+									type="button"
+									disabled={globalActionLoading === "stage-all"}
+								>
+									{globalActionLoading === "stage-all" ? (
+										<Loader2 size={11} className="text-green-400 animate-spin" />
+									) : (
+										<Plus size={11} className="text-green-400" />
+									)}
+								</button>
+							)}
+							{grouped.staged.length > 0 && (
+								<button
+									onClick={handleUnstageAll}
+									className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+									title="Unstage all"
+									type="button"
+									disabled={globalActionLoading === "unstage-all"}
+								>
+									{globalActionLoading === "unstage-all" ? (
+										<Loader2 size={11} className="text-yellow-400 animate-spin" />
+									) : (
+										<RotateCcw size={11} className="text-yellow-400" />
+									)}
+								</button>
+							)}
+						</div>
 
-				{/* Inline message */}
-				{message && (
-					<div
-						className={`flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] text-[10px] ${
-							message.type === "error"
-								? "bg-red-500/10 text-red-300"
-								: message.type === "success"
-									? "bg-green-500/10 text-green-300"
-									: "bg-blue-500/10 text-blue-300"
-						}`}
-					>
-						{message.type === "error" ? (
-							<AlertCircle size={10} className="flex-shrink-0" />
-						) : message.type === "success" ? (
-							<Check size={10} className="flex-shrink-0" />
-						) : null}
-						<span className="flex-1 truncate">{message.text}</span>
-						<button
-							onClick={dismissMessage}
-							className="p-0.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
-							type="button"
-						>
-							<X size={9} />
-						</button>
-					</div>
-				)}
-
-				<div className="flex-1 overflow-y-auto py-1">
-					{isInitialLoad ? (
-						<SkeletonList />
-					) : totalChanges === 0 ? (
-						<div className="mx-3 my-6 rounded-2xl bg-white/[0.025] px-4 py-8 text-center">
-							<div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-green-500/10 text-green-300 shadow-[inset_2px_0_0_rgba(74,222,128,0.75)]">
-								<FileCode size={22} />
+						{/* Filter bar */}
+						{showFilter && (
+							<div className="flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] bg-connexio-bg-primary">
+								<Search size={10} className="text-connexio-text-muted flex-shrink-0" />
+								<input
+									ref={filterInputRef}
+									type="text"
+									value={filterQuery}
+									onChange={(e) => setFilterQuery(e.target.value)}
+									placeholder="Filter files... (path, name, M/A/D/?)"
+									className="flex-1 bg-transparent text-[11px] text-connexio-text outline-none placeholder:text-connexio-text-muted/60"
+									onKeyDown={(e) => {
+										if (e.key === "Escape") {
+											setShowFilter(false);
+											setFilterQuery("");
+										}
+									}}
+								/>
+								{filterQuery && (
+									<span className="text-[9px] text-connexio-text-muted tabular-nums">
+										{filteredTotal}/{totalChanges}
+									</span>
+								)}
+								<button
+									onClick={() => {
+										setShowFilter(false);
+										setFilterQuery("");
+									}}
+									className="p-0.5 rounded hover:bg-white/[0.04] transition-colors"
+									type="button"
+								>
+									<X size={10} className="text-connexio-text-muted" />
+								</button>
 							</div>
-							<p className="text-[12px] font-semibold text-connexio-text">
-								Working tree is clean
-							</p>
-							<p className="mx-auto mt-1 max-w-[240px] text-[10px] leading-4 text-connexio-text-muted">
-								No staged, modified, untracked, or conflicted files were detected.
-							</p>
-						</div>
-					) : filteredTotal === 0 && filterQuery ? (
-						<div className="flex flex-col items-center justify-center py-8 px-4">
-							<Search
-								size={20}
-								className="text-connexio-text-muted/30 mb-2"
-							/>
-							<p className="text-[11px] text-connexio-text-muted text-center">
-								No files match "{filterQuery}"
-							</p>
-						</div>
-					) : (
-						<>
-							{/* Conflict banner */}
-							{filteredGrouped.conflicted.length > 0 && (
-								<div className="mx-2 mt-1 mb-2 px-2.5 py-2 rounded-lg border-red-500/30 bg-red-500/5">
-									<div className="flex items-center gap-1.5 mb-1">
-										<AlertCircle size={11} className="text-red-400" />
-										<span className="text-[10px] font-semibold text-red-300">
-											Merge Conflicts ({filteredGrouped.conflicted.length})
-										</span>
+						)}
+
+						{/* Inline message */}
+						{message && (
+							<div
+								className={`flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] text-[10px] ${
+									message.type === "error"
+										? "bg-red-500/10 text-red-300"
+										: message.type === "success"
+											? "bg-green-500/10 text-green-300"
+											: "bg-blue-500/10 text-blue-300"
+								}`}
+							>
+								{message.type === "error" ? (
+									<AlertCircle size={10} className="flex-shrink-0" />
+								) : message.type === "success" ? (
+									<Check size={10} className="flex-shrink-0" />
+								) : null}
+								<span className="flex-1 truncate">{message.text}</span>
+								<button
+									onClick={dismissMessage}
+									className="p-0.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
+									type="button"
+								>
+									<X size={9} />
+								</button>
+							</div>
+						)}
+
+						<div className="flex-1 overflow-y-auto py-1">
+							{isInitialLoad ? (
+								<SkeletonList />
+							) : totalChanges === 0 ? (
+								<div className="mx-3 my-6 rounded-2xl bg-white/[0.025] px-4 py-8 text-center">
+									<div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-green-500/10 text-green-300 shadow-[inset_2px_0_0_rgba(74,222,128,0.75)]">
+										<FileCode size={22} />
 									</div>
-									<p className="text-[9px] text-red-300/70 leading-tight">
-										Resolve conflicts, then stage files and commit.
+									<p className="text-[12px] font-semibold text-connexio-text">
+										Working tree is clean
+									</p>
+									<p className="mx-auto mt-1 max-w-[240px] text-[10px] leading-4 text-connexio-text-muted">
+										No staged, modified, untracked, or conflicted files were detected.
 									</p>
 								</div>
+							) : filteredTotal === 0 && filterQuery ? (
+								<div className="flex flex-col items-center justify-center py-8 px-4">
+									<Search size={20} className="text-connexio-text-muted/30 mb-2" />
+									<p className="text-[11px] text-connexio-text-muted text-center">
+										No files match "{filterQuery}"
+									</p>
+								</div>
+							) : (
+								<>
+									{/* Conflict banner */}
+									{filteredGrouped.conflicted.length > 0 && (
+										<div className="mx-2 mt-1 mb-2 px-2.5 py-2 rounded-lg border-red-500/30 bg-red-500/5">
+											<div className="flex items-center gap-1.5 mb-1">
+												<AlertCircle size={11} className="text-red-400" />
+												<span className="text-[10px] font-semibold text-red-300">
+													Merge Conflicts ({filteredGrouped.conflicted.length})
+												</span>
+											</div>
+											<p className="text-[9px] text-red-300/70 leading-tight">
+												Resolve conflicts, then stage files and commit.
+											</p>
+										</div>
+									)}
+									{renderGroup("conflicted", "Conflicts", filteredGrouped.conflicted)}
+									{renderGroup("staged", "Staged", filteredGrouped.staged)}
+									{renderGroup("modified", "Modified", filteredGrouped.modified)}
+									{renderGroup("untracked", "Untracked", filteredGrouped.untracked)}
+								</>
 							)}
-							{renderGroup("conflicted", "Conflicts", filteredGrouped.conflicted)}
-							{renderGroup("staged", "Staged", filteredGrouped.staged)}
-							{renderGroup("modified", "Modified", filteredGrouped.modified)}
-							{renderGroup("untracked", "Untracked", filteredGrouped.untracked)}
-						</>
-					)}
-				</div>
+						</div>
 					</div>
 				)}
 			</div>

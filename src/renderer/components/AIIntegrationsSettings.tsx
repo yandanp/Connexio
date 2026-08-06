@@ -1,10 +1,4 @@
-import {
-	AlertCircle,
-	CheckCircle2,
-	Download,
-	Loader2,
-	Trash2,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Loader2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AIProvider } from "../../shared/types";
 
@@ -69,22 +63,17 @@ export default function AIIntegrationsSettings() {
 		return (
 			<div className="flex items-center gap-2 py-4">
 				<Loader2 size={13} className="animate-spin text-connexio-text-muted" />
-				<span className="text-xs text-connexio-text-muted">
-					Detecting AI agents...
-				</span>
+				<span className="text-xs text-connexio-text-muted">Detecting AI agents...</span>
 			</div>
 		);
 	}
 
 	return (
 		<div className="space-y-3">
-			<h3 className="section-label">
-				AI Agent Integrations
-			</h3>
+			<h3 className="section-label">AI Agent Integrations</h3>
 			<p className="text-[10px] text-connexio-text-muted leading-relaxed">
-				Install notification hooks to get alerted when AI agents finish
-				processing. Your existing settings are preserved — hooks are added
-				non-destructively.
+				Install notification hooks to get alerted when AI agents finish processing. Your existing
+				settings are preserved — hooks are added non-destructively.
 			</p>
 
 			{/* Provider list */}
@@ -106,9 +95,7 @@ export default function AIIntegrationsSettings() {
 								}`}
 							/>
 							<div>
-								<p className="text-xs font-medium text-connexio-text">
-									{provider.name}
-								</p>
+								<p className="text-xs font-medium text-connexio-text">{provider.name}</p>
 								<p className="text-[10px] text-connexio-text-muted">
 									{!provider.isInstalled
 										? "Not detected"
@@ -123,10 +110,7 @@ export default function AIIntegrationsSettings() {
 						{provider.isInstalled && (
 							<div>
 								{actionLoading === provider.id ? (
-									<Loader2
-										size={13}
-										className="animate-spin text-connexio-text-muted"
-									/>
+									<Loader2 size={13} className="animate-spin text-connexio-text-muted" />
 								) : provider.isHookInstalled ? (
 									<button
 										onClick={() => handleUninstall(provider.id)}

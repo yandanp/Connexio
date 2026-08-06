@@ -1,5 +1,11 @@
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
+import {
+	EditorView,
+	keymap,
+	lineNumbers,
+	highlightActiveLine,
+	highlightActiveLineGutter,
+} from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
@@ -16,33 +22,66 @@ import { useThemeStore } from "../../stores/themeStore";
 
 function buildEditorTheme(appTheme: { colors: any; terminal: any } | null) {
 	if (!appTheme) {
-		return EditorView.theme({
-			"&": { backgroundColor: "#0f1117", color: "#e2e8f0", height: "100%", fontSize: "12px" },
-			".cm-content": { fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace", caretColor: "#7c3aed" },
-			".cm-cursor": { borderLeftColor: "#7c3aed" },
-			".cm-activeLine": { backgroundColor: "#1e203020" },
-			".cm-activeLineGutter": { backgroundColor: "#1e203040" },
-			".cm-gutters": { backgroundColor: "#0f1117", color: "#64748b", border: "none", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px" },
-			".cm-scroller": { overflow: "auto" },
-			"&.cm-focused .cm-selectionBackground, .cm-selectionBackground": { backgroundColor: "#7c3aed30" },
-			".cm-selectionMatch": { backgroundColor: "#7c3aed20" },
-		}, { dark: true });
+		return EditorView.theme(
+			{
+				"&": { backgroundColor: "#0f1117", color: "#e2e8f0", height: "100%", fontSize: "12px" },
+				".cm-content": {
+					fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
+					caretColor: "#7c3aed",
+				},
+				".cm-cursor": { borderLeftColor: "#7c3aed" },
+				".cm-activeLine": { backgroundColor: "#1e203020" },
+				".cm-activeLineGutter": { backgroundColor: "#1e203040" },
+				".cm-gutters": {
+					backgroundColor: "#0f1117",
+					color: "#64748b",
+					border: "none",
+					fontFamily: "'JetBrains Mono', monospace",
+					fontSize: "11px",
+				},
+				".cm-scroller": { overflow: "auto" },
+				"&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+					backgroundColor: "#7c3aed30",
+				},
+				".cm-selectionMatch": { backgroundColor: "#7c3aed20" },
+			},
+			{ dark: true },
+		);
 	}
 
 	const { colors, terminal } = appTheme;
 	const isDark = appTheme && (appTheme as any).type !== "light";
 
-	return EditorView.theme({
-		"&": { backgroundColor: terminal.background, color: terminal.foreground, height: "100%", fontSize: "12px" },
-		".cm-content": { fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace", caretColor: colors.accentColor },
-		".cm-cursor": { borderLeftColor: colors.accentColor },
-		".cm-activeLine": { backgroundColor: `${colors.bgTertiary}40` },
-		".cm-activeLineGutter": { backgroundColor: `${colors.bgTertiary}60` },
-		".cm-gutters": { backgroundColor: terminal.background, color: colors.textMuted, border: "none", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px" },
-		".cm-scroller": { overflow: "auto" },
-		"&.cm-focused .cm-selectionBackground, .cm-selectionBackground": { backgroundColor: `${colors.accentColor}30` },
-		".cm-selectionMatch": { backgroundColor: `${colors.accentColor}20` },
-	}, { dark: isDark !== false });
+	return EditorView.theme(
+		{
+			"&": {
+				backgroundColor: terminal.background,
+				color: terminal.foreground,
+				height: "100%",
+				fontSize: "12px",
+			},
+			".cm-content": {
+				fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
+				caretColor: colors.accentColor,
+			},
+			".cm-cursor": { borderLeftColor: colors.accentColor },
+			".cm-activeLine": { backgroundColor: `${colors.bgTertiary}40` },
+			".cm-activeLineGutter": { backgroundColor: `${colors.bgTertiary}60` },
+			".cm-gutters": {
+				backgroundColor: terminal.background,
+				color: colors.textMuted,
+				border: "none",
+				fontFamily: "'JetBrains Mono', monospace",
+				fontSize: "11px",
+			},
+			".cm-scroller": { overflow: "auto" },
+			"&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+				backgroundColor: `${colors.accentColor}30`,
+			},
+			".cm-selectionMatch": { backgroundColor: `${colors.accentColor}20` },
+		},
+		{ dark: isDark !== false },
+	);
 }
 
 interface Props {
@@ -57,19 +96,39 @@ interface Props {
 function getLanguageExtension(filePath: string) {
 	const ext = filePath.split(".").pop()?.toLowerCase();
 	switch (ext) {
-		case "js": case "jsx": return javascript({ jsx: true });
-		case "ts": case "tsx": return javascript({ jsx: true, typescript: true });
-		case "json": return json();
-		case "html": case "htm": return html();
-		case "css": case "scss": return css();
-		case "md": case "mdx": return markdown();
-		case "py": return python();
-		case "rs": return rust();
-		default: return javascript();
+		case "js":
+		case "jsx":
+			return javascript({ jsx: true });
+		case "ts":
+		case "tsx":
+			return javascript({ jsx: true, typescript: true });
+		case "json":
+			return json();
+		case "html":
+		case "htm":
+			return html();
+		case "css":
+		case "scss":
+			return css();
+		case "md":
+		case "mdx":
+			return markdown();
+		case "py":
+			return python();
+		case "rs":
+			return rust();
+		default:
+			return javascript();
 	}
 }
 
-export default function CodeEditor({ filePath, onClose, onDirtyChange, loadContent, saveContent }: Props) {
+export default function CodeEditor({
+	filePath,
+	onClose,
+	onDirtyChange,
+	loadContent,
+	saveContent,
+}: Props) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const themeCompartment = useRef(new Compartment());
@@ -158,12 +217,15 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 				document.execCommand("copy");
 				break;
 			case "paste":
-				navigator.clipboard.readText().then((text) => {
-					if (text && view) {
-						const { from, to } = view.state.selection.main;
-						view.dispatch({ changes: { from, to, insert: text } });
-					}
-				}).catch(() => {});
+				navigator.clipboard
+					.readText()
+					.then((text) => {
+						if (text && view) {
+							const { from, to } = view.state.selection.main;
+							view.dispatch({ changes: { from, to, insert: text } });
+						}
+					})
+					.catch(() => {});
 				break;
 			case "selectAll":
 				view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
@@ -257,7 +319,8 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 
 		let destroyed = false;
 
-		const contentLoader = loadContentRef.current || (() => invoke<string>("explorer_read_file", { filePath }));
+		const contentLoader =
+			loadContentRef.current || (() => invoke<string>("explorer_read_file", { filePath }));
 		contentLoader()
 			.then((content) => {
 				if (destroyed || !containerRef.current) return;
@@ -310,7 +373,9 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 			<div className="flex items-center justify-between px-3 py-1.5 border-b border-connexio-border bg-connexio-bg-secondary">
 				<div className="flex items-center gap-2">
 					<span className="text-[11px] text-connexio-text font-medium">{fileName}</span>
-					{isDirty && <span className="w-2 h-2 rounded-full bg-connexio-accent" title="Unsaved changes" />}
+					{isDirty && (
+						<span className="w-2 h-2 rounded-full bg-connexio-accent" title="Unsaved changes" />
+					)}
 					{saveStatus && <span className="text-[10px] text-green-400">{saveStatus}</span>}
 				</div>
 				<div className="flex items-center gap-1">
@@ -336,10 +401,17 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 			</div>
 
 			{error && (
-				<div className="px-3 py-1.5 text-[11px] text-red-400 bg-red-500/10 border-b border-red-500/20">{error}</div>
+				<div className="px-3 py-1.5 text-[11px] text-red-400 bg-red-500/10 border-b border-red-500/20">
+					{error}
+				</div>
 			)}
 
-			<div ref={containerRef} className="flex-1 overflow-hidden" data-custom-context-menu="" onContextMenu={handleContextMenu} />
+			<div
+				ref={containerRef}
+				className="flex-1 overflow-hidden"
+				data-custom-context-menu=""
+				onContextMenu={handleContextMenu}
+			/>
 
 			{/* Editor context menu */}
 			{ctxMenu && (
@@ -363,11 +435,19 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 							"{fileName}" has unsaved changes. Save before closing?
 						</p>
 						{saving && (
-							<p className="text-[10px] text-connexio-accent mb-3 animate-pulse">Saving to remote server...</p>
+							<p className="text-[10px] text-connexio-accent mb-3 animate-pulse">
+								Saving to remote server...
+							</p>
 						)}
 						<div className="flex items-center justify-end gap-2">
 							<button
-								onClick={() => { const close = onClose; setShowCloseConfirm(false); viewRef.current?.destroy(); viewRef.current = null; setTimeout(close, 0); }}
+								onClick={() => {
+									const close = onClose;
+									setShowCloseConfirm(false);
+									viewRef.current?.destroy();
+									viewRef.current = null;
+									setTimeout(close, 0);
+								}}
 								className="px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-500/10 rounded transition-colors"
 								type="button"
 							>
@@ -386,10 +466,17 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 									const close = onClose;
 									// Race save against a timeout to prevent indefinite hang
 									const savePromise = saveRef.current();
-									const timeoutPromise = new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 15000));
-									const result = await Promise.race([savePromise.then(() => "done" as const), timeoutPromise]);
+									const timeoutPromise = new Promise<"timeout">((resolve) =>
+										setTimeout(() => resolve("timeout"), 15000),
+									);
+									const result = await Promise.race([
+										savePromise.then(() => "done" as const),
+										timeoutPromise,
+									]);
 									if (result === "timeout") {
-										setError("Save timed out. Click Discard to close without saving, or try again.");
+										setError(
+											"Save timed out. Click Discard to close without saving, or try again.",
+										);
 										setSaving(false);
 										return;
 									}
@@ -414,7 +501,15 @@ export default function CodeEditor({ filePath, onClose, onDirtyChange, loadConte
 
 // ─── Editor Context Menu ──────────────────────────────────────────────────────
 
-function EditorContextMenu({ x, y, onClose, onCut, onCopy, onPaste, onSelectAll }: {
+function EditorContextMenu({
+	x,
+	y,
+	onClose,
+	onCut,
+	onCopy,
+	onPaste,
+	onSelectAll,
+}: {
 	x: number;
 	y: number;
 	onClose: () => void;

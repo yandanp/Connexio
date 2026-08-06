@@ -1,4 +1,14 @@
-import { Code2, FileCode, Globe, GripVertical, HardDrive, Pencil, Server, Terminal, X } from "lucide-react";
+import {
+	Code2,
+	FileCode,
+	Globe,
+	GripVertical,
+	HardDrive,
+	Pencil,
+	Server,
+	Terminal,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ContextMenu from "./ContextMenu";
 
@@ -147,9 +157,16 @@ export default function WorkspaceTab({
 							? Terminal
 							: Code2;
 	const typeLabel = tabType === "remoteEditor" ? "remote editor" : tabType || "terminal";
-	const showStatus = status && tabType !== "editor" && tabType !== "remoteEditor" && tabType !== "preview";
+	const showStatus =
+		status && tabType !== "editor" && tabType !== "remoteEditor" && tabType !== "preview";
 	const statusLabel = status === "running" ? "Running" : status === "exited" ? "Exited" : "Ready";
-	const tooltip = [label, typeLabel, statusLabel, detail, splitCount && splitCount > 1 ? `${splitCount} panes` : null]
+	const tooltip = [
+		label,
+		typeLabel,
+		statusLabel,
+		detail,
+		splitCount && splitCount > 1 ? `${splitCount} panes` : null,
+	]
 		.filter(Boolean)
 		.join(" - ");
 
@@ -261,14 +278,20 @@ export default function WorkspaceTab({
 			)}
 
 			{splitCount && splitCount > 1 && !isEditing && (
-				<span className="rounded bg-white/[0.04] px-1 text-[9px] font-semibold text-connexio-text-muted" title={`${splitCount} panes`}>
+				<span
+					className="rounded bg-white/[0.04] px-1 text-[9px] font-semibold text-connexio-text-muted"
+					title={`${splitCount} panes`}
+				>
 					{splitCount}
 				</span>
 			)}
 
 			{/* Unsaved indicator dot */}
 			{isDirty && (
-				<span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-connexio-accent shadow-[0_0_10px_var(--accent-color)]" title="Unsaved changes" />
+				<span
+					className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-connexio-accent shadow-[0_0_10px_var(--accent-color)]"
+					title="Unsaved changes"
+				/>
 			)}
 
 			{/* Close button — always pinned to the right */}
@@ -339,11 +362,23 @@ function TabContextMenu({
 			dataAttribute="data-tab-context-menu"
 			items={[
 				{ icon: Pencil, label: "Rename", shortcut: "F2", onClick: onRename },
-				onRevealInExplorer ? { icon: FileCode, label: "Reveal in Explorer", onClick: onRevealInExplorer } : "separator",
+				onRevealInExplorer
+					? { icon: FileCode, label: "Reveal in Explorer", onClick: onRevealInExplorer }
+					: "separator",
 				"separator",
 				{ icon: X, label: "Close", shortcut: "Ctrl+W", onClick: onClose, disabled: !canClose },
-				{ icon: X, label: "Close Others", onClick: onCloseOthers ?? (() => {}), disabled: !onCloseOthers },
-				{ icon: X, label: "Close Tabs to Right", onClick: onCloseTabsToRight ?? (() => {}), disabled: !onCloseTabsToRight },
+				{
+					icon: X,
+					label: "Close Others",
+					onClick: onCloseOthers ?? (() => {}),
+					disabled: !onCloseOthers,
+				},
+				{
+					icon: X,
+					label: "Close Tabs to Right",
+					onClick: onCloseTabsToRight ?? (() => {}),
+					disabled: !onCloseTabsToRight,
+				},
 			]}
 		/>
 	);

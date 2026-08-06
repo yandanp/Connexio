@@ -77,11 +77,7 @@ export default function UpdateNotification() {
 	};
 
 	// Don't show for idle, checking, not-available, or dismissed
-	if (
-		state.status === "idle" ||
-		state.status === "checking" ||
-		state.status === "not-available"
-	) {
+	if (state.status === "idle" || state.status === "checking" || state.status === "not-available") {
 		return null;
 	}
 	if (dismissed && state.status !== "downloaded") {
@@ -94,14 +90,9 @@ export default function UpdateNotification() {
 			{state.status === "available" && (
 				<div className="p-3">
 					<div className="flex items-start gap-2">
-						<Rocket
-							size={16}
-							className="text-connexio-accent mt-0.5 flex-shrink-0"
-						/>
+						<Rocket size={16} className="text-connexio-accent mt-0.5 flex-shrink-0" />
 						<div className="flex-1 min-w-0">
-							<p className="text-xs font-semibold text-connexio-text">
-								Update Available
-							</p>
+							<p className="text-xs font-semibold text-connexio-text">Update Available</p>
 							<p className="text-[11px] text-connexio-text-secondary mt-0.5">
 								Version {state.version} is ready to download.
 							</p>
@@ -143,17 +134,10 @@ export default function UpdateNotification() {
 			{state.status === "downloading" && (
 				<div className="p-3">
 					<div className="flex items-center gap-2">
-						<RefreshCw
-							size={14}
-							className="text-connexio-accent animate-spin flex-shrink-0"
-						/>
+						<RefreshCw size={14} className="text-connexio-accent animate-spin flex-shrink-0" />
 						<div className="flex-1">
-							<p className="text-xs font-medium text-connexio-text">
-								Downloading update...
-							</p>
-							<p className="text-[10px] text-connexio-text-muted">
-								{Math.round(state.percent)}%
-							</p>
+							<p className="text-xs font-medium text-connexio-text">Downloading update...</p>
+							<p className="text-[10px] text-connexio-text-muted">{Math.round(state.percent)}%</p>
 						</div>
 					</div>
 					{/* Progress bar */}
@@ -170,14 +154,9 @@ export default function UpdateNotification() {
 			{state.status === "downloaded" && (
 				<div className="p-3">
 					<div className="flex items-start gap-2">
-						<Download
-							size={16}
-							className="text-green-400 mt-0.5 flex-shrink-0"
-						/>
+						<Download size={16} className="text-green-400 mt-0.5 flex-shrink-0" />
 						<div className="flex-1 min-w-0">
-							<p className="text-xs font-semibold text-connexio-text">
-								Update Ready
-							</p>
+							<p className="text-xs font-semibold text-connexio-text">Update Ready</p>
 							<p className="text-[11px] text-connexio-text-secondary mt-0.5">
 								Version {state.version} downloaded. Restart to apply.
 							</p>

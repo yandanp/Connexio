@@ -307,13 +307,11 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			window.connexio.terminal.write(terminalId, data);
 		});
 
-		const unsubscribe = window.connexio.terminal.onData(
-			(id: string, data: string) => {
-				if (id === terminalId) {
-					batchWrite(data);
-				}
-			},
-		);
+		const unsubscribe = window.connexio.terminal.onData((id: string, data: string) => {
+			if (id === terminalId) {
+				batchWrite(data);
+			}
+		});
 
 		// ResizeObserver is handled by useTerminalResizeV2; keep delayed initial fits
 		// here because the terminal instance is created inside this mount effect.
@@ -353,7 +351,11 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 
 			// 6. Dispose WebGL addon
 			if (webglAddon) {
-				try { webglAddon.dispose(); } catch (_e) { /* ignore */ }
+				try {
+					webglAddon.dispose();
+				} catch (_e) {
+					/* ignore */
+				}
 			}
 
 			// 7. Finally dispose xterm (after everything else is cleaned up)
@@ -438,9 +440,7 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 				xtermRef.current.options.fontFamily = state.settings.fontFamily;
 				xtermRef.current.options.cursorBlink = state.settings.cursorBlink;
 				xtermRef.current.options.cursorStyle = state.settings.cursorStyle;
-				xtermRef.current.options.scrollback = clampScrollback(
-					state.settings.scrollback,
-				);
+				xtermRef.current.options.scrollback = clampScrollback(state.settings.scrollback);
 				safeFit();
 			} catch (_e) {
 				// ignore
@@ -518,13 +518,28 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 						className="w-[160px] px-1.5 py-0.5 text-xs bg-connexio-bg-tertiary text-connexio-text border border-connexio-border rounded outline-none focus:border-connexio-accent"
 						placeholder="Search..."
 					/>
-					<button onClick={handleSearchPrev} className="p-0.5 rounded hover:bg-connexio-bg-tertiary" title="Previous (Shift+Enter)" type="button">
+					<button
+						onClick={handleSearchPrev}
+						className="p-0.5 rounded hover:bg-connexio-bg-tertiary"
+						title="Previous (Shift+Enter)"
+						type="button"
+					>
 						<span className="text-[10px] text-connexio-text-muted">↑</span>
 					</button>
-					<button onClick={handleSearchNext} className="p-0.5 rounded hover:bg-connexio-bg-tertiary" title="Next (Enter)" type="button">
+					<button
+						onClick={handleSearchNext}
+						className="p-0.5 rounded hover:bg-connexio-bg-tertiary"
+						title="Next (Enter)"
+						type="button"
+					>
 						<span className="text-[10px] text-connexio-text-muted">↓</span>
 					</button>
-					<button onClick={handleSearchClose} className="p-0.5 rounded hover:bg-connexio-bg-tertiary" title="Close (Esc)" type="button">
+					<button
+						onClick={handleSearchClose}
+						className="p-0.5 rounded hover:bg-connexio-bg-tertiary"
+						title="Close (Esc)"
+						type="button"
+					>
 						<XIcon size={11} className="text-connexio-text-muted" />
 					</button>
 				</div>

@@ -7,7 +7,7 @@ import Terminal from "./Terminal";
 
 /**
  * Renders ALL terminal/editor panes from ALL projects.
- * 
+ *
  * Key design: ALL terminals are rendered in a FLAT list with stable keys (terminalId).
  * Split layout is computed into absolute CSS bounds (top/left/width/height percentages).
  * Terminals never move in the React tree — only their CSS position changes.
@@ -54,17 +54,26 @@ export default function TerminalLayer() {
 				for (const pb of computePaneBounds(tab.splitLayout.root)) {
 					if (pb.kind === "terminal" && pb.terminalId) {
 						allPanes.push({
-							projectId, tabId: tab.id, paneId: pb.paneId,
-							kind: "terminal", terminalId: pb.terminalId,
-							bounds: pb, isVisible,
+							projectId,
+							tabId: tab.id,
+							paneId: pb.paneId,
+							kind: "terminal",
+							terminalId: pb.terminalId,
+							bounds: pb,
+							isVisible,
 							isActivePane: tab.splitLayout.activePaneId === pb.paneId,
 							isSplit: true,
 						});
 					} else if (pb.kind === "editor" && pb.filePath) {
 						allPanes.push({
-							projectId, tabId: tab.id, paneId: pb.paneId,
-							kind: "editor", terminalId: null, filePath: pb.filePath,
-							bounds: pb, isVisible,
+							projectId,
+							tabId: tab.id,
+							paneId: pb.paneId,
+							kind: "editor",
+							terminalId: null,
+							filePath: pb.filePath,
+							bounds: pb,
+							isVisible,
 							isActivePane: tab.splitLayout.activePaneId === pb.paneId,
 							isSplit: true,
 						});
@@ -89,10 +98,15 @@ export default function TerminalLayer() {
 				}
 			} else if (tab.terminalId) {
 				allPanes.push({
-					projectId, tabId: tab.id, paneId: tab.id,
-					kind: "terminal", terminalId: tab.terminalId,
+					projectId,
+					tabId: tab.id,
+					paneId: tab.id,
+					kind: "terminal",
+					terminalId: tab.terminalId,
 					bounds: { top: 0, left: 0, width: 1, height: 1 },
-					isVisible, isActivePane: true, isSplit: false,
+					isVisible,
+					isActivePane: true,
+					isSplit: false,
 				});
 			}
 		}
@@ -147,47 +161,64 @@ function ResizeHandle({
 
 	const isHorizontal = direction === "horizontal";
 
-	const startResize = useCallback((e: React.MouseEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
+	const startResize = useCallback(
+		(e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
 
-		// Find the terminal layer container (the parent div with relative positioning)
-		const container = (e.target as HTMLElement).closest("[data-terminal-layer-container]") || (e.target as HTMLElement).parentElement?.closest(".relative") || document.body;
-		const containerRect = container.getBoundingClientRect();
+			// Find the terminal layer container (the parent div with relative positioning)
+			const container =
+				(e.target as HTMLElement).closest("[data-terminal-layer-container]") ||
+				(e.target as HTMLElement).parentElement?.closest(".relative") ||
+				document.body;
+			const containerRect = container.getBoundingClientRect();
 
-		const handleMove = (ev: MouseEvent) => {
-			// Calculate pointer position as a ratio within the container (0-1)
-			const pointerRatio = isHorizontal
-				? (ev.clientX - containerRect.left) / containerRect.width
-				: (ev.clientY - containerRect.top) / containerRect.height;
+			const handleMove = (ev: MouseEvent) => {
+				// Calculate pointer position as a ratio within the container (0-1)
+				const pointerRatio = isHorizontal
+					? (ev.clientX - containerRect.left) / containerRect.width
+					: (ev.clientY - containerRect.top) / containerRect.height;
 
-			// Convert to ratio within the branch's coordinate space
-			const branchStart = isHorizontal ? branchLeft : branchTop;
-			const branchSize = isHorizontal ? branchWidth : branchHeight;
-			const dividerRatioInBranch = (pointerRatio - branchStart) / branchSize;
+				// Convert to ratio within the branch's coordinate space
+				const branchStart = isHorizontal ? branchLeft : branchTop;
+				const branchSize = isHorizontal ? branchWidth : branchHeight;
+				const dividerRatioInBranch = (pointerRatio - branchStart) / branchSize;
 
-			resizeSplitBranch(
-				projectId,
-				tabId,
-				branchId,
-				dividerIndex,
-				Math.max(0, Math.min(1, dividerRatioInBranch)),
-				"absolute",
-			);
-		};
+				resizeSplitBranch(
+					projectId,
+					tabId,
+					branchId,
+					dividerIndex,
+					Math.max(0, Math.min(1, dividerRatioInBranch)),
+					"absolute",
+				);
+			};
 
-		const handleUp = () => {
-			document.removeEventListener("mousemove", handleMove);
-			document.removeEventListener("mouseup", handleUp);
-			document.body.style.cursor = "";
-			document.body.style.userSelect = "";
-		};
+			const handleUp = () => {
+				document.removeEventListener("mousemove", handleMove);
+				document.removeEventListener("mouseup", handleUp);
+				document.body.style.cursor = "";
+				document.body.style.userSelect = "";
+			};
 
-		document.body.style.cursor = isHorizontal ? "col-resize" : "row-resize";
-		document.body.style.userSelect = "none";
-		document.addEventListener("mousemove", handleMove);
-		document.addEventListener("mouseup", handleUp);
-	}, [isHorizontal, branchTop, branchLeft, branchWidth, branchHeight, projectId, tabId, branchId, dividerIndex, resizeSplitBranch]);
+			document.body.style.cursor = isHorizontal ? "col-resize" : "row-resize";
+			document.body.style.userSelect = "none";
+			document.addEventListener("mousemove", handleMove);
+			document.addEventListener("mouseup", handleUp);
+		},
+		[
+			isHorizontal,
+			branchTop,
+			branchLeft,
+			branchWidth,
+			branchHeight,
+			projectId,
+			tabId,
+			branchId,
+			dividerIndex,
+			resizeSplitBranch,
+		],
+	);
 
 	if (!isVisible) return null;
 
@@ -217,9 +248,7 @@ function ResizeHandle({
 		>
 			<div
 				className={`${
-					isHorizontal
-						? "w-[1px] h-full border-l border-r"
-						: "h-[1px] w-full border-t border-b"
+					isHorizontal ? "w-[1px] h-full border-l border-r" : "h-[1px] w-full border-t border-b"
 				} border-black/25 bg-connexio-border/90 group-hover/resize:bg-connexio-accent/80 group-active/resize:bg-connexio-accent transition-colors`}
 			/>
 		</div>
@@ -279,10 +308,7 @@ function PaneRenderer({
 			};
 
 	return (
-		<div
-			style={style}
-			onMouseDown={handleFocus}
-		>
+		<div style={style} onMouseDown={handleFocus}>
 			{/* Active pane indicator */}
 			{isVisible && isSplit && isActivePane && (
 				<div className="absolute inset-0 pointer-events-none z-20">
@@ -296,7 +322,11 @@ function PaneRenderer({
 				<div className="absolute top-1.5 right-1.5 z-50 flex items-center gap-0.5 opacity-0 hover:opacity-100 transition-all duration-200 bg-connexio-bg-secondary/90 backdrop-blur-sm rounded-md border border-connexio-border/50 px-1 py-0.5 shadow-lg">
 					<button
 						onMouseDown={(e) => e.stopPropagation()}
-						onClick={(e) => { e.preventDefault(); e.stopPropagation(); splitTerminal(projectId, tabId, paneId, "horizontal"); }}
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							splitTerminal(projectId, tabId, paneId, "horizontal");
+						}}
 						className="p-1 rounded hover:bg-connexio-accent/15 transition-colors"
 						title="Split Right"
 						type="button"
@@ -305,7 +335,11 @@ function PaneRenderer({
 					</button>
 					<button
 						onMouseDown={(e) => e.stopPropagation()}
-						onClick={(e) => { e.preventDefault(); e.stopPropagation(); splitTerminal(projectId, tabId, paneId, "vertical"); }}
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							splitTerminal(projectId, tabId, paneId, "vertical");
+						}}
 						className="p-1 rounded hover:bg-connexio-accent/15 transition-colors"
 						title="Split Down"
 						type="button"
@@ -315,7 +349,11 @@ function PaneRenderer({
 					<div className="w-px h-3 bg-connexio-border/40 mx-0.5" />
 					<button
 						onMouseDown={(e) => e.stopPropagation()}
-						onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleClose(); }}
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							handleClose();
+						}}
 						className="p-1 rounded hover:bg-red-500/15 transition-colors"
 						title="Close Pane"
 						type="button"

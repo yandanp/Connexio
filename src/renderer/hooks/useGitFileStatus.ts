@@ -23,10 +23,7 @@ const STATUS_PRIORITY: Record<GitFileIndicator, number> = {
 	"?": 0,
 };
 
-function buildStatusMap(
-	files: GitChangedFile[],
-	projectPath: string,
-): GitFileStatusMap {
+function buildStatusMap(files: GitChangedFile[], projectPath: string): GitFileStatusMap {
 	const fileMap = new Map<string, GitFileIndicator>();
 	const dirSet = new Map<string, GitFileIndicator>();
 

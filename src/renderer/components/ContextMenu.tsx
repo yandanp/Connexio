@@ -44,7 +44,9 @@ export default function ContextMenu({
 	const menuRef = useRef<HTMLDivElement>(null);
 	const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 	const [position, setPosition] = useState(() => clampPosition(x, y, minWidth));
-	const [activeIndex, setActiveIndex] = useState(() => items.findIndex((item) => item !== "separator" && !item.disabled));
+	const [activeIndex, setActiveIndex] = useState(() =>
+		items.findIndex((item) => item !== "separator" && !item.disabled),
+	);
 
 	useLayoutEffect(() => {
 		const rect = menuRef.current?.getBoundingClientRect();
@@ -73,9 +75,10 @@ export default function ContextMenu({
 				event.preventDefault();
 				const currentEnabledIndex = enabledIndices.indexOf(activeIndex);
 				const direction = event.key === "ArrowDown" ? 1 : -1;
-				const nextEnabledIndex = currentEnabledIndex === -1
-					? 0
-					: (currentEnabledIndex + direction + enabledIndices.length) % enabledIndices.length;
+				const nextEnabledIndex =
+					currentEnabledIndex === -1
+						? 0
+						: (currentEnabledIndex + direction + enabledIndices.length) % enabledIndices.length;
 				const nextIndex = enabledIndices[nextEnabledIndex];
 				setActiveIndex(nextIndex);
 				itemRefs.current[nextIndex]?.focus();
@@ -144,7 +147,9 @@ export default function ContextMenu({
 							{Icon ? <Icon size={13} /> : null}
 						</span>
 						<span className="flex-1 whitespace-nowrap">{item.label}</span>
-						{item.shortcut && <span className="ml-4 text-[10px] text-connexio-text-muted">{item.shortcut}</span>}
+						{item.shortcut && (
+							<span className="ml-4 text-[10px] text-connexio-text-muted">{item.shortcut}</span>
+						)}
 					</button>
 				);
 			})}

@@ -15,8 +15,14 @@ export default function SSHPanel({ projectId, onConnect, onOpenManager, onOpenSf
 	const [connectingId, setConnectingId] = useState<string | null>(null);
 
 	useEffect(() => {
-		window.connexio.ssh.list(projectId).then(setConnections).catch(() => {});
-		window.connexio.ssh.listGlobal().then(setGlobalConnections).catch(() => {});
+		window.connexio.ssh
+			.list(projectId)
+			.then(setConnections)
+			.catch(() => {});
+		window.connexio.ssh
+			.listGlobal()
+			.then(setGlobalConnections)
+			.catch(() => {});
 	}, [projectId]);
 
 	const allConnections = [...connections, ...globalConnections];
@@ -46,7 +52,9 @@ export default function SSHPanel({ projectId, onConnect, onOpenManager, onOpenSf
 					</div>
 					<div className="min-w-0 flex-1">
 						<div className="text-[12px] font-semibold text-connexio-text">SSH quick connect</div>
-						<div className="text-[10px] text-connexio-text-muted">Saved project and global hosts</div>
+						<div className="text-[10px] text-connexio-text-muted">
+							Saved project and global hosts
+						</div>
 					</div>
 				</div>
 				<button
@@ -70,15 +78,34 @@ export default function SSHPanel({ projectId, onConnect, onOpenManager, onOpenSf
 					</button>
 				)}
 				{allConnections.map((conn) => (
-					<div key={conn.id} className="group flex items-center gap-1.5 rounded-xl p-1.5 transition-colors hover:bg-white/[0.04]">
-						<button onClick={() => connect(conn)} className="flex min-w-0 flex-1 items-center gap-2 text-left" type="button">
-							<Server size={11} className={`${connectingId === conn.id ? "animate-pulse text-connexio-accent" : "text-[var(--success-color)]"} flex-shrink-0`} />
+					<div
+						key={conn.id}
+						className="group flex items-center gap-1.5 rounded-xl p-1.5 transition-colors hover:bg-white/[0.04]"
+					>
+						<button
+							onClick={() => connect(conn)}
+							className="flex min-w-0 flex-1 items-center gap-2 text-left"
+							type="button"
+						>
+							<Server
+								size={11}
+								className={`${connectingId === conn.id ? "animate-pulse text-connexio-accent" : "text-[var(--success-color)]"} flex-shrink-0`}
+							/>
 							<div className="min-w-0">
-								<div className="truncate text-[11px] font-medium text-connexio-text">{conn.name}</div>
-								<div className="truncate text-[9px] text-connexio-text-muted">{conn.username}@{conn.host}</div>
+								<div className="truncate text-[11px] font-medium text-connexio-text">
+									{conn.name}
+								</div>
+								<div className="truncate text-[9px] text-connexio-text-muted">
+									{conn.username}@{conn.host}
+								</div>
 							</div>
 						</button>
-						<button onClick={() => onOpenSftp?.(conn)} className="rounded-md p-1 opacity-0 transition-opacity hover:bg-connexio-bg group-hover:opacity-100" type="button" title="Open SFTP tab">
+						<button
+							onClick={() => onOpenSftp?.(conn)}
+							className="rounded-md p-1 opacity-0 transition-opacity hover:bg-connexio-bg group-hover:opacity-100"
+							type="button"
+							title="Open SFTP tab"
+						>
 							<FolderOpen size={10} className="text-connexio-text-muted" />
 						</button>
 					</div>

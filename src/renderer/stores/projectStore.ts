@@ -4,11 +4,7 @@ import { create } from "zustand";
 // Module-level guard to prevent double restore from React StrictMode
 let _workspaceRestored = false;
 
-import type {
-	Project,
-	WorkspaceState,
-	WorkspaceTabState,
-} from "../../shared/types";
+import type { Project, WorkspaceState, WorkspaceTabState } from "../../shared/types";
 
 // === Split Layout Types (Recursive Tree) ===
 
@@ -105,7 +101,8 @@ function collectLeaves(node: SplitNode): SplitLeaf[] {
 }
 
 function collectTerminalIds(node: SplitNode): string[] {
-	if (node.type === "leaf") return (node.kind === "terminal" && node.terminalId) ? [node.terminalId] : [];
+	if (node.type === "leaf")
+		return node.kind === "terminal" && node.terminalId ? [node.terminalId] : [];
 	return node.children.flatMap(collectTerminalIds);
 }
 
@@ -135,26 +132,30 @@ export interface ResizeHandleBounds {
 	branchHeight: number;
 }
 
-export function computePaneBounds(node: SplitNode, bounds = { top: 0, left: 0, width: 1, height: 1 }): PaneBounds[] {
+export function computePaneBounds(
+	node: SplitNode,
+	bounds = { top: 0, left: 0, width: 1, height: 1 },
+): PaneBounds[] {
 	if (node.type === "leaf") {
-		return [{
-			paneId: node.id,
-			kind: node.kind,
-			terminalId: node.terminalId,
-			filePath: node.filePath,
-			top: bounds.top,
-			left: bounds.left,
-			width: bounds.width,
-			height: bounds.height,
-		}];
+		return [
+			{
+				paneId: node.id,
+				kind: node.kind,
+				terminalId: node.terminalId,
+				filePath: node.filePath,
+				top: bounds.top,
+				left: bounds.left,
+				width: bounds.width,
+				height: bounds.height,
+			},
+		];
 	}
 
 	const results: PaneBounds[] = [];
 	const count = node.children.length;
 	const isHorizontal = node.direction === "horizontal";
-	const ratios = node.ratios && node.ratios.length === count
-		? node.ratios
-		: node.children.map(() => 1 / count);
+	const ratios =
+		node.ratios && node.ratios.length === count ? node.ratios : node.children.map(() => 1 / count);
 
 	let offset = 0;
 	for (let i = 0; i < count; i++) {
@@ -189,9 +190,8 @@ export function computeResizeHandleBounds(
 	const handles: ResizeHandleBounds[] = [];
 	const count = node.children.length;
 	const isHorizontal = node.direction === "horizontal";
-	const ratios = node.ratios && node.ratios.length === count
-		? node.ratios
-		: node.children.map(() => 1 / count);
+	const ratios =
+		node.ratios && node.ratios.length === count ? node.ratios : node.children.map(() => 1 / count);
 
 	let offset = 0;
 	for (let i = 0; i < count; i++) {
@@ -261,7 +261,13 @@ function serializeNode(node: SplitNode, tabShell?: string): PersistedNode {
 
 function deserializeNode(persisted: PersistedNode): SplitNode {
 	if (persisted.type === "leaf") {
-		return { type: "leaf", id: persisted.id, kind: persisted.kind || "terminal", terminalId: null, filePath: persisted.filePath };
+		return {
+			type: "leaf",
+			id: persisted.id,
+			kind: persisted.kind || "terminal",
+			terminalId: null,
+			filePath: persisted.filePath,
+		};
 	}
 	return {
 		type: "branch",
@@ -283,10 +289,12 @@ async function createTerminalsForTree(
 	if (node.type === "leaf") {
 		if (node.kind === "editor") return node; // editor leaves don't need terminal
 		try {
-			const terminalId = await window.connexio.terminal.create(
-				projectPath, shell,
-				{ projectId, projectName, tabId: node.id, tabLabel: `${tabLabel} (split)` },
-			);
+			const terminalId = await window.connexio.terminal.create(projectPath, shell, {
+				projectId,
+				projectName,
+				tabId: node.id,
+				tabLabel: `${tabLabel} (split)`,
+			});
 			return { ...node, terminalId };
 		} catch {
 			return node;
@@ -294,7 +302,9 @@ async function createTerminalsForTree(
 	}
 	const children: SplitNode[] = [];
 	for (const child of node.children) {
-		children.push(await createTerminalsForTree(child, projectPath, projectId, projectName, tabLabel, shell));
+		children.push(
+			await createTerminalsForTree(child, projectPath, projectId, projectName, tabLabel, shell),
+		);
 	}
 	return { ...node, children };
 }
@@ -344,9 +354,20 @@ interface ProjectStore {
 
 	openTerminalTab: (projectId: string, label?: string, shell?: string) => Promise<void>;
 	openCommandTerminalTab: (projectId: string, label: string, command: string[]) => Promise<void>;
-	openSshTerminalTab: (projectId: string, label: string, connection: import("../../shared/types").SSHConnection, password?: string) => Promise<void>;
+	openSshTerminalTab: (
+		projectId: string,
+		label: string,
+		connection: import("../../shared/types").SSHConnection,
+		password?: string,
+	) => Promise<void>;
 	openEditorTab: (projectId: string, filePath: string, lineNumber?: number) => void;
-	openRemoteEditorTab: (projectId: string, connection: import("../../shared/types").SSHConnection, remotePath: string, content: string, activate?: boolean) => void;
+	openRemoteEditorTab: (
+		projectId: string,
+		connection: import("../../shared/types").SSHConnection,
+		remotePath: string,
+		content: string,
+		activate?: boolean,
+	) => void;
 	openPreviewTab: (projectId: string, url?: string) => void;
 	openSSHManagerTab: (projectId: string) => void;
 	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => void;
@@ -358,9 +379,24 @@ interface ProjectStore {
 	reorderTabs: (projectId: string, fromIndex: number, toIndex: number) => void;
 
 	// Split actions
-	splitTerminal: (projectId: string, tabId: string, paneId: string, direction: SplitDirection) => Promise<void>;
-	splitTerminalFromEditor: (projectId: string, tabId: string, direction: SplitDirection) => Promise<void>;
-	openEditorInSplit: (projectId: string, tabId: string, paneId: string, direction: SplitDirection, filePath: string) => void;
+	splitTerminal: (
+		projectId: string,
+		tabId: string,
+		paneId: string,
+		direction: SplitDirection,
+	) => Promise<void>;
+	splitTerminalFromEditor: (
+		projectId: string,
+		tabId: string,
+		direction: SplitDirection,
+	) => Promise<void>;
+	openEditorInSplit: (
+		projectId: string,
+		tabId: string,
+		paneId: string,
+		direction: SplitDirection,
+		filePath: string,
+	) => void;
 	closeSplitPane: (projectId: string, tabId: string, paneId: string) => void;
 	setActiveSplitPane: (projectId: string, tabId: string, paneId: string) => void;
 	resizeSplitPane: (projectId: string, tabId: string, paneId: string, delta: number) => void;
@@ -513,7 +549,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		const updatedProjects = projects.map((project) =>
 			(project.group || "default") === oldGroup ? { ...project, group } : project,
 		);
-		await Promise.all(affected.map((project) => window.connexio.project.update({ ...project, group })));
+		await Promise.all(
+			affected.map((project) => window.connexio.project.update({ ...project, group })),
+		);
 		set({ projects: updatedProjects });
 	},
 
@@ -531,14 +569,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		let terminalId: string;
 		try {
 			terminalId = await window.connexio.terminal.create(project.path, shell, {
-				projectId, projectName: project.name, tabId: newTabId, tabLabel,
+				projectId,
+				projectName: project.name,
+				tabId: newTabId,
+				tabLabel,
 			});
 		} catch (e) {
 			console.error("[Connexio] Failed to create terminal:", e);
 			return;
 		}
 
-		const newTab: TerminalTab = { id: newTabId, label: tabLabel, shell, terminalId, status: "active" };
+		const newTab: TerminalTab = {
+			id: newTabId,
+			label: tabLabel,
+			shell,
+			terminalId,
+			status: "active",
+		};
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
@@ -557,7 +604,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		let terminalId: string;
 		try {
 			terminalId = await window.connexio.terminal.createCommand(project.path, command, {
-				projectId, projectName: project.name, tabId: newTabId, tabLabel: label,
+				projectId,
+				projectName: project.name,
+				tabId: newTabId,
+				tabLabel: label,
 			});
 		} catch (e) {
 			console.error("[Connexio] Failed to create command terminal:", e);
@@ -572,7 +622,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		get().persistWorkspace();
 	},
 
-	openSshTerminalTab: async (projectId: string, label: string, connection: import("../../shared/types").SSHConnection, password?: string) => {
+	openSshTerminalTab: async (
+		projectId: string,
+		label: string,
+		connection: import("../../shared/types").SSHConnection,
+		password?: string,
+	) => {
 		const { workspaceTabs, activeTabIds } = get();
 		const existingTabs = workspaceTabs[projectId] || [];
 		let terminalId: string;
@@ -601,35 +656,65 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
 			if (lineNumber) {
 				setTimeout(() => {
-					window.dispatchEvent(new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }));
+					window.dispatchEvent(
+						new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }),
+					);
 				}, 50);
 			}
 			return;
 		}
 
 		const fileName = filePath.replace(/\\/g, "/").split("/").pop() || "file";
-		const newTab: TerminalTab = { id: uuid(), label: fileName, type: "editor", filePath, terminalId: null };
+		const newTab: TerminalTab = {
+			id: uuid(),
+			label: fileName,
+			type: "editor",
+			filePath,
+			terminalId: null,
+		};
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
 		});
 		if (lineNumber) {
 			setTimeout(() => {
-				window.dispatchEvent(new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }));
+				window.dispatchEvent(
+					new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }),
+				);
 			}, 300);
 		}
 	},
 
-	openRemoteEditorTab: (projectId: string, connection: import("../../shared/types").SSHConnection, remotePath: string, content: string, activate = true) => {
+	openRemoteEditorTab: (
+		projectId: string,
+		connection: import("../../shared/types").SSHConnection,
+		remotePath: string,
+		content: string,
+		activate = true,
+	) => {
 		const { workspaceTabs, activeTabIds } = get();
 		const existingTabs = workspaceTabs[projectId] || [];
-		const existing = existingTabs.find((t) => t.type === "remoteEditor" && t.remoteConnection?.id === connection.id && t.remotePath === remotePath);
+		const existing = existingTabs.find(
+			(t) =>
+				t.type === "remoteEditor" &&
+				t.remoteConnection?.id === connection.id &&
+				t.remotePath === remotePath,
+		);
 		if (existing) {
 			if (activate) set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
 			return;
 		}
 		const fileName = remotePath.replace(/\\/g, "/").split("/").pop() || "remote";
-		const newTab: TerminalTab = { id: uuid(), label: `ssh: ${fileName}`, type: "remoteEditor", filePath: `ssh://${connection.id}${remotePath}`, remoteConnection: connection, remotePath, remoteContent: content, terminalId: null };
+		const newTab: TerminalTab = {
+			id: uuid(),
+			label: `ssh: ${fileName}`,
+			type: "remoteEditor",
+			filePath: `ssh://${connection.id}${remotePath}`,
+			remoteConnection: connection,
+			remotePath,
+			remoteContent: content,
+			terminalId: null,
+		};
 		set({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: activate ? { ...activeTabIds, [projectId]: newTab.id } : activeTabIds,
@@ -645,21 +730,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
 			return;
 		}
-		const newTab: TerminalTab = { id: uuid(), label: "SSH Manager", type: "sshManager", terminalId: null };
-		set({ workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] }, activeTabIds: { ...activeTabIds, [projectId]: newTab.id } });
+		const newTab: TerminalTab = {
+			id: uuid(),
+			label: "SSH Manager",
+			type: "sshManager",
+			terminalId: null,
+		};
+		set({
+			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
+			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
+		});
 		get().persistWorkspace();
 	},
 
 	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => {
 		const { workspaceTabs, activeTabIds } = get();
 		const existingTabs = workspaceTabs[projectId] || [];
-		const existing = existingTabs.find((t) => t.type === "sftp" && t.sftpConnection?.id === connection.id);
+		const existing = existingTabs.find(
+			(t) => t.type === "sftp" && t.sftpConnection?.id === connection.id,
+		);
 		if (existing) {
 			set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
 			return;
 		}
-		const newTab: TerminalTab = { id: uuid(), label: `SFTP: ${connection.name}`, type: "sftp", sftpConnection: connection, terminalId: null };
-		set({ workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] }, activeTabIds: { ...activeTabIds, [projectId]: newTab.id } });
+		const newTab: TerminalTab = {
+			id: uuid(),
+			label: `SFTP: ${connection.name}`,
+			type: "sftp",
+			sftpConnection: connection,
+			terminalId: null,
+		};
+		set({
+			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
+			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
+		});
 		get().persistWorkspace();
 	},
 
@@ -702,10 +806,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 		// Signal editors to abort any in-flight operations (e.g. remote save)
 		if (tab?.type === "editor" || tab?.type === "remoteEditor") {
-			window.dispatchEvent(new CustomEvent("connexio:editor-tab-destroyed", { detail: { tabId, filePath: tab.filePath } }));
+			window.dispatchEvent(
+				new CustomEvent("connexio:editor-tab-destroyed", {
+					detail: { tabId, filePath: tab.filePath },
+				}),
+			);
 		}
 		if (tab?.type === "sftp" && tab.sftpConnection) {
-			window.dispatchEvent(new CustomEvent("connexio:sftp-tab-closed", { detail: { connectionId: tab.sftpConnection.id, tabId } }));
+			window.dispatchEvent(
+				new CustomEvent("connexio:sftp-tab-closed", {
+					detail: { connectionId: tab.sftpConnection.id, tabId },
+				}),
+			);
 		}
 
 		const newTabs = tabs.filter((t) => t.id !== tabId);
@@ -713,7 +825,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		if (activeTabIds[projectId] === tabId) {
 			newActiveTabIds[projectId] = newTabs[newTabs.length - 1]?.id || "";
 		}
-		set({ workspaceTabs: { ...workspaceTabs, [projectId]: newTabs }, activeTabIds: newActiveTabIds });
+		set({
+			workspaceTabs: { ...workspaceTabs, [projectId]: newTabs },
+			activeTabIds: newActiveTabIds,
+		});
 		get().persistWorkspace();
 	},
 
@@ -743,14 +858,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	renameTerminalTab: (projectId: string, tabId: string, newLabel: string) => {
 		const { workspaceTabs } = get();
 		const tabs = workspaceTabs[projectId] || [];
-		set({ workspaceTabs: { ...workspaceTabs, [projectId]: tabs.map((t) => t.id === tabId ? { ...t, label: newLabel } : t) } });
+		set({
+			workspaceTabs: {
+				...workspaceTabs,
+				[projectId]: tabs.map((t) => (t.id === tabId ? { ...t, label: newLabel } : t)),
+			},
+		});
 		get().persistWorkspace();
 	},
 
 	updatePreviewTabUrl: (projectId: string, tabId: string, url: string) => {
 		const { workspaceTabs } = get();
 		const tabs = workspaceTabs[projectId] || [];
-		set({ workspaceTabs: { ...workspaceTabs, [projectId]: tabs.map((t) => t.id === tabId ? { ...t, filePath: url } : t) } });
+		set({
+			workspaceTabs: {
+				...workspaceTabs,
+				[projectId]: tabs.map((t) => (t.id === tabId ? { ...t, filePath: url } : t)),
+			},
+		});
 		get().persistWorkspace();
 	},
 
@@ -771,7 +896,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	 * If no split exists yet, creates the initial split from the tab's single terminal.
 	 * Supports nested splits — e.g. split pane 2 vertically inside a horizontal split.
 	 */
-	splitTerminal: async (projectId: string, tabId: string, paneId: string, direction: SplitDirection) => {
+	splitTerminal: async (
+		projectId: string,
+		tabId: string,
+		paneId: string,
+		direction: SplitDirection,
+	) => {
 		const { workspaceTabs, projects } = get();
 		const tabs = workspaceTabs[projectId] || [];
 		const tab = tabs.find((t) => t.id === tabId);
@@ -791,14 +921,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		let newTerminalId: string;
 		try {
 			newTerminalId = await window.connexio.terminal.create(project.path, tab.shell, {
-				projectId, projectName: project.name, tabId: newPaneId, tabLabel: `${tab.label} (split)`,
+				projectId,
+				projectName: project.name,
+				tabId: newPaneId,
+				tabLabel: `${tab.label} (split)`,
 			});
 		} catch (e) {
 			console.error("[Connexio] Failed to create split terminal:", e);
 			return;
 		}
 
-		const newLeaf: SplitLeaf = { type: "leaf", id: newPaneId, kind: "terminal", terminalId: newTerminalId };
+		const newLeaf: SplitLeaf = {
+			type: "leaf",
+			id: newPaneId,
+			kind: "terminal",
+			terminalId: newTerminalId,
+		};
 		let updatedLayout: SplitLayout;
 
 		if (tab.splitLayout) {
@@ -814,7 +952,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			updatedLayout = { root: newRoot, activePaneId: newPaneId };
 		} else {
 			// First split — wrap existing terminal + new leaf
-			const existingLeaf: SplitLeaf = { type: "leaf", id: uuid(), kind: "terminal", terminalId: tab.terminalId };
+			const existingLeaf: SplitLeaf = {
+				type: "leaf",
+				id: uuid(),
+				kind: "terminal",
+				terminalId: tab.terminalId,
+			};
 			const rootBranch: SplitBranch = {
 				type: "branch",
 				id: uuid(),
@@ -824,7 +967,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			updatedLayout = { root: rootBranch, activePaneId: newPaneId };
 		}
 
-		const updatedTabs = tabs.map((t) => t.id === tabId ? { ...t, splitLayout: updatedLayout } : t);
+		const updatedTabs = tabs.map((t) =>
+			t.id === tabId ? { ...t, splitLayout: updatedLayout } : t,
+		);
 		set({ workspaceTabs: { ...workspaceTabs, [projectId]: updatedTabs } });
 		get().persistWorkspace();
 
@@ -853,22 +998,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		let newTerminalId: string;
 		try {
 			newTerminalId = await window.connexio.terminal.create(project.path, undefined, {
-				projectId, projectName: project.name, tabId: newPaneId, tabLabel: `${tab.label} (terminal)`,
+				projectId,
+				projectName: project.name,
+				tabId: newPaneId,
+				tabLabel: `${tab.label} (terminal)`,
 			});
 		} catch (e) {
 			console.error("[Connexio] Failed to create terminal from editor split:", e);
 			return;
 		}
 
-		const editorLeaf: SplitLeaf = { type: "leaf", id: uuid(), kind: "editor", terminalId: null, filePath: tab.filePath };
-		const terminalLeaf: SplitLeaf = { type: "leaf", id: newPaneId, kind: "terminal", terminalId: newTerminalId };
+		const editorLeaf: SplitLeaf = {
+			type: "leaf",
+			id: uuid(),
+			kind: "editor",
+			terminalId: null,
+			filePath: tab.filePath,
+		};
+		const terminalLeaf: SplitLeaf = {
+			type: "leaf",
+			id: newPaneId,
+			kind: "terminal",
+			terminalId: newTerminalId,
+		};
 		const rootBranch: SplitBranch = {
-			type: "branch", id: uuid(), direction,
+			type: "branch",
+			id: uuid(),
+			direction,
 			children: [editorLeaf, terminalLeaf],
 		};
 		const updatedLayout: SplitLayout = { root: rootBranch, activePaneId: newPaneId };
 
-		const updatedTabs = tabs.map((t) => t.id === tabId ? { ...t, splitLayout: updatedLayout } : t);
+		const updatedTabs = tabs.map((t) =>
+			t.id === tabId ? { ...t, splitLayout: updatedLayout } : t,
+		);
 		set({ workspaceTabs: { ...workspaceTabs, [projectId]: updatedTabs } });
 		get().persistWorkspace();
 
@@ -877,7 +1040,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			window.dispatchEvent(new Event("connexio:terminal-fit"));
 		}, 50);
 	},
-	openEditorInSplit: (projectId: string, tabId: string, paneId: string, direction: SplitDirection, filePath: string) => {
+	openEditorInSplit: (
+		projectId: string,
+		tabId: string,
+		paneId: string,
+		direction: SplitDirection,
+		filePath: string,
+	) => {
 		const { workspaceTabs } = get();
 		const tabs = workspaceTabs[projectId] || [];
 		const tab = tabs.find((t) => t.id === tabId);
@@ -890,29 +1059,46 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		}
 
 		const newPaneId = uuid();
-		const newLeaf: SplitLeaf = { type: "leaf", id: newPaneId, kind: "editor", terminalId: null, filePath };
+		const newLeaf: SplitLeaf = {
+			type: "leaf",
+			id: newPaneId,
+			kind: "editor",
+			terminalId: null,
+			filePath,
+		};
 
 		let updatedLayout: SplitLayout;
 
 		if (tab.splitLayout) {
 			const targetNode = findNode(tab.splitLayout.root, paneId)!;
 			const newBranch: SplitBranch = {
-				type: "branch", id: uuid(), direction,
+				type: "branch",
+				id: uuid(),
+				direction,
 				children: [targetNode, newLeaf],
 			};
 			const newRoot = replaceNode(tab.splitLayout.root, paneId, newBranch);
 			updatedLayout = { root: newRoot, activePaneId: newPaneId };
 		} else {
 			// First split — existing terminal + new editor
-			const existingLeaf: SplitLeaf = { type: "leaf", id: uuid(), kind: "terminal", terminalId: tab.terminalId };
+			const existingLeaf: SplitLeaf = {
+				type: "leaf",
+				id: uuid(),
+				kind: "terminal",
+				terminalId: tab.terminalId,
+			};
 			const rootBranch: SplitBranch = {
-				type: "branch", id: uuid(), direction,
+				type: "branch",
+				id: uuid(),
+				direction,
 				children: [existingLeaf, newLeaf],
 			};
 			updatedLayout = { root: rootBranch, activePaneId: newPaneId };
 		}
 
-		const updatedTabs = tabs.map((t) => t.id === tabId ? { ...t, splitLayout: updatedLayout } : t);
+		const updatedTabs = tabs.map((t) =>
+			t.id === tabId ? { ...t, splitLayout: updatedLayout } : t,
+		);
 		set({ workspaceTabs: { ...workspaceTabs, [projectId]: updatedTabs } });
 		get().persistWorkspace();
 
@@ -957,13 +1143,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			}
 		} else {
 			const leaves = collectLeaves(newRoot);
-			const newActive = tab.splitLayout.activePaneId === paneId
-				? leaves[0]?.id || ""
-				: tab.splitLayout.activePaneId;
+			const newActive =
+				tab.splitLayout.activePaneId === paneId
+					? leaves[0]?.id || ""
+					: tab.splitLayout.activePaneId;
 			updatedTab = { ...tab, splitLayout: { root: newRoot, activePaneId: newActive } };
 		}
 
-		const updatedTabs = tabs.map((t) => t.id === tabId ? updatedTab : t);
+		const updatedTabs = tabs.map((t) => (t.id === tabId ? updatedTab : t));
 		set({ workspaceTabs: { ...workspaceTabs, [projectId]: updatedTabs } });
 		get().persistWorkspace();
 
@@ -1033,9 +1220,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				const count = node.children.length;
 				if (dividerIndex <= 0 || dividerIndex >= count) return node;
 
-				const currentRatios = node.ratios && node.ratios.length === count
-					? [...node.ratios]
-					: node.children.map(() => 1 / count);
+				const currentRatios =
+					node.ratios && node.ratios.length === count
+						? [...node.ratios]
+						: node.children.map(() => 1 / count);
 
 				const minRatio = 0.1;
 				const prevIndex = dividerIndex - 1;
@@ -1094,7 +1282,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 		try {
 			const saved = await window.connexio.workspace.getState();
-			if (!saved || !saved.projectTabs) { set({ isRestoring: false }); return; }
+			if (!saved || !saved.projectTabs) {
+				set({ isRestoring: false });
+				return;
+			}
 
 			const { projects } = get();
 			const restoredTabs: Record<string, TerminalTab[]> = {};
@@ -1102,7 +1293,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 			const projectEntries = Object.entries(saved.projectTabs)
 				.map(([projectId, tabStates]) => ({
-					projectId, tabStates,
+					projectId,
+					tabStates,
 					project: projects.find((p) => p.id === projectId),
 				}))
 				.filter((e) => e.project && e.tabStates.length > 0);
@@ -1113,41 +1305,80 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 					for (const tabState of tabStates) {
 						try {
 							if (tabState.type === "editor" && tabState.filePath) {
-								tabs.push({ id: tabState.id, label: tabState.label, type: "editor", filePath: tabState.filePath, terminalId: null });
+								tabs.push({
+									id: tabState.id,
+									label: tabState.label,
+									type: "editor",
+									filePath: tabState.filePath,
+									terminalId: null,
+								});
 							} else if (tabState.splitTree) {
 								// Restore split layout
-								const deserialized = deserializeNode(tabState.splitTree as unknown as PersistedNode);
-								const restored = await createTerminalsForTree(deserialized, project!.path, projectId, project!.name, tabState.label, tabState.shell);
+								const deserialized = deserializeNode(
+									tabState.splitTree as unknown as PersistedNode,
+								);
+								const restored = await createTerminalsForTree(
+									deserialized,
+									project!.path,
+									projectId,
+									project!.name,
+									tabState.label,
+									tabState.shell,
+								);
 								const leaves = collectLeaves(restored);
 								const termIds = collectTerminalIds(restored);
 								if (termIds.length > 0) {
 									tabs.push({
-										id: tabState.id, label: tabState.label, shell: tabState.shell,
+										id: tabState.id,
+										label: tabState.label,
+										shell: tabState.shell,
 										terminalId: null,
 										splitLayout: { root: restored, activePaneId: leaves[0]?.id || "" },
 									});
 								}
 							} else {
 								const terminalId = await window.connexio.terminal.create(
-									project!.path, tabState.shell,
-									{ projectId, projectName: project!.name, tabId: tabState.id, tabLabel: tabState.label },
+									project!.path,
+									tabState.shell,
+									{
+										projectId,
+										projectName: project!.name,
+										tabId: tabState.id,
+										tabLabel: tabState.label,
+									},
 								);
-								tabs.push({ id: tabState.id, label: tabState.label, shell: tabState.shell, terminalId });
+								tabs.push({
+									id: tabState.id,
+									label: tabState.label,
+									shell: tabState.shell,
+									terminalId,
+								});
 							}
-						} catch { /* skip */ }
+						} catch {
+							/* skip */
+						}
 					}
 					if (tabs.length > 0) {
 						restoredTabs[projectId] = tabs;
 						const savedActiveId = saved.activeTabIds[projectId];
-						restoredActiveIds[projectId] = tabs.find((t) => t.id === savedActiveId) ? savedActiveId : tabs[0].id;
+						restoredActiveIds[projectId] = tabs.find((t) => t.id === savedActiveId)
+							? savedActiveId
+							: tabs[0].id;
 					}
 				}),
 			);
 
-			const activeProjectId = saved.activeProjectId && projects.find((p) => p.id === saved.activeProjectId)
-				? saved.activeProjectId : null;
+			const activeProjectId =
+				saved.activeProjectId && projects.find((p) => p.id === saved.activeProjectId)
+					? saved.activeProjectId
+					: null;
 
-			set({ workspaceTabs: restoredTabs, activeTabIds: restoredActiveIds, activeProjectId, isRestoring: false });
+			set({
+				workspaceTabs: restoredTabs,
+				activeTabIds: restoredActiveIds,
+				activeProjectId,
+				isRestoring: false,
+			});
 		} catch (error) {
 			console.error("Failed to restore workspace:", error);
 			set({ isRestoring: false });
@@ -1163,7 +1394,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				const persistableTabs = tabs.filter((t) => t.type !== "remoteEditor" && t.type !== "sftp");
 				if (persistableTabs.length > 0) {
 					projectTabs[projectId] = persistableTabs.map((t) => {
-						const state: WorkspaceTabState = { id: t.id, label: t.label, shell: t.shell, type: t.type, filePath: t.filePath };
+						const state: WorkspaceTabState = {
+							id: t.id,
+							label: t.label,
+							shell: t.shell,
+							type: t.type,
+							filePath: t.filePath,
+						};
 						if (t.splitLayout) {
 							state.splitTree = serializeNode(t.splitLayout.root, t.shell) as any;
 						}
@@ -1192,7 +1429,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			const persistableTabs = tabs.filter((t) => t.type !== "remoteEditor" && t.type !== "sftp");
 			if (persistableTabs.length > 0) {
 				projectTabs[projectId] = persistableTabs.map((t) => {
-					const state: WorkspaceTabState = { id: t.id, label: t.label, shell: t.shell, type: t.type, filePath: t.filePath };
+					const state: WorkspaceTabState = {
+						id: t.id,
+						label: t.label,
+						shell: t.shell,
+						type: t.type,
+						filePath: t.filePath,
+					};
 					if (t.splitLayout) {
 						state.splitTree = serializeNode(t.splitLayout.root, t.shell) as any;
 					}

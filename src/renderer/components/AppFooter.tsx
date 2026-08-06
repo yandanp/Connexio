@@ -20,13 +20,8 @@ import RemoteConnectionBadge from "./RemoteConnectionBadge";
 import RemotePowerControls from "./RemotePowerControls";
 
 export default function AppFooter() {
-	const {
-		projects,
-		activeProjectId,
-		workspaceTabs,
-		activeTabIds,
-		sidebarCollapsed,
-	} = useProjectStore();
+	const { projects, activeProjectId, workspaceTabs, activeTabIds, sidebarCollapsed } =
+		useProjectStore();
 	const { notifications } = useNotificationStore();
 	const { isSettingsOpen } = useSettingsStore();
 	const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
@@ -97,18 +92,15 @@ export default function AppFooter() {
 
 	// Terminal info
 	const tabs = activeProjectId ? workspaceTabs[activeProjectId] || [] : [];
-	const activeTabId = activeProjectId
-		? activeTabIds[activeProjectId] || null
-		: null;
+	const activeTabId = activeProjectId ? activeTabIds[activeProjectId] || null : null;
 	const activeTab = tabs.find((t) => t.id === activeTabId);
 
 	// Git summary
-	const changesCount = gitStatus
-		? gitStatus.modified + gitStatus.staged + gitStatus.untracked
-		: 0;
+	const changesCount = gitStatus ? gitStatus.modified + gitStatus.staged + gitStatus.untracked : 0;
 
 	const activeTabType = activeTab?.type || "terminal";
-	const activeStatusLabel = activeTab?.status === "running" ? "Running" : activeTab?.status === "exited" ? "Done" : "Ready";
+	const activeStatusLabel =
+		activeTab?.status === "running" ? "Running" : activeTab?.status === "exited" ? "Done" : "Ready";
 	const ActiveTabIcon =
 		activeTabType === "editor" || activeTabType === "remoteEditor"
 			? FileCode
@@ -128,9 +120,7 @@ export default function AppFooter() {
 	return (
 		<div className="relative z-10 flex h-[34px] select-none items-stretch bg-connexio-bg-secondary/90 text-[12px] soft-separator-top backdrop-blur-xl">
 			{/* Left section — matches sidebar width */}
-			<div
-				className={`${sidebarWidth} flex-shrink-0 flex items-center px-3 soft-separator-right`}
-			>
+			<div className={`${sidebarWidth} flex-shrink-0 flex items-center px-3 soft-separator-right`}>
 				{project && (
 					<button
 						onClick={handleCopyPath}
@@ -157,9 +147,7 @@ export default function AppFooter() {
 						type="button"
 					>
 						<GitBranch size={12} className="text-connexio-accent flex-shrink-0" />
-						<span className="font-medium text-connexio-text-secondary">
-							{gitStatus.branch}
-						</span>
+						<span className="font-medium text-connexio-text-secondary">{gitStatus.branch}</span>
 						{(gitStatus.ahead > 0 || gitStatus.behind > 0) && (
 							<span className="flex items-center gap-1">
 								{gitStatus.ahead > 0 && (
@@ -204,15 +192,17 @@ export default function AppFooter() {
 							{activeTabType}
 						</span>
 						{activeTab.status && (
-							<span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${activeTab.status === "running" ? "bg-[var(--success-color)]/10 text-[var(--success-color)]" : activeTab.status === "exited" ? "bg-white/[0.035] text-connexio-text-muted" : "bg-connexio-accent/10 text-connexio-accent"}`}>
-								<span className={`h-1.5 w-1.5 rounded-full ${activeTab.status === "running" ? "animate-pulse bg-[var(--success-color)]" : activeTab.status === "exited" ? "bg-connexio-text-muted/45" : "bg-connexio-accent"}`} />
+							<span
+								className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${activeTab.status === "running" ? "bg-[var(--success-color)]/10 text-[var(--success-color)]" : activeTab.status === "exited" ? "bg-white/[0.035] text-connexio-text-muted" : "bg-connexio-accent/10 text-connexio-accent"}`}
+							>
+								<span
+									className={`h-1.5 w-1.5 rounded-full ${activeTab.status === "running" ? "animate-pulse bg-[var(--success-color)]" : activeTab.status === "exited" ? "bg-connexio-text-muted/45" : "bg-connexio-accent"}`}
+								/>
 								{activeStatusLabel}
 							</span>
 						)}
 						{tabs.length > 1 && (
-							<span className="text-connexio-text-muted/60">
-								· {tabs.length} tabs
-							</span>
+							<span className="text-connexio-text-muted/60">· {tabs.length} tabs</span>
 						)}
 					</button>
 				)}

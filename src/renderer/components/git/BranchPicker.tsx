@@ -1,12 +1,4 @@
-import {
-	Check,
-	GitBranch,
-	Globe,
-	Loader2,
-	Plus,
-	Search,
-	X,
-} from "lucide-react";
+import { Check, GitBranch, Globe, Loader2, Plus, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitActionResult, GitBranchEntry } from "../../../shared/types";
 
@@ -79,8 +71,7 @@ export default function BranchPicker({
 
 			setSwitching(branch);
 			try {
-				const result: GitActionResult =
-					await window.connexio.git.checkout(projectPath, branch);
+				const result: GitActionResult = await window.connexio.git.checkout(projectPath, branch);
 				if (result.success) {
 					onMessage({ type: "success", text: result.message });
 					onBranchChanged();
@@ -100,8 +91,10 @@ export default function BranchPicker({
 		if (creating || !newBranchName.trim()) return;
 		setCreating(true);
 		try {
-			const result: GitActionResult =
-				await window.connexio.git.createBranch(projectPath, newBranchName.trim());
+			const result: GitActionResult = await window.connexio.git.createBranch(
+				projectPath,
+				newBranchName.trim(),
+			);
 			if (result.success) {
 				onMessage({ type: "success", text: result.message });
 				onBranchChanged();
@@ -119,15 +112,11 @@ export default function BranchPicker({
 	const remoteBranches = branches.filter((b) => b.remote);
 
 	const filteredLocal = searchQuery
-		? localBranches.filter((b) =>
-				b.name.toLowerCase().includes(searchQuery.toLowerCase()),
-			)
+		? localBranches.filter((b) => b.name.toLowerCase().includes(searchQuery.toLowerCase()))
 		: localBranches;
 
 	const filteredRemote = searchQuery
-		? remoteBranches.filter((b) =>
-				b.name.toLowerCase().includes(searchQuery.toLowerCase()),
-			)
+		? remoteBranches.filter((b) => b.name.toLowerCase().includes(searchQuery.toLowerCase()))
 		: remoteBranches;
 
 	return (
@@ -188,7 +177,10 @@ export default function BranchPicker({
 										{branch.current ? (
 											<Check size={10} className="text-connexio-accent flex-shrink-0" />
 										) : switching === branch.name ? (
-											<Loader2 size={10} className="animate-spin flex-shrink-0 text-connexio-text-muted" />
+											<Loader2
+												size={10}
+												className="animate-spin flex-shrink-0 text-connexio-text-muted"
+											/>
 										) : (
 											<GitBranch size={10} className="text-connexio-text-muted flex-shrink-0" />
 										)}
@@ -215,7 +207,10 @@ export default function BranchPicker({
 										type="button"
 									>
 										{switching === branch.name ? (
-											<Loader2 size={10} className="animate-spin flex-shrink-0 text-connexio-text-muted" />
+											<Loader2
+												size={10}
+												className="animate-spin flex-shrink-0 text-connexio-text-muted"
+											/>
 										) : (
 											<Globe size={10} className="text-connexio-text-muted flex-shrink-0" />
 										)}
@@ -259,11 +254,7 @@ export default function BranchPicker({
 							className="px-2 py-1 text-[10px] font-medium rounded border border-green-400/40 text-green-400 hover:bg-green-400/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
 							type="button"
 						>
-							{creating ? (
-								<Loader2 size={10} className="animate-spin" />
-							) : (
-								"Create"
-							)}
+							{creating ? <Loader2 size={10} className="animate-spin" /> : "Create"}
 						</button>
 						<button
 							onClick={() => {

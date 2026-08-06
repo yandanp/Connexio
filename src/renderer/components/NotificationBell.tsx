@@ -5,8 +5,7 @@ import type { ConnexioNotification } from "../../shared/types";
 import { useNotificationStore } from "../stores/notificationStore";
 
 export default function NotificationBell() {
-	const { unreadCount, isOpen, togglePanel, closePanel } =
-		useNotificationStore();
+	const { unreadCount, isOpen, togglePanel, closePanel } = useNotificationStore();
 
 	return (
 		<div className="relative">
@@ -28,8 +27,7 @@ export default function NotificationBell() {
 				)}
 			</button>
 
-			{isOpen &&
-				createPortal(<NotificationPanel onClose={closePanel} />, document.body)}
+			{isOpen && createPortal(<NotificationPanel onClose={closePanel} />, document.body)}
 		</div>
 	);
 }
@@ -92,9 +90,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 			<div className="flex items-center justify-between px-3 py-2.5 border-b border-connexio-border">
 				<div className="flex items-center gap-2">
 					<Bell size={13} className="text-connexio-text-secondary" />
-					<span className="text-xs font-semibold text-connexio-text">
-						Notifications
-					</span>
+					<span className="text-xs font-semibold text-connexio-text">Notifications</span>
 				</div>
 				<div className="flex items-center gap-1">
 					{/* Test button — send fake notification */}
@@ -141,9 +137,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 				{notifications.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-10 px-4">
 						<Bell size={24} className="text-connexio-text-muted/30 mb-2" />
-						<p className="text-xs text-connexio-text-muted text-center">
-							No notifications yet
-						</p>
+						<p className="text-xs text-connexio-text-muted text-center">No notifications yet</p>
 						<p className="text-[10px] text-connexio-text-muted/60 text-center mt-1">
 							Notifications from AI agents will appear here
 						</p>

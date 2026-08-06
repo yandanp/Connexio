@@ -32,9 +32,7 @@ export default function NotificationToast() {
 							</span>
 						)}
 					</div>
-					<p className="text-xs font-medium text-connexio-text mt-1 truncate">
-						{toast.title}
-					</p>
+					<p className="text-xs font-medium text-connexio-text mt-1 truncate">{toast.title}</p>
 					{toast.body && (
 						<p className="text-[11px] text-connexio-text-secondary mt-0.5 line-clamp-2">
 							{toast.body}

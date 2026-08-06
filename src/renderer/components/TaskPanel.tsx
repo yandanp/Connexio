@@ -22,11 +22,7 @@ interface Props {
 	onRunCommand: (command: string) => void;
 }
 
-export default function TaskPanel({
-	projectId,
-	projectPath,
-	onRunCommand,
-}: Props) {
+export default function TaskPanel({ projectId, projectPath, onRunCommand }: Props) {
 	const [tasks, setTasks] = useState<TaskScript[]>([]);
 	const [pinnedCommands, setPinnedCommands] = useState<PinnedCommand[]>([]);
 	const [showTasks, setShowTasks] = useState(true);
@@ -86,9 +82,7 @@ export default function TaskPanel({
 			return;
 		}
 		const updated = pinnedCommands.map((c) =>
-			c.id === editingId
-				? { ...c, label: newLabel.trim(), command: newCommand.trim() }
-				: c,
+			c.id === editingId ? { ...c, label: newLabel.trim(), command: newCommand.trim() } : c,
 		);
 		await savePinned(updated);
 		handleCancelEdit();
@@ -102,11 +96,7 @@ export default function TaskPanel({
 
 	// Drag & drop reorder
 	const handleDragEnd = async () => {
-		if (
-			dragFromIndex !== null &&
-			dragOverIndex !== null &&
-			dragFromIndex !== dragOverIndex
-		) {
+		if (dragFromIndex !== null && dragOverIndex !== null && dragFromIndex !== dragOverIndex) {
 			const reordered = [...pinnedCommands];
 			const [moved] = reordered.splice(dragFromIndex, 1);
 			reordered.splice(dragOverIndex, 0, moved);
@@ -127,9 +117,7 @@ export default function TaskPanel({
 				>
 					{showPinned ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
 					<Bookmark size={11} className="text-connexio-accent" />
-					<span className="section-label">
-						Pinned
-					</span>
+					<span className="section-label">Pinned</span>
 					<span className="text-[9px] text-connexio-text-muted ml-auto">
 						{pinnedCommands.length}
 					</span>
@@ -190,10 +178,7 @@ export default function TaskPanel({
 								>
 									{/* Drag handle */}
 									<div className="flex-shrink-0 opacity-0 group-hover:opacity-40 hover:!opacity-80 cursor-grab active:cursor-grabbing transition-opacity">
-										<GripVertical
-											size={9}
-											className="text-connexio-text-muted"
-										/>
+										<GripVertical size={9} className="text-connexio-text-muted" />
 									</div>
 
 									{/* Run button + label */}
@@ -282,12 +267,8 @@ export default function TaskPanel({
 					>
 						{showTasks ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
 						<Zap size={11} className="text-yellow-400" />
-						<span className="section-label">
-							Scripts
-						</span>
-						<span className="text-[9px] text-connexio-text-muted ml-auto">
-							{tasks.length}
-						</span>
+						<span className="section-label">Scripts</span>
+						<span className="text-[9px] text-connexio-text-muted ml-auto">{tasks.length}</span>
 					</button>
 
 					{showTasks && (
@@ -300,10 +281,7 @@ export default function TaskPanel({
 									type="button"
 									title={task.command}
 								>
-									<Play
-										size={9}
-										className="text-connexio-accent flex-shrink-0"
-									/>
+									<Play size={9} className="text-connexio-accent flex-shrink-0" />
 									<span className="text-[11px] text-connexio-text truncate flex-1">
 										{task.name}
 									</span>

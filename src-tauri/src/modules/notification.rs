@@ -201,7 +201,7 @@ pub fn start_notification_server(app: &AppHandle) {
             thread::spawn(move || {
                 let reader = BufReader::new(&stream);
                 let mut data = String::new();
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     data.push_str(&line);
                     data.push('\n');
                 }

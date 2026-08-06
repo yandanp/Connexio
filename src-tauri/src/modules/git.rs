@@ -167,7 +167,7 @@ pub fn git_status(_app: AppHandle, project_path: String) -> GitStatus {
         if line.len() < 2 {
             continue;
         }
-        let x = line.chars().nth(0).unwrap_or(' ');
+        let x = line.chars().next().unwrap_or(' ');
         let y = line.chars().nth(1).unwrap_or(' ');
 
         if x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D') {
@@ -275,18 +275,18 @@ fn parse_diff(raw: &str, file: &str) -> GitDiffResult {
                 lines: Vec::new(),
             });
         } else if let Some(ref mut hunk) = current_hunk {
-            if line.starts_with('+') {
+            if let Some(stripped) = line.strip_prefix('+') {
                 hunk.lines.push(GitDiffLine {
                     line_type: "add".to_string(),
-                    content: line[1..].to_string(),
+                    content: stripped.to_string(),
                     old_line_no: None,
                     new_line_no: Some(new_line),
                 });
                 new_line += 1;
-            } else if line.starts_with('-') {
+            } else if let Some(stripped) = line.strip_prefix('-') {
                 hunk.lines.push(GitDiffLine {
                     line_type: "remove".to_string(),
-                    content: line[1..].to_string(),
+                    content: stripped.to_string(),
                     old_line_no: Some(old_line),
                     new_line_no: None,
                 });
@@ -354,11 +354,7 @@ pub fn git_diff(
     } else {
         vec!["diff", "--", &file_path]
     };
-    let raw = run_git_raw(
-        &project_path,
-        &args.iter().map(|s| *s).collect::<Vec<&str>>(),
-    )
-    .unwrap_or_default();
+    let raw = run_git_raw(&project_path, &args.to_vec()).unwrap_or_default();
     parse_diff(&raw, &file_path)
 }
 

@@ -102,17 +102,17 @@ pub fn terminal_create(
         .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
     // Determine shell
-    let shell_path = shell.unwrap_or_else(|| default_shell());
+    let shell_path = shell.unwrap_or_else(default_shell);
 
     // Build command — detect PowerShell for shell integration
     let shell_lower = shell_path.replace('\\', "/").to_lowercase();
-    let is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
+    let _is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
 
     let mut cmd = CommandBuilder::new(&shell_path);
 
     // For PowerShell: set UTF-8 encoding via -Command but let profile load normally
     #[cfg(target_os = "windows")]
-    if is_powershell {
+    if _is_powershell {
         cmd.arg("-NoLogo");
         cmd.arg("-NoExit");
         cmd.arg("-Command");
@@ -489,11 +489,9 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
 pub fn terminal_close(app: AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<PtyManager>();
     let mut sessions = state.sessions.lock().unwrap();
-    if let Some(session) = sessions.remove(&id) {
-        if let TerminalSession::Ssh(session) = session {
-            if let Ok(mut channel) = session.channel.try_lock() {
-                let _ = channel.close();
-            }
+    if let Some(TerminalSession::Ssh(session)) = sessions.remove(&id) {
+        if let Ok(mut channel) = session.channel.try_lock() {
+            let _ = channel.close();
         }
     }
     Ok(())

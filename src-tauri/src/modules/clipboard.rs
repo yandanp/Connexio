@@ -1,5 +1,4 @@
 /// Clipboard helpers — bypass WebView2 limitation for image paste detection
-
 /// Check if clipboard contains an image (bypasses WebView2 limitation)
 #[tauri::command]
 pub fn clipboard_has_image() -> bool {

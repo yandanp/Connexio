@@ -34,7 +34,7 @@ pub fn run() {
             app.manage(RemoteAccessState::new());
 
             // Start notification TCP server
-            modules::notification::start_notification_server(&app.handle());
+            modules::notification::start_notification_server(app.handle());
 
             // Set window icon from embedded high-res PNG for crisp taskbar display
             if let Some(window) = app.get_webview_window("main") {

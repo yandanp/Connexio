@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn workspace_file(app: &AppHandle) -> PathBuf {

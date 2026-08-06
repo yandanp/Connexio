@@ -4,11 +4,15 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn pinned_file(app: &AppHandle, project_id: &str) -> PathBuf {
-    data_dir(app).join("pinned").join(format!("{}.json", project_id))
+    data_dir(app)
+        .join("pinned")
+        .join(format!("{}.json", project_id))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

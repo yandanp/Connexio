@@ -90,7 +90,9 @@ impl NotificationState {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn notifications_file(app: &AppHandle) -> PathBuf {
@@ -102,7 +104,10 @@ fn notif_settings_file(app: &AppHandle) -> PathBuf {
 }
 
 fn now_ms() -> u128 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
 }
 
 fn now_ms_u64() -> u64 {
@@ -114,7 +119,9 @@ fn now_ms_u64() -> u64 {
 
 fn load_notifications(app: &AppHandle) -> Vec<ConnexioNotification> {
     let path = notifications_file(app);
-    if !path.exists() { return vec![]; }
+    if !path.exists() {
+        return vec![];
+    }
     fs::read_to_string(&path)
         .ok()
         .and_then(|c| serde_json::from_str(&c).ok())
@@ -132,7 +139,9 @@ fn save_notifications(app: &AppHandle, notifications: &[ConnexioNotification]) {
 
 fn load_notif_settings(app: &AppHandle) -> NotificationSettings {
     let path = notif_settings_file(app);
-    if !path.exists() { return NotificationSettings::default(); }
+    if !path.exists() {
+        return NotificationSettings::default();
+    }
     fs::read_to_string(&path)
         .ok()
         .and_then(|c| serde_json::from_str(&c).ok())
@@ -161,7 +170,9 @@ pub fn start_notification_server(app: &AppHandle) {
     };
 
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
-    if port == 0 { return; }
+    if port == 0 {
+        return;
+    }
 
     {
         let mut sp = state.server_port.lock().unwrap();
@@ -207,7 +218,9 @@ fn process_message(app: &AppHandle, raw: &str) {
 
     for line in raw.lines() {
         let line = line.trim();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
 
         let notification = if line.starts_with('{') {
             // JSON format
@@ -217,7 +230,9 @@ fn process_message(app: &AppHandle, raw: &str) {
             parse_legacy_notification(line)
         };
 
-        let Some(notification) = notification else { continue };
+        let Some(notification) = notification else {
+            continue;
+        };
 
         // Dedupe
         let dedupe_key = format!(
@@ -230,7 +245,9 @@ fn process_message(app: &AppHandle, raw: &str) {
         {
             let mut dedupe = state.dedupe.lock().unwrap();
             if let Some(&last) = dedupe.get(&dedupe_key) {
-                if now - last < DEDUPE_WINDOW_MS { continue; }
+                if now - last < DEDUPE_WINDOW_MS {
+                    continue;
+                }
             }
             dedupe.insert(dedupe_key, now);
             // Cleanup old entries
@@ -256,15 +273,45 @@ fn parse_json_notification(line: &str) -> Option<ConnexioNotification> {
     let payload: serde_json::Value = serde_json::from_str(line).ok()?;
     Some(ConnexioNotification {
         id: Uuid::new_v4().to_string(),
-        source: payload.get("source").and_then(|v| v.as_str()).unwrap_or("agent").to_string(),
-        provider: payload.get("provider").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        title: payload.get("title").and_then(|v| v.as_str()).unwrap_or("Notification").to_string(),
-        body: payload.get("body").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        tab_id: payload.get("tabId").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        project_id: payload.get("projectId").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        terminal_id: payload.get("terminalId").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        project_name: payload.get("projectName").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        tab_label: payload.get("tabLabel").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        source: payload
+            .get("source")
+            .and_then(|v| v.as_str())
+            .unwrap_or("agent")
+            .to_string(),
+        provider: payload
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        title: payload
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Notification")
+            .to_string(),
+        body: payload
+            .get("body")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        tab_id: payload
+            .get("tabId")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        project_id: payload
+            .get("projectId")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        terminal_id: payload
+            .get("terminalId")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        project_name: payload
+            .get("projectName")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        tab_label: payload
+            .get("tabLabel")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         timestamp: now_ms_u64(),
         is_read: false,
     })
@@ -272,14 +319,19 @@ fn parse_json_notification(line: &str) -> Option<ConnexioNotification> {
 
 fn parse_legacy_notification(line: &str) -> Option<ConnexioNotification> {
     let parts: Vec<&str> = line.splitn(3, '|').collect();
-    if parts.len() < 2 { return None; }
+    if parts.len() < 2 {
+        return None;
+    }
 
     Some(ConnexioNotification {
         id: Uuid::new_v4().to_string(),
         source: "agent".to_string(),
         provider: Some(parts[0].trim().to_string()),
         title: parts[1].trim().to_string(),
-        body: parts.get(2).map(|s| s.trim().to_string()).unwrap_or_default(),
+        body: parts
+            .get(2)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default(),
         tab_id: None,
         project_id: None,
         terminal_id: None,
@@ -299,7 +351,10 @@ fn home_dir() -> PathBuf {
 fn hooks_dir(app: &AppHandle) -> PathBuf {
     // In production: bundled in resources
     // In dev: assets/hooks/ in project root
-    let resource_dir = app.path().resource_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .unwrap_or_else(|_| PathBuf::from("."));
     let prod_path = resource_dir.join("assets").join("hooks");
     if prod_path.exists() {
         return prod_path;
@@ -314,7 +369,9 @@ fn is_claude_installed() -> bool {
 
 fn is_claude_hook_installed() -> bool {
     let settings_path = home_dir().join(".claude").join("settings.json");
-    if !settings_path.exists() { return false; }
+    if !settings_path.exists() {
+        return false;
+    }
     fs::read_to_string(&settings_path)
         .map(|c| c.contains("# connexio-notification-hook"))
         .unwrap_or(false)
@@ -329,7 +386,12 @@ fn is_opencode_installed() -> bool {
 }
 
 fn is_opencode_hook_installed() -> bool {
-    home_dir().join(".config").join("opencode").join("plugin").join("connexio-notify.js").exists()
+    home_dir()
+        .join(".config")
+        .join("opencode")
+        .join("plugin")
+        .join("connexio-notify.js")
+        .exists()
 }
 
 fn is_pi_installed() -> bool {
@@ -337,7 +399,12 @@ fn is_pi_installed() -> bool {
 }
 
 fn is_pi_hook_installed() -> bool {
-    home_dir().join(".pi").join("agent").join("extensions").join("connexio-notify.ts").exists()
+    home_dir()
+        .join(".pi")
+        .join("agent")
+        .join("extensions")
+        .join("connexio-notify.ts")
+        .exists()
 }
 
 fn install_hook_file(app: &AppHandle, source_name: &str, dest: &PathBuf) -> Result<(), String> {
@@ -348,7 +415,9 @@ fn install_hook_file(app: &AppHandle, source_name: &str, dest: &PathBuf) -> Resu
     if let Some(parent) = dest.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    fs::copy(&source, dest).map(|_| ()).map_err(|e| e.to_string())
+    fs::copy(&source, dest)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 // ─── Commands ────────────────────────────────────────────────────────────────
@@ -363,7 +432,13 @@ pub fn notification_list(app: AppHandle) -> Vec<ConnexioNotification> {
 #[tauri::command]
 pub fn notification_unread_count(app: AppHandle) -> usize {
     let state = app.state::<NotificationState>();
-    let count = state.notifications.lock().unwrap().iter().filter(|n| !n.is_read).count();
+    let count = state
+        .notifications
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|n| !n.is_read)
+        .count();
     count
 }
 
@@ -411,7 +486,10 @@ pub fn notification_get_settings(app: AppHandle) -> NotificationSettings {
 }
 
 #[tauri::command]
-pub fn notification_update_settings(app: AppHandle, settings: NotificationSettings) -> NotificationSettings {
+pub fn notification_update_settings(
+    app: AppHandle,
+    settings: NotificationSettings,
+) -> NotificationSettings {
     let state = app.state::<NotificationState>();
     let mut current = state.settings.lock().unwrap();
     *current = settings.clone();
@@ -470,7 +548,8 @@ pub fn notification_install_hook(app: AppHandle, provider_id: String) -> Result<
             let marker = "# connexio-notification-hook";
             let command = format!(
                 "powershell -ExecutionPolicy Bypass -File \"{}\" -Event stop {}",
-                hook_script.display(), marker
+                hook_script.display(),
+                marker
             );
 
             let hook_entry = serde_json::json!({
@@ -483,15 +562,26 @@ pub fn notification_install_hook(app: AppHandle, provider_id: String) -> Result<
             }
             settings["hooks"]["Stop"] = serde_json::json!([hook_entry]);
 
-            fs::write(&settings_path, serde_json::to_string_pretty(&settings).unwrap_or_default())
-                .map_err(|e| e.to_string())
+            fs::write(
+                &settings_path,
+                serde_json::to_string_pretty(&settings).unwrap_or_default(),
+            )
+            .map_err(|e| e.to_string())
         }
         "opencode" => {
-            let dest = home_dir().join(".config").join("opencode").join("plugin").join("connexio-notify.js");
+            let dest = home_dir()
+                .join(".config")
+                .join("opencode")
+                .join("plugin")
+                .join("connexio-notify.js");
             install_hook_file(&app, "connexio-opencode-plugin.js", &dest)
         }
         "pi" => {
-            let dest = home_dir().join(".pi").join("agent").join("extensions").join("connexio-notify.ts");
+            let dest = home_dir()
+                .join(".pi")
+                .join("agent")
+                .join("extensions")
+                .join("connexio-notify.ts");
             install_hook_file(&app, "connexio-pi-hook.ts", &dest)
         }
         _ => Err(format!("Unknown provider: {}", provider_id)),
@@ -503,26 +593,44 @@ pub fn notification_uninstall_hook(provider_id: String) -> Result<(), String> {
     match provider_id.as_str() {
         "claude" => {
             let settings_path = home_dir().join(".claude").join("settings.json");
-            if !settings_path.exists() { return Ok(()); }
+            if !settings_path.exists() {
+                return Ok(());
+            }
             let content = fs::read_to_string(&settings_path).unwrap_or_default();
-            let mut settings: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
+            let mut settings: serde_json::Value =
+                serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
             if let Some(hooks) = settings.get_mut("hooks") {
                 if let Some(obj) = hooks.as_object_mut() {
                     obj.remove("Stop");
                     obj.remove("Notification");
                 }
             }
-            fs::write(&settings_path, serde_json::to_string_pretty(&settings).unwrap_or_default())
-                .map_err(|e| e.to_string())
+            fs::write(
+                &settings_path,
+                serde_json::to_string_pretty(&settings).unwrap_or_default(),
+            )
+            .map_err(|e| e.to_string())
         }
         "opencode" => {
-            let path = home_dir().join(".config").join("opencode").join("plugin").join("connexio-notify.js");
-            if path.exists() { let _ = fs::remove_file(&path); }
+            let path = home_dir()
+                .join(".config")
+                .join("opencode")
+                .join("plugin")
+                .join("connexio-notify.js");
+            if path.exists() {
+                let _ = fs::remove_file(&path);
+            }
             Ok(())
         }
         "pi" => {
-            let path = home_dir().join(".pi").join("agent").join("extensions").join("connexio-notify.ts");
-            if path.exists() { let _ = fs::remove_file(&path); }
+            let path = home_dir()
+                .join(".pi")
+                .join("agent")
+                .join("extensions")
+                .join("connexio-notify.ts");
+            if path.exists() {
+                let _ = fs::remove_file(&path);
+            }
             Ok(())
         }
         _ => Err(format!("Unknown provider: {}", provider_id)),

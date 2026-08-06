@@ -6,15 +6,15 @@ pub fn clipboard_has_image() -> bool {
     #[cfg(target_os = "windows")]
     {
         use windows_sys::Win32::System::DataExchange::{
-            OpenClipboard, CloseClipboard, IsClipboardFormatAvailable,
+            CloseClipboard, IsClipboardFormatAvailable, OpenClipboard,
         };
         // CF_BITMAP = 2, CF_DIB = 8
         unsafe {
             if OpenClipboard(std::ptr::null_mut()) == 0 {
                 return false;
             }
-            let has_image = IsClipboardFormatAvailable(2) != 0
-                || IsClipboardFormatAvailable(8) != 0;
+            let has_image =
+                IsClipboardFormatAvailable(2) != 0 || IsClipboardFormatAvailable(8) != 0;
             CloseClipboard();
             has_image
         }
@@ -31,7 +31,7 @@ pub fn clipboard_read_text() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
         use windows_sys::Win32::System::DataExchange::{
-            OpenClipboard, CloseClipboard, GetClipboardData,
+            CloseClipboard, GetClipboardData, OpenClipboard,
         };
         use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock};
         // CF_UNICODETEXT = 13
@@ -57,7 +57,11 @@ pub fn clipboard_read_text() -> Option<String> {
             let text = String::from_utf16_lossy(slice);
             GlobalUnlock(handle);
             CloseClipboard();
-            if text.is_empty() { None } else { Some(text) }
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
         }
     }
     #[cfg(not(target_os = "windows"))]

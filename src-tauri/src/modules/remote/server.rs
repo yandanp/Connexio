@@ -1,5 +1,8 @@
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query, State},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Query, State,
+    },
     http::{HeaderMap, StatusCode},
     response::{Html, IntoResponse, Json},
     routing::{get, post},
@@ -14,7 +17,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex as StdMutex};
 use tauri::{AppHandle, Listener, Manager};
 use tokio::sync::mpsc;
-use tokio::time::{Duration, interval};
+use tokio::time::{interval, Duration};
 use tower_http::services::{ServeDir, ServeFile};
 
 use super::protocol::{ClientMessage, PowerAction, ServerMessage};
@@ -112,7 +115,10 @@ pub struct RemoteStatusResponse {
 }
 
 #[tauri::command]
-pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteStatusResponse, String> {
+pub async fn remote_start(
+    app: AppHandle,
+    port: Option<u16>,
+) -> Result<RemoteStatusResponse, String> {
     let state = app.state::<RemoteAccessState>();
 
     {
@@ -151,7 +157,8 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
                 break;
             }
             // Flush all terminal output buffers
-            let buffers: Vec<(String, String)> = s.output_buffers
+            let buffers: Vec<(String, String)> = s
+                .output_buffers
                 .drain()
                 .filter(|(_, data)| !data.is_empty())
                 .collect();
@@ -174,7 +181,10 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
             // Flush immediately if buffer is large
             if buffer.len() > OUTPUT_FLUSH_THRESHOLD {
                 let flushed = std::mem::take(buffer);
-                let msg = ServerMessage::Term { id: term_id, data: flushed };
+                let msg = ServerMessage::Term {
+                    id: term_id,
+                    data: flushed,
+                };
                 let json = msg.to_json();
                 s.broadcast(&json);
             }
@@ -221,7 +231,9 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
         log::info!("Remote access server on port {}", port);
 
         axum::serve(listener, router)
-            .with_graceful_shutdown(async { let _ = shutdown_rx.await; })
+            .with_graceful_shutdown(async {
+                let _ = shutdown_rx.await;
+            })
             .await
             .unwrap_or_else(|e| log::error!("Remote server error: {}", e));
 
@@ -232,8 +244,12 @@ pub async fn remote_start(app: AppHandle, port: Option<u16>) -> Result<RemoteSta
     let tailscale_ip = detect_tailscale_ip();
     let s = state.inner.lock().unwrap();
 
-    let login_url = local_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
-    let tailscale_login_url = tailscale_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
+    let login_url = local_ip
+        .clone()
+        .map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
+    let tailscale_login_url = tailscale_ip
+        .clone()
+        .map(|ip| format!("http://{}:{}?pin={}", ip, port, s.pin));
 
     Ok(RemoteStatusResponse {
         is_running: true,
@@ -275,8 +291,12 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
     let local_ip = local_ip_address::local_ip().ok().map(|ip| ip.to_string());
     let tailscale_ip = detect_tailscale_ip();
 
-    let login_url = local_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
-    let tailscale_login_url = tailscale_ip.clone().map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
+    let login_url = local_ip
+        .clone()
+        .map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
+    let tailscale_login_url = tailscale_ip
+        .clone()
+        .map(|ip| format!("http://{}:{}?pin={}", ip, s.port, s.pin));
 
     Ok(RemoteStatusResponse {
         is_running: s.is_running,
@@ -292,8 +312,16 @@ pub async fn remote_status(app: AppHandle) -> Result<RemoteStatusResponse, Strin
 }
 
 #[tauri::command]
-pub async fn remote_wol_send(mac: String, broadcast_ip: Option<String>, port: Option<u16>) -> Result<(), String> {
-    send_magic_packet(&mac, &broadcast_ip.unwrap_or_else(|| "255.255.255.255".to_string()), port.unwrap_or(9))
+pub async fn remote_wol_send(
+    mac: String,
+    broadcast_ip: Option<String>,
+    port: Option<u16>,
+) -> Result<(), String> {
+    send_magic_packet(
+        &mac,
+        &broadcast_ip.unwrap_or_else(|| "255.255.255.255".to_string()),
+        port.unwrap_or(9),
+    )
 }
 
 #[tauri::command]
@@ -330,9 +358,13 @@ async fn handle_auth(
     let now = now_secs();
     if let Some(until) = s.lockout_until {
         if now < until {
-            return (StatusCode::TOO_MANY_REQUESTS, Json(serde_json::json!({
-                "error": format!("Locked out. Try again in {} seconds.", until - now)
-            }))).into_response();
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "error": format!("Locked out. Try again in {} seconds.", until - now)
+                })),
+            )
+                .into_response();
         }
         s.lockout_until = None;
         s.failed_attempts = 0;
@@ -342,19 +374,31 @@ async fn handle_auth(
         s.failed_attempts = 0;
         let token = uuid::Uuid::new_v4().to_string();
         s.trusted_tokens.insert(token.clone());
-        (StatusCode::OK, Json(serde_json::json!({ "ok": true, "token": token }))).into_response()
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({ "ok": true, "token": token })),
+        )
+            .into_response()
     } else {
         s.failed_attempts += 1;
         if s.failed_attempts >= MAX_PIN_ATTEMPTS {
             s.lockout_until = Some(now + LOCKOUT_SECS);
-            (StatusCode::TOO_MANY_REQUESTS, Json(serde_json::json!({
-                "error": "Too many attempts. Locked for 5 minutes."
-            }))).into_response()
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "error": "Too many attempts. Locked for 5 minutes."
+                })),
+            )
+                .into_response()
         } else {
             let remaining = MAX_PIN_ATTEMPTS - s.failed_attempts;
-            (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
-                "error": format!("Invalid PIN. {} attempts left.", remaining)
-            }))).into_response()
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "error": format!("Invalid PIN. {} attempts left.", remaining)
+                })),
+            )
+                .into_response()
         }
     }
 }
@@ -394,7 +438,11 @@ async fn serve_fallback() -> Html<&'static str> {
 
 // ─── WebSocket Client Handler ────────────────────────────────────────────────
 
-async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>, user_agent: String) {
+async fn handle_ws_client(
+    socket: WebSocket,
+    state: Arc<StdMutex<RemoteState>>,
+    user_agent: String,
+) {
     let (mut ws_tx, mut ws_rx) = socket.split();
     let (client_tx, mut client_rx) = mpsc::unbounded_channel::<String>();
 
@@ -404,18 +452,28 @@ async fn handle_ws_client(socket: WebSocket, state: Arc<StdMutex<RemoteState>>, 
     let app_handle = {
         let mut s = state.lock().unwrap();
         s.clients.insert(client_id.clone(), client_tx);
-        s.client_info.insert(client_id.clone(), RemoteClientInfo {
-            id: client_id.clone(),
-            user_agent,
-            connected_at: now_secs(),
-        });
+        s.client_info.insert(
+            client_id.clone(),
+            RemoteClientInfo {
+                id: client_id.clone(),
+                user_agent,
+                connected_at: now_secs(),
+            },
+        );
         s.app_handle.clone()
     };
 
     let Some(app) = app_handle else {
-        let _ = ws_tx.send(Message::Text(
-            ServerMessage::Error { req_id: None, error: "Server not ready".into() }.to_json().into()
-        )).await;
+        let _ = ws_tx
+            .send(Message::Text(
+                ServerMessage::Error {
+                    req_id: None,
+                    error: "Server not ready".into(),
+                }
+                .to_json()
+                .into(),
+            ))
+            .await;
         return;
     };
 
@@ -479,18 +537,28 @@ fn handle_client_message(
             }
         }
         ClientMessage::TermResize { id, cols, rows } => {
-            if cols == 0 || rows == 0 { return; }
+            if cols == 0 || rows == 0 {
+                return;
+            }
             let mut sessions = pty.sessions.lock().unwrap();
             if let Some(session) = sessions.get_mut(&id) {
                 let _ = resize_session(session, cols, rows);
             }
         }
-        ClientMessage::CmdCreateTerminal { req_id, project_path, shell, context } => {
+        ClientMessage::CmdCreateTerminal {
+            req_id,
+            project_path,
+            shell,
+            context,
+        } => {
             // Remote resume: if a terminal already exists for this project/tab,
             // return the existing terminal ID instead of spawning a duplicate.
             if let Some(ref ctx) = context {
                 if let Some(existing_id) = pty.find_by_context(&ctx.project_id, &ctx.tab_id) {
-                    let msg = ServerMessage::TermCreated { req_id, id: existing_id };
+                    let msg = ServerMessage::TermCreated {
+                        req_id,
+                        id: existing_id,
+                    };
                     send_to_client(state, client_id, &msg.to_json());
                     return;
                 }
@@ -507,16 +575,29 @@ fn handle_client_message(
                 }
             }
         }
-        ClientMessage::CmdCreateCommand { req_id, project_path, command, context } => {
+        ClientMessage::CmdCreateCommand {
+            req_id,
+            project_path,
+            command,
+            context,
+        } => {
             if let Some(ref ctx) = context {
                 if let Some(existing_id) = pty.find_by_context(&ctx.project_id, &ctx.tab_id) {
-                    let msg = ServerMessage::TermCreated { req_id, id: existing_id };
+                    let msg = ServerMessage::TermCreated {
+                        req_id,
+                        id: existing_id,
+                    };
                     send_to_client(state, client_id, &msg.to_json());
                     return;
                 }
             }
             let ctx = context.map(|c| c.into());
-            match crate::modules::pty::terminal_create_command(app.clone(), project_path, command, ctx) {
+            match crate::modules::pty::terminal_create_command(
+                app.clone(),
+                project_path,
+                command,
+                ctx,
+            ) {
                 Ok(id) => {
                     let msg = ServerMessage::TermCreated { req_id, id };
                     send_to_client(state, client_id, &msg.to_json());
@@ -535,33 +616,50 @@ fn handle_client_message(
             let msg = ServerMessage::State { data };
             send_to_client(state, client_id, &msg.to_json());
         }
-        ClientMessage::CmdDetectTasks { req_id, project_path } => {
+        ClientMessage::CmdDetectTasks {
+            req_id,
+            project_path,
+        } => {
             let tasks = crate::modules::tasks::tasks_detect(app.clone(), project_path);
-            let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(tasks) };
+            let msg = ServerMessage::CmdResult {
+                req_id,
+                data: serde_json::json!(tasks),
+            };
             send_to_client(state, client_id, &msg.to_json());
         }
         ClientMessage::CmdPinnedList { req_id, project_id } => {
             let commands = crate::modules::pinned::pinned_list(app.clone(), project_id);
-            let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(commands) };
+            let msg = ServerMessage::CmdResult {
+                req_id,
+                data: serde_json::json!(commands),
+            };
             send_to_client(state, client_id, &msg.to_json());
         }
-        ClientMessage::CmdPinnedSave { req_id, project_id, commands } => {
+        ClientMessage::CmdPinnedSave {
+            req_id,
+            project_id,
+            commands,
+        } => {
             crate::modules::pinned::pinned_save(app.clone(), project_id, commands);
-            let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(null) };
+            let msg = ServerMessage::CmdResult {
+                req_id,
+                data: serde_json::json!(null),
+            };
             send_to_client(state, client_id, &msg.to_json());
         }
-        ClientMessage::CmdPower { req_id, action } => {
-            match run_power_action(action) {
-                Ok(_) => {
-                    let msg = ServerMessage::CmdResult { req_id, data: serde_json::json!(null) };
-                    send_to_client(state, client_id, &msg.to_json());
-                }
-                Err(e) => {
-                    let msg = ServerMessage::Error { req_id, error: e };
-                    send_to_client(state, client_id, &msg.to_json());
-                }
+        ClientMessage::CmdPower { req_id, action } => match run_power_action(action) {
+            Ok(_) => {
+                let msg = ServerMessage::CmdResult {
+                    req_id,
+                    data: serde_json::json!(null),
+                };
+                send_to_client(state, client_id, &msg.to_json());
             }
-        }
+            Err(e) => {
+                let msg = ServerMessage::Error { req_id, error: e };
+                send_to_client(state, client_id, &msg.to_json());
+            }
+        },
         ClientMessage::Ping => {
             let msg = ServerMessage::Pong { ts: now_secs() };
             send_to_client(state, client_id, &msg.to_json());
@@ -605,7 +703,10 @@ fn gather_init_state(app: &AppHandle) -> serde_json::Value {
 
 // ─── PTY Helpers ─────────────────────────────────────────────────────────────
 
-fn write_session(session: &mut crate::modules::pty::TerminalSession, data: &[u8]) -> Result<(), String> {
+fn write_session(
+    session: &mut crate::modules::pty::TerminalSession,
+    data: &[u8],
+) -> Result<(), String> {
     match session {
         crate::modules::pty::TerminalSession::Local(s) => {
             s.writer.write_all(data).map_err(|e| e.to_string())?;
@@ -620,11 +721,21 @@ fn write_session(session: &mut crate::modules::pty::TerminalSession, data: &[u8]
     }
 }
 
-fn resize_session(session: &mut crate::modules::pty::TerminalSession, cols: u16, rows: u16) -> Result<(), String> {
+fn resize_session(
+    session: &mut crate::modules::pty::TerminalSession,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
     use portable_pty::PtySize;
     match session {
         crate::modules::pty::TerminalSession::Local(s) => {
-            s.master.resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+            s.master
+                .resize(PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })
                 .map_err(|e| e.to_string())?;
             s.cols = cols;
             s.rows = rows;
@@ -750,7 +861,9 @@ fn detect_tailscale_ip() -> Option<String> {
 fn detect_tailscale_ip_from_interfaces() -> Option<String> {
     let interfaces = local_ip_address::list_afinet_netifas().ok()?;
     interfaces.into_iter().find_map(|(name, ip)| {
-        let std::net::IpAddr::V4(v4) = ip else { return None; };
+        let std::net::IpAddr::V4(v4) = ip else {
+            return None;
+        };
         let is_tailscale_range = is_tailscale_ipv4(v4);
         let name_hint = name.to_lowercase().contains("tailscale");
         if is_tailscale_range || name_hint {
@@ -769,7 +882,10 @@ fn detect_tailscale_ip_from_cli() -> Option<String> {
     ];
 
     for binary in candidates {
-        let Ok(output) = std::process::Command::new(binary).args(["ip", "-4"]).output() else {
+        let Ok(output) = std::process::Command::new(binary)
+            .args(["ip", "-4"])
+            .output()
+        else {
             continue;
         };
         if !output.status.success() {
@@ -817,16 +933,24 @@ fn is_tailscale_ipv4(ip: std::net::Ipv4Addr) -> bool {
 
 fn generate_pin() -> String {
     let mut rng = rand::thread_rng();
-    format!("{:0>width$}", rng.gen_range(0..10u32.pow(PIN_LENGTH as u32)), width = PIN_LENGTH)
+    format!(
+        "{:0>width$}",
+        rng.gen_range(0..10u32.pow(PIN_LENGTH as u32)),
+        width = PIN_LENGTH
+    )
 }
 
 fn resolve_frontend_dir() -> std::path::PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         let dir = exe.parent().unwrap_or(std::path::Path::new("."));
         let candidate = dir.join("dist").join("renderer");
-        if candidate.exists() { return candidate; }
+        if candidate.exists() {
+            return candidate;
+        }
         let candidate = dir.join("../../../dist/renderer");
-        if candidate.exists() { return candidate; }
+        if candidate.exists() {
+            return candidate;
+        }
     }
     std::path::PathBuf::from("dist/renderer")
 }

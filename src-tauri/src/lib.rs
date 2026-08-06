@@ -1,8 +1,8 @@
 mod modules;
 
+use modules::discord::DiscordPresenceState;
 use modules::notification::NotificationState;
 use modules::pty::PtyManager;
-use modules::discord::DiscordPresenceState;
 use modules::remote::RemoteAccessState;
 use tauri::Manager;
 
@@ -21,9 +21,11 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .setup(|app| {
             // Initialize PTY manager state
             app.manage(PtyManager::new());

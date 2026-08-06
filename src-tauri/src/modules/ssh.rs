@@ -10,11 +10,15 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn ssh_file(app: &AppHandle, project_id: &str) -> PathBuf {
-    data_dir(app).join("ssh").join(format!("{}.json", project_id))
+    data_dir(app)
+        .join("ssh")
+        .join(format!("{}.json", project_id))
 }
 
 fn ssh_global_file(app: &AppHandle) -> PathBuf {
@@ -257,7 +261,11 @@ pub fn ssh_build_command(connection: SSHConnection) -> String {
     ));
 
     let mut command = parts.join(" ");
-    for startup_command in connection.startup_commands.iter().filter(|cmd| !cmd.trim().is_empty()) {
+    for startup_command in connection
+        .startup_commands
+        .iter()
+        .filter(|cmd| !cmd.trim().is_empty())
+    {
         command.push_str(" && ");
         command.push_str(startup_command.trim());
     }
@@ -292,7 +300,12 @@ pub fn ssh_build_command_args(connection: SSHConnection) -> Vec<String> {
 
 fn ssh_host_fingerprint(session: &Session) -> Option<String> {
     let (hash, _) = session.host_key()?;
-    Some(hash.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(":"))
+    Some(
+        hash.iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect::<Vec<_>>()
+            .join(":"),
+    )
 }
 
 fn ssh_load_known_hosts(app: &AppHandle) -> Vec<SSHKnownHost> {
@@ -309,18 +322,28 @@ fn ssh_load_known_hosts(app: &AppHandle) -> Vec<SSHKnownHost> {
 fn ssh_save_known_hosts(app: &AppHandle, hosts: &[SSHKnownHost]) -> Result<(), String> {
     let path = ssh_known_hosts_file(app);
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| format!("Failed to create SSH data dir: {}", err))?;
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("Failed to create SSH data dir: {}", err))?;
     }
-    let json = serde_json::to_string_pretty(hosts).map_err(|err| format!("Failed to serialize known hosts: {}", err))?;
+    let json = serde_json::to_string_pretty(hosts)
+        .map_err(|err| format!("Failed to serialize known hosts: {}", err))?;
     fs::write(&path, json).map_err(|err| format!("Failed to save known hosts: {}", err))
 }
 
-fn ssh_host_trust_status(app: &AppHandle, host: &str, port: u16, fingerprint: Option<&str>) -> SSHHostTrustStatus {
+fn ssh_host_trust_status(
+    app: &AppHandle,
+    host: &str,
+    port: u16,
+    fingerprint: Option<&str>,
+) -> SSHHostTrustStatus {
     let Some(fingerprint) = fingerprint else {
         return SSHHostTrustStatus::Unknown;
     };
     let known_hosts = ssh_load_known_hosts(app);
-    match known_hosts.iter().find(|entry| entry.host == host && entry.port == port) {
+    match known_hosts
+        .iter()
+        .find(|entry| entry.host == host && entry.port == port)
+    {
         Some(entry) if entry.fingerprint_sha256 == fingerprint => SSHHostTrustStatus::Trusted,
         Some(_) => SSHHostTrustStatus::Changed,
         None => SSHHostTrustStatus::Unknown,
@@ -333,7 +356,12 @@ pub fn ssh_known_hosts_list(app: AppHandle) -> Vec<SSHKnownHost> {
 }
 
 #[tauri::command]
-pub fn ssh_trust_host(app: AppHandle, host: String, port: u16, fingerprint_sha256: String) -> Result<(), String> {
+pub fn ssh_trust_host(
+    app: AppHandle,
+    host: String,
+    port: u16,
+    fingerprint_sha256: String,
+) -> Result<(), String> {
     let mut known_hosts = ssh_load_known_hosts(&app);
     known_hosts.retain(|entry| !(entry.host == host && entry.port == port));
     known_hosts.push(SSHKnownHost {
@@ -360,7 +388,11 @@ fn chrono_like_timestamp() -> String {
 }
 
 #[tauri::command]
-pub fn ssh_test_connection(app: AppHandle, connection: SSHConnection, password: Option<String>) -> SSHConnectionTestResult {
+pub fn ssh_test_connection(
+    app: AppHandle,
+    connection: SSHConnection,
+    password: Option<String>,
+) -> SSHConnectionTestResult {
     let address = format!("{}:{}", connection.host, connection.port);
     let tcp = match TcpStream::connect(&address) {
         Ok(tcp) => tcp,
@@ -402,10 +434,17 @@ pub fn ssh_test_connection(app: AppHandle, connection: SSHConnection, password: 
     }
 
     let fingerprint_sha256 = ssh_host_fingerprint(&session);
-    let host_trust = ssh_host_trust_status(&app, &connection.host, connection.port, fingerprint_sha256.as_deref());
+    let host_trust = ssh_host_trust_status(
+        &app,
+        &connection.host,
+        connection.port,
+        fingerprint_sha256.as_deref(),
+    );
     let auth_result = match connection.auth_method {
         SSHAuthMethod::Password => match password {
-            Some(password) if !password.is_empty() => session.userauth_password(&connection.username, &password),
+            Some(password) if !password.is_empty() => {
+                session.userauth_password(&connection.username, &password)
+            }
             _ => Err(ssh2::Error::from_errno(ssh2::ErrorCode::Session(-18))),
         },
         SSHAuthMethod::Key => {
@@ -500,13 +539,18 @@ pub fn ssh_test_connection(app: AppHandle, connection: SSHConnection, password: 
     }
 }
 
-pub(crate) fn ssh_connect_session(connection: &SSHConnection, password: Option<&str>) -> Result<Session, String> {
+pub(crate) fn ssh_connect_session(
+    connection: &SSHConnection,
+    password: Option<&str>,
+) -> Result<Session, String> {
     let address = format!("{}:{}", connection.host, connection.port);
-    let socket_addr: std::net::SocketAddr = address.parse()
+    let socket_addr: std::net::SocketAddr = address
+        .parse()
         .or_else(|_| {
             // Host might be a hostname, resolve it
             use std::net::ToSocketAddrs;
-            address.to_socket_addrs()
+            address
+                .to_socket_addrs()
                 .map_err(|e| format!("Failed to resolve {}: {}", address, e))?
                 .next()
                 .ok_or_else(|| format!("No addresses found for {}", address))
@@ -517,34 +561,44 @@ pub(crate) fn ssh_connect_session(connection: &SSHConnection, password: Option<&
     let _ = tcp.set_read_timeout(Some(Duration::from_secs(15)));
     let _ = tcp.set_write_timeout(Some(Duration::from_secs(15)));
 
-    let mut session = Session::new()
-        .map_err(|err| format!("Failed to create SSH session: {}", err))?;
+    let mut session =
+        Session::new().map_err(|err| format!("Failed to create SSH session: {}", err))?;
     session.set_timeout(15_000);
     session.set_tcp_stream(tcp);
-    session.handshake().map_err(|err| format!("SSH handshake failed: {}", err))?;
+    session
+        .handshake()
+        .map_err(|err| format!("SSH handshake failed: {}", err))?;
 
     match connection.auth_method {
         SSHAuthMethod::Password => {
             let password = password.ok_or_else(|| "Password is required".to_string())?;
-            session.userauth_password(&connection.username, password)
+            session
+                .userauth_password(&connection.username, password)
                 .map_err(|err| format!("Password authentication failed: {}", err))?;
         }
         SSHAuthMethod::Key => {
-            let key_path = connection.private_key_path.as_deref()
+            let key_path = connection
+                .private_key_path
+                .as_deref()
                 .filter(|path| !path.trim().is_empty())
                 .ok_or_else(|| "Private key path is required".to_string())?;
-            session.userauth_pubkey_file(
-                &connection.username,
-                None,
-                Path::new(key_path),
-                password,
-            ).map_err(|err| format!("Private key authentication failed: {}", err))?;
+            session
+                .userauth_pubkey_file(&connection.username, None, Path::new(key_path), password)
+                .map_err(|err| format!("Private key authentication failed: {}", err))?;
         }
         SSHAuthMethod::Agent => {
-            let mut agent = session.agent().map_err(|err| format!("Failed to open SSH agent: {}", err))?;
-            agent.connect().map_err(|err| format!("Failed to connect to SSH agent: {}", err))?;
-            agent.list_identities().map_err(|err| format!("Failed to list SSH agent identities: {}", err))?;
-            let identities = agent.identities().map_err(|err| format!("Failed to read SSH agent identities: {}", err))?;
+            let mut agent = session
+                .agent()
+                .map_err(|err| format!("Failed to open SSH agent: {}", err))?;
+            agent
+                .connect()
+                .map_err(|err| format!("Failed to connect to SSH agent: {}", err))?;
+            agent
+                .list_identities()
+                .map_err(|err| format!("Failed to list SSH agent identities: {}", err))?;
+            let identities = agent
+                .identities()
+                .map_err(|err| format!("Failed to read SSH agent identities: {}", err))?;
             let mut authenticated = false;
             let mut last_error = None;
             for identity in identities {
@@ -575,11 +629,19 @@ pub(crate) fn ssh_connect_session(connection: &SSHConnection, password: Option<&
 }
 
 #[tauri::command]
-pub fn ssh_sftp_list(connection: SSHConnection, path: String, password: Option<String>) -> Result<Vec<SFTPEntry>, String> {
+pub fn ssh_sftp_list(
+    connection: SSHConnection,
+    path: String,
+    password: Option<String>,
+) -> Result<Vec<SFTPEntry>, String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        let entries = sftp.readdir(Path::new(&path)).map_err(|err| format!("Failed to list remote directory: {}", err))?;
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        let entries = sftp
+            .readdir(Path::new(&path))
+            .map_err(|err| format!("Failed to list remote directory: {}", err))?;
 
         let mut result = entries
             .into_iter()
@@ -602,92 +664,181 @@ pub fn ssh_sftp_list(connection: SSHConnection, path: String, password: Option<S
                 })
             })
             .collect::<Vec<_>>();
-        result.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+        result.sort_by(|a, b| {
+            b.is_dir
+                .cmp(&a.is_dir)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        });
         Ok(result)
-    }).join().map_err(|_| "SFTP list task panicked".to_string())?
+    })
+    .join()
+    .map_err(|_| "SFTP list task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_download(connection: SSHConnection, remote_path: String, local_path: String, password: Option<String>) -> Result<(), String> {
+pub fn ssh_sftp_download(
+    connection: SSHConnection,
+    remote_path: String,
+    local_path: String,
+    password: Option<String>,
+) -> Result<(), String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        let mut remote = sftp.open(Path::new(&remote_path)).map_err(|err| format!("Failed to open remote file: {}", err))?;
-        let mut local = fs::File::create(&local_path).map_err(|err| format!("Failed to create local file: {}", err))?;
-        std::io::copy(&mut remote, &mut local).map_err(|err| format!("Failed to download file: {}", err))?;
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        let mut remote = sftp
+            .open(Path::new(&remote_path))
+            .map_err(|err| format!("Failed to open remote file: {}", err))?;
+        let mut local = fs::File::create(&local_path)
+            .map_err(|err| format!("Failed to create local file: {}", err))?;
+        std::io::copy(&mut remote, &mut local)
+            .map_err(|err| format!("Failed to download file: {}", err))?;
         Ok(())
-    }).join().map_err(|_| "SFTP download task panicked".to_string())?
+    })
+    .join()
+    .map_err(|_| "SFTP download task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_upload(connection: SSHConnection, local_path: String, remote_path: String, password: Option<String>) -> Result<(), String> {
+pub fn ssh_sftp_upload(
+    connection: SSHConnection,
+    local_path: String,
+    remote_path: String,
+    password: Option<String>,
+) -> Result<(), String> {
     // Check file size before uploading (limit: 100 MB)
     const MAX_UPLOAD_BYTES: u64 = 100 * 1024 * 1024;
-    let metadata = fs::metadata(&local_path).map_err(|err| format!("Failed to read local file info: {}", err))?;
+    let metadata = fs::metadata(&local_path)
+        .map_err(|err| format!("Failed to read local file info: {}", err))?;
     if metadata.len() > MAX_UPLOAD_BYTES {
-        return Err(format!("File too large ({:.1} MB). Maximum upload size is 100 MB.", metadata.len() as f64 / 1024.0 / 1024.0));
+        return Err(format!(
+            "File too large ({:.1} MB). Maximum upload size is 100 MB.",
+            metadata.len() as f64 / 1024.0 / 1024.0
+        ));
     }
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        let mut local = fs::File::open(&local_path).map_err(|err| format!("Failed to open local file: {}", err))?;
-        let mut remote = sftp.create(Path::new(&remote_path)).map_err(|err| format!("Failed to create remote file: {}", err))?;
-        std::io::copy(&mut local, &mut remote).map_err(|err| format!("Failed to upload file: {}", err))?;
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        let mut local = fs::File::open(&local_path)
+            .map_err(|err| format!("Failed to open local file: {}", err))?;
+        let mut remote = sftp
+            .create(Path::new(&remote_path))
+            .map_err(|err| format!("Failed to create remote file: {}", err))?;
+        std::io::copy(&mut local, &mut remote)
+            .map_err(|err| format!("Failed to upload file: {}", err))?;
         Ok(())
-    }).join().map_err(|_| "SFTP upload task panicked".to_string())?
+    })
+    .join()
+    .map_err(|_| "SFTP upload task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_read(connection: SSHConnection, path: String, password: Option<String>) -> Result<String, String> {
+pub fn ssh_sftp_read(
+    connection: SSHConnection,
+    path: String,
+    password: Option<String>,
+) -> Result<String, String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        let mut file = sftp.open(Path::new(&path)).map_err(|err| format!("Failed to open remote file: {}", err))?;
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        let mut file = sftp
+            .open(Path::new(&path))
+            .map_err(|err| format!("Failed to open remote file: {}", err))?;
         let mut content = String::new();
-        file.read_to_string(&mut content).map_err(|err| format!("Failed to read remote file as UTF-8: {}", err))?;
+        file.read_to_string(&mut content)
+            .map_err(|err| format!("Failed to read remote file as UTF-8: {}", err))?;
         Ok(content)
-    }).join().map_err(|_| "SFTP read task panicked".to_string())?
+    })
+    .join()
+    .map_err(|_| "SFTP read task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_write(connection: SSHConnection, path: String, content: String, password: Option<String>) -> Result<(), String> {
+pub fn ssh_sftp_write(
+    connection: SSHConnection,
+    path: String,
+    content: String,
+    password: Option<String>,
+) -> Result<(), String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        let mut file = sftp.create(Path::new(&path)).map_err(|err| format!("Failed to create remote file: {}", err))?;
-        file.write_all(content.as_bytes()).map_err(|err| format!("Failed to write remote file: {}", err))
-    }).join().map_err(|_| "SFTP write task panicked".to_string())?
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        let mut file = sftp
+            .create(Path::new(&path))
+            .map_err(|err| format!("Failed to create remote file: {}", err))?;
+        file.write_all(content.as_bytes())
+            .map_err(|err| format!("Failed to write remote file: {}", err))
+    })
+    .join()
+    .map_err(|_| "SFTP write task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_mkdir(connection: SSHConnection, path: String, password: Option<String>) -> Result<(), String> {
+pub fn ssh_sftp_mkdir(
+    connection: SSHConnection,
+    path: String,
+    password: Option<String>,
+) -> Result<(), String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        sftp.mkdir(Path::new(&path), 0o755).map_err(|err| format!("Failed to create remote directory: {}", err))
-    }).join().map_err(|_| "SFTP mkdir task panicked".to_string())?
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        sftp.mkdir(Path::new(&path), 0o755)
+            .map_err(|err| format!("Failed to create remote directory: {}", err))
+    })
+    .join()
+    .map_err(|_| "SFTP mkdir task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_delete(connection: SSHConnection, path: String, is_dir: bool, password: Option<String>) -> Result<(), String> {
+pub fn ssh_sftp_delete(
+    connection: SSHConnection,
+    path: String,
+    is_dir: bool,
+    password: Option<String>,
+) -> Result<(), String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
         if is_dir {
-            sftp.rmdir(Path::new(&path)).map_err(|err| format!("Failed to remove remote directory: {}", err))
+            sftp.rmdir(Path::new(&path))
+                .map_err(|err| format!("Failed to remove remote directory: {}", err))
         } else {
-            sftp.unlink(Path::new(&path)).map_err(|err| format!("Failed to remove remote file: {}", err))
+            sftp.unlink(Path::new(&path))
+                .map_err(|err| format!("Failed to remove remote file: {}", err))
         }
-    }).join().map_err(|_| "SFTP delete task panicked".to_string())?
+    })
+    .join()
+    .map_err(|_| "SFTP delete task panicked".to_string())?
 }
 
 #[tauri::command]
-pub fn ssh_sftp_rename(connection: SSHConnection, old_path: String, new_path: String, password: Option<String>) -> Result<(), String> {
+pub fn ssh_sftp_rename(
+    connection: SSHConnection,
+    old_path: String,
+    new_path: String,
+    password: Option<String>,
+) -> Result<(), String> {
     std::thread::spawn(move || {
         let session = ssh_connect_session(&connection, password.as_deref())?;
-        let sftp = session.sftp().map_err(|err| format!("Failed to open SFTP session: {}", err))?;
-        sftp.rename(Path::new(&old_path), Path::new(&new_path), None).map_err(|err| format!("Failed to rename remote path: {}", err))
-    }).join().map_err(|_| "SFTP rename task panicked".to_string())?
+        let sftp = session
+            .sftp()
+            .map_err(|err| format!("Failed to open SFTP session: {}", err))?;
+        sftp.rename(Path::new(&old_path), Path::new(&new_path), None)
+            .map_err(|err| format!("Failed to rename remote path: {}", err))
+    })
+    .join()
+    .map_err(|_| "SFTP rename task panicked".to_string())?
 }
 
 #[tauri::command]

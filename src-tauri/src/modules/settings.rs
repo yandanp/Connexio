@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn settings_file(app: &AppHandle) -> PathBuf {
@@ -121,7 +123,10 @@ fn detect_shells() -> Vec<ShellInfo> {
 
         // Windows PowerShell
         let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
-        let wpsh = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+        let wpsh = format!(
+            "{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            system_root
+        );
         if Path::new(&wpsh).exists() {
             shells.push(ShellInfo {
                 id: "powershell".to_string(),
@@ -174,7 +179,15 @@ fn detect_shells() -> Vec<ShellInfo> {
         let unix_shells = [
             ("bash", "Bash", &["/bin/bash", "/usr/bin/bash"][..]),
             ("zsh", "Zsh", &["/bin/zsh", "/usr/bin/zsh"][..]),
-            ("fish", "Fish", &["/usr/bin/fish", "/usr/local/bin/fish", "/opt/homebrew/bin/fish"][..]),
+            (
+                "fish",
+                "Fish",
+                &[
+                    "/usr/bin/fish",
+                    "/usr/local/bin/fish",
+                    "/opt/homebrew/bin/fish",
+                ][..],
+            ),
         ];
 
         for (id, name, paths) in &unix_shells {

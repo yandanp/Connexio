@@ -143,17 +143,19 @@ pub fn git_status(_app: AppHandle, project_path: String) -> GitStatus {
         return GitStatus::default();
     }
 
-    let branch = run_git(&project_path, &["rev-parse", "--abbrev-ref", "HEAD"])
-        .unwrap_or_default();
+    let branch = run_git(&project_path, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_default();
 
-    let (ahead, behind) = run_git(&project_path, &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"])
-        .map(|s| {
-            let parts: Vec<&str> = s.split_whitespace().collect();
-            let a = parts.first().and_then(|v| v.parse().ok()).unwrap_or(0);
-            let b = parts.get(1).and_then(|v| v.parse().ok()).unwrap_or(0);
-            (a, b)
-        })
-        .unwrap_or((0, 0));
+    let (ahead, behind) = run_git(
+        &project_path,
+        &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+    )
+    .map(|s| {
+        let parts: Vec<&str> = s.split_whitespace().collect();
+        let a = parts.first().and_then(|v| v.parse().ok()).unwrap_or(0);
+        let b = parts.get(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+        (a, b)
+    })
+    .unwrap_or((0, 0));
 
     let status_output = run_git(&project_path, &["status", "--porcelain=v1"]).unwrap_or_default();
     let mut modified = 0u32;
@@ -162,7 +164,9 @@ pub fn git_status(_app: AppHandle, project_path: String) -> GitStatus {
     let mut conflicted = 0u32;
 
     for line in status_output.lines() {
-        if line.len() < 2 { continue; }
+        if line.len() < 2 {
+            continue;
+        }
         let x = line.chars().nth(0).unwrap_or(' ');
         let y = line.chars().nth(1).unwrap_or(' ');
 
@@ -171,22 +175,43 @@ pub fn git_status(_app: AppHandle, project_path: String) -> GitStatus {
         } else if x == '?' && y == '?' {
             untracked += 1;
         } else {
-            if x != ' ' && x != '?' { staged += 1; }
-            if y != ' ' && y != '?' { modified += 1; }
+            if x != ' ' && x != '?' {
+                staged += 1;
+            }
+            if y != ' ' && y != '?' {
+                modified += 1;
+            }
         }
     }
 
     let stashes = run_git(&project_path, &["stash", "list"])
-        .map(|s| if s.is_empty() { 0 } else { s.lines().count() as u32 })
+        .map(|s| {
+            if s.is_empty() {
+                0
+            } else {
+                s.lines().count() as u32
+            }
+        })
         .unwrap_or(0);
 
     let last_commit = run_git(&project_path, &["log", "-1", "--format=%s"]).unwrap_or_default();
-    let last_commit_time = run_git(&project_path, &["log", "-1", "--format=%cr"]).unwrap_or_default();
+    let last_commit_time =
+        run_git(&project_path, &["log", "-1", "--format=%cr"]).unwrap_or_default();
     let remote_url = run_git(&project_path, &["remote", "get-url", "origin"]).unwrap_or_default();
 
     GitStatus {
-        is_repo: true, branch, ahead, behind, modified, staged,
-        untracked, conflicted, stashes, last_commit, last_commit_time, remote_url,
+        is_repo: true,
+        branch,
+        ahead,
+        behind,
+        modified,
+        staged,
+        untracked,
+        conflicted,
+        stashes,
+        last_commit,
+        last_commit_time,
+        remote_url,
     }
 }
 
@@ -198,7 +223,9 @@ pub fn git_changed_files(_app: AppHandle, project_path: String) -> Vec<GitChange
     let mut files = Vec::new();
 
     for line in output.lines() {
-        if line.len() < 4 { continue; }
+        if line.len() < 4 {
+            continue;
+        }
         let x = &line[0..1];
         let y = &line[1..2];
         let path_part = &line[3..];
@@ -284,7 +311,12 @@ fn parse_diff(raw: &str, file: &str) -> GitDiffResult {
     let is_binary = raw.contains("Binary files") || raw.contains("GIT binary patch");
     let language = detect_language(file);
 
-    GitDiffResult { file: file.to_string(), hunks, is_binary, language }
+    GitDiffResult {
+        file: file.to_string(),
+        hunks,
+        is_binary,
+        language,
+    }
 }
 
 fn detect_language(file: &str) -> Option<String> {
@@ -311,19 +343,31 @@ fn detect_language(file: &str) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn git_diff(_app: AppHandle, project_path: String, file_path: String, staged: bool) -> GitDiffResult {
+pub fn git_diff(
+    _app: AppHandle,
+    project_path: String,
+    file_path: String,
+    staged: bool,
+) -> GitDiffResult {
     let args = if staged {
         vec!["diff", "--cached", "--", &file_path]
     } else {
         vec!["diff", "--", &file_path]
     };
-    let raw = run_git_raw(&project_path, &args.iter().map(|s| *s).collect::<Vec<&str>>())
-        .unwrap_or_default();
+    let raw = run_git_raw(
+        &project_path,
+        &args.iter().map(|s| *s).collect::<Vec<&str>>(),
+    )
+    .unwrap_or_default();
     parse_diff(&raw, &file_path)
 }
 
 #[tauri::command]
-pub fn git_diff_untracked(_app: AppHandle, project_path: String, file_path: String) -> GitDiffResult {
+pub fn git_diff_untracked(
+    _app: AppHandle,
+    project_path: String,
+    file_path: String,
+) -> GitDiffResult {
     // For untracked files, show the entire file as "added"
     let full_path = Path::new(&project_path).join(&file_path);
     let content = fs::read_to_string(&full_path).unwrap_or_default();
@@ -388,7 +432,11 @@ pub fn git_discard(_app: AppHandle, project_path: String, file_path: String) -> 
 }
 
 #[tauri::command]
-pub fn git_open_file(_app: AppHandle, project_path: String, file_path: String) -> Result<(), String> {
+pub fn git_open_file(
+    _app: AppHandle,
+    project_path: String,
+    file_path: String,
+) -> Result<(), String> {
     let full_path = Path::new(&project_path).join(&file_path);
     opener::open(full_path.to_string_lossy().as_ref())
         .map_err(|e| format!("Failed to open file: {}", e))
@@ -419,45 +467,69 @@ pub fn git_fetch(_app: AppHandle, project_path: String) -> GitActionResult {
 // ─── History ─────────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn git_history(_app: AppHandle, project_path: String, limit: Option<u32>) -> Vec<GitCommitEntry> {
+pub fn git_history(
+    _app: AppHandle,
+    project_path: String,
+    limit: Option<u32>,
+) -> Vec<GitCommitEntry> {
     let limit_str = format!("-{}", limit.unwrap_or(50));
-    let output = run_git(&project_path, &["log", &limit_str, "--format=%h|%H|%an|%cr|%s"])
-        .unwrap_or_default();
+    let output = run_git(
+        &project_path,
+        &["log", &limit_str, "--format=%h|%H|%an|%cr|%s"],
+    )
+    .unwrap_or_default();
 
-    output.lines().filter_map(|line| {
-        let parts: Vec<&str> = line.splitn(5, '|').collect();
-        if parts.len() == 5 {
-            Some(GitCommitEntry {
-                short_hash: parts[0].to_string(),
-                hash: parts[1].to_string(),
-                author: parts[2].to_string(),
-                relative_time: parts[3].to_string(),
-                subject: parts[4].to_string(),
-            })
-        } else {
-            None
-        }
-    }).collect()
+    output
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(5, '|').collect();
+            if parts.len() == 5 {
+                Some(GitCommitEntry {
+                    short_hash: parts[0].to_string(),
+                    hash: parts[1].to_string(),
+                    author: parts[2].to_string(),
+                    relative_time: parts[3].to_string(),
+                    subject: parts[4].to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 // ─── Branches ────────────────────────────────────────────────────────────────
 
 #[tauri::command]
 pub fn git_branches(_app: AppHandle, project_path: String) -> Vec<GitBranchEntry> {
-    let output = run_git(&project_path, &["branch", "-a", "--format=%(HEAD)|%(refname:short)|%(refname:rstrip=-3)"])
-        .unwrap_or_default();
+    let output = run_git(
+        &project_path,
+        &[
+            "branch",
+            "-a",
+            "--format=%(HEAD)|%(refname:short)|%(refname:rstrip=-3)",
+        ],
+    )
+    .unwrap_or_default();
 
-    output.lines().filter_map(|line| {
-        let parts: Vec<&str> = line.splitn(3, '|').collect();
-        if parts.len() >= 2 {
-            let current = parts[0] == "*";
-            let name = parts[1].to_string();
-            let remote = name.starts_with("remotes/") || name.starts_with("origin/");
-            Some(GitBranchEntry { name, current, remote })
-        } else {
-            None
-        }
-    }).collect()
+    output
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(3, '|').collect();
+            if parts.len() >= 2 {
+                let current = parts[0] == "*";
+                let name = parts[1].to_string();
+                let remote = name.starts_with("remotes/") || name.starts_with("origin/");
+                Some(GitBranchEntry {
+                    name,
+                    current,
+                    remote,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -466,7 +538,11 @@ pub fn git_checkout(_app: AppHandle, project_path: String, branch: String) -> Gi
 }
 
 #[tauri::command]
-pub fn git_create_branch(_app: AppHandle, project_path: String, branch_name: String) -> GitActionResult {
+pub fn git_create_branch(
+    _app: AppHandle,
+    project_path: String,
+    branch_name: String,
+) -> GitActionResult {
     make_action_result(&project_path, &["checkout", "-b", &branch_name])
 }
 
@@ -481,21 +557,29 @@ pub fn git_publish_branch(_app: AppHandle, project_path: String) -> GitActionRes
 #[tauri::command]
 pub fn git_stash_list(_app: AppHandle, project_path: String) -> Vec<GitStashEntry> {
     let output = run_git(&project_path, &["stash", "list", "--format=%gd|%gs"]).unwrap_or_default();
-    output.lines().enumerate().filter_map(|(i, line)| {
-        let parts: Vec<&str> = line.splitn(2, '|').collect();
-        if parts.len() == 2 {
-            Some(GitStashEntry {
-                index: i as u32,
-                message: parts[1].to_string(),
-            })
-        } else {
-            None
-        }
-    }).collect()
+    output
+        .lines()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            let parts: Vec<&str> = line.splitn(2, '|').collect();
+            if parts.len() == 2 {
+                Some(GitStashEntry {
+                    index: i as u32,
+                    message: parts[1].to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 #[tauri::command]
-pub fn git_stash_save(_app: AppHandle, project_path: String, message: Option<String>) -> GitActionResult {
+pub fn git_stash_save(
+    _app: AppHandle,
+    project_path: String,
+    message: Option<String>,
+) -> GitActionResult {
     let args = if let Some(ref msg) = message {
         vec!["stash", "push", "-m", msg.as_str()]
     } else {
@@ -511,13 +595,21 @@ pub fn git_stash_pop(_app: AppHandle, project_path: String, index: Option<u32>) 
 }
 
 #[tauri::command]
-pub fn git_stash_apply(_app: AppHandle, project_path: String, index: Option<u32>) -> GitActionResult {
+pub fn git_stash_apply(
+    _app: AppHandle,
+    project_path: String,
+    index: Option<u32>,
+) -> GitActionResult {
     let stash_ref = format!("stash@{{{}}}", index.unwrap_or(0));
     make_action_result(&project_path, &["stash", "apply", &stash_ref])
 }
 
 #[tauri::command]
-pub fn git_stash_drop(_app: AppHandle, project_path: String, index: Option<u32>) -> GitActionResult {
+pub fn git_stash_drop(
+    _app: AppHandle,
+    project_path: String,
+    index: Option<u32>,
+) -> GitActionResult {
     let stash_ref = format!("stash@{{{}}}", index.unwrap_or(0));
     make_action_result(&project_path, &["stash", "drop", &stash_ref])
 }

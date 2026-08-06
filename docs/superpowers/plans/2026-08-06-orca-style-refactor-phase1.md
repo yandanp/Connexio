@@ -19,7 +19,7 @@
 5. Penamaan: komponen React `PascalCase.tsx`; modul non-komponen `kebab-case.ts` (Rust: `snake_case.rs`). DILARANG nama `utils`, `helpers`, `common`, `misc`.
 6. Boundary: feature dilarang mengimpor internal feature lain (hanya via `index.ts` feature tujuan atau via `core/`); `invoke()`/`listen()` dari `@tauri-apps/api/core` / `@tauri-apps/api/event` hanya boleh di `src/renderer/core/api*/`; `src/shared/` hanya tipe & konstanta murni. Pengecualian yang diizinkan: plugin dialog (`@tauri-apps/plugin-dialog`) boleh dipakai di feature (UI-level).
 7. Test colocated: `foo.ts` ↔ `foo.test.ts`. Commit mengikuti konvensi repo: `feat:` `fix:` `refactor:` `ci:` `chore:` `docs:`.
-8. Setiap task berakhir hijau: `npm run typecheck` + `npm run lint` + `npm run test` + gate scripts; mulai Task 13 juga `cargo fmt --check && cargo clippy -- -D warnings && cargo test` (di `src-tauri/`).
+8. Setiap task berakhir hijau: `npm run typecheck` + `npm run lint` + `npm run test` + gate scripts; mulai Task 2 juga gate Rust `cargo fmt --check && cargo clippy -- -D warnings && cargo test` (di `src-tauri/`). Catatan lingkungan: mesin lokal kekurangan paging file — SELALU jalankan cargo dengan `-j 2`; bila build tetap crash karena memori, CI GitHub Actions menjadi juri akhir dan kondisi ini dilaporkan di report.
 9. Verifikasi manual wajib untuk task yang menyentuh runtime path (disebutkan per task): `npm run dev` → smoke check.
 
 ---
@@ -146,6 +146,24 @@ git commit -m "chore: add oxfmt + oxlint + husky/lint-staged"
 **Interfaces:**
 - Consumes: lint/format dari Task 1.
 - Produces: `npm run test`, `npm run check:lines`, `npm run check:boundaries`, workflow CI `ci.yml` — dipakai semua task berikutnya.
+
+- [ ] **Step 0: Bersihkan baseline Rust (keputusan preflight)**
+
+Kode existing gagal `cargo fmt --check`; bersihkan dulu agar gate jujur sejak aktif:
+
+```bash
+cd src-tauri && cargo fmt
+git add -A && git commit -m "chore: apply cargo fmt across src-tauri"
+cd src-tauri && cargo clippy -j 2 -- -D warnings
+```
+
+Perbaiki semua warning clippy existing dengan perubahan mekanis (tanpa mengubah behavior), lalu:
+
+```bash
+git add -A && git commit -m "chore: fix existing clippy warnings"
+```
+
+Bila build clippy crash karena paging file meski sudah `-j 2`, push branch, gunakan hasil job `rust` di CI sebagai verifikasi, dan catat di report.
 
 - [ ] **Step 1: Install vitest + scripts**
 

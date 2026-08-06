@@ -511,7 +511,8 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 						onChange={(e) => setSearchQuery(e.target.value)}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") {
-								e.shiftKey ? handleSearchPrev() : handleSearchNext();
+								if (e.shiftKey) handleSearchPrev();
+								else handleSearchNext();
 							}
 							if (e.key === "Escape") handleSearchClose();
 						}}

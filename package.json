@@ -15,6 +15,9 @@
 		"format": "oxfmt --write .",
 		"format:check": "oxfmt --check .",
 		"lint": "oxlint src config",
+		"test": "vitest run --config config/vitest.config.ts",
+		"check:lines": "node config/check-max-lines.mjs",
+		"check:boundaries": "node config/check-feature-imports.mjs",
 		"prepare": "husky"
 	},
 	"dependencies": {
@@ -65,7 +68,8 @@
 		"postcss": "^8.4.49",
 		"tailwindcss": "^3.4.15",
 		"typescript": "^5.7.2",
-		"vite": "^6.0.3"
+		"vite": "^6.0.3",
+		"vitest": "^4.1.10"
 	},
 	"lint-staged": {
 		"*.{ts,tsx}": [

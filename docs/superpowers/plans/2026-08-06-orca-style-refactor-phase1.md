@@ -179,6 +179,10 @@ Buat `.gitattributes` di root repo agar `core.autocrlf` tidak mengacaukan `forma
 
 Lalu `git add --renormalize .` dan commit: `chore: normalize line endings via .gitattributes`.
 
+- [ ] **Step 0c: Kecualikan file generated dari formatter (temuan review Task 1)**
+
+`src-tauri/gen/schemas/*.json` dihasilkan Tauri dan akan ter-minify ulang tiap `tauri dev/build`, melawan oxfmt. Cek mekanisme ignore oxfmt (`npx oxfmt --help` — file seperti `.oxfmtignore` atau key di `.oxfmtrc.json`) dan kecualikan `src-tauri/gen/`. Jika oxfmt menghormati `.gitignore` untuk file yang tidak di-track, tetap tambahkan ignore eksplisit. Verifikasi: `npm run format:check` hijau dan file di `src-tauri/gen/` tidak tersentuh saat `npm run format` dijalankan ulang. Commit bersama hasil Step 0/0b yang berdekatan boleh digabung bila rapi.
+
 - [ ] **Step 1: Install vitest + scripts**
 
 ```bash

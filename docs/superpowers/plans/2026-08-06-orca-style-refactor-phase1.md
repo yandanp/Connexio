@@ -143,7 +143,7 @@ git commit -m "chore: add oxfmt + oxlint + husky/lint-staged"
 
 **Files:**
 
-- Create: `config/vitest.config.ts`, `config/check-max-lines.mjs`, `config/max-lines-baseline.txt`, `config/check-feature-imports.mjs`, `.github/workflows/ci.yml`
+- Create: `.gitattributes`, `config/vitest.config.ts`, `config/check-max-lines.mjs`, `config/max-lines-baseline.txt`, `config/check-feature-imports.mjs`, `.github/workflows/ci.yml`
 - Modify: `package.json` (devDeps vitest; scripts test/check:lines/check:boundaries)
 
 **Interfaces:**
@@ -168,6 +168,16 @@ git add -A && git commit -m "chore: fix existing clippy warnings"
 ```
 
 Bila build clippy crash karena paging file meski sudah `-j 2`, push branch, gunakan hasil job `rust` di CI sebagai verifikasi, dan catat di report.
+
+- [ ] **Step 0b: Normalisasi line endings (guard CRLF — temuan Task 1)**
+
+Buat `.gitattributes` di root repo agar `core.autocrlf` tidak mengacaukan `format:check` lokal:
+
+```
+* text=auto eol=lf
+```
+
+Lalu `git add --renormalize .` dan commit: `chore: normalize line endings via .gitattributes`.
 
 - [ ] **Step 1: Install vitest + scripts**
 

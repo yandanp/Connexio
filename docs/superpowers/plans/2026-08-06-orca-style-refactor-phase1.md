@@ -542,6 +542,8 @@ Pindahkan (cut-paste, logika TIDAK diubah) sesuai blok header `─── X ─�
 
 Setiap modul mengimpor `invoke`/`listen` dari `@tauri-apps/api/core|event` dan tipe dari `@shared/types` sesuai kebutuhan. Import baris 14–28 di file asal didistribusikan ke modul yang memakai.
 
+Catatan LEGACY (temuan Task 2): 8 file existing mengimpor `invoke` langsung — `SearchPanel.tsx`, `Terminal.tsx`, `WebPreview.tsx`, `AIChatPanel.tsx`, `CodeEditor.tsx`, `FileExplorer.tsx`, `useDiscordPresence.ts`, `useGitFileStatus.ts` — dan terdaftar di allowlist LEGACY `config/check-feature-imports.mjs`. Identifikasi command yang mereka panggil; jika belum ada wrapper-nya di modul domain core/api, TAMBAHKAN agar task migrasi (T6/T12/T13) bisa menghapus entri allowlist tanpa kehilangan fungsi.
+
 - [ ] **Step 4: Buat barrel `index.ts`**
 
 ```ts
@@ -674,7 +676,7 @@ Satu modul per domain seperti Task 4 (nama objek sama). Jika `remote-api.ts` men
 
 - [ ] **Step 5: Update shim** — `await import("./remote-api")` → `await import("../core/api-remote")`.
 
-- [ ] **Step 6: Hapus `lib/remote-api.ts`, hapus konstanta `LEGACY` di `config/check-feature-imports.mjs`**
+- [ ] **Step 6: Hapus `lib/remote-api.ts`, hapus 2 entri lib dari allowlist `LEGACY` di `config/check-feature-imports.mjs`** (entri lain dihapus bertahap di T6/T12/T13; setelah T13 allowlist harus kosong)
 
 ```bash
 git rm src/renderer/lib/remote-api.ts
@@ -705,6 +707,7 @@ git commit -m "refactor: split remote-api into core/api-remote domain modules"
 - Move ke `src/renderer/core/hooks/`: `useDiscordPresence.ts`, `use-terminal-resize-v2.ts`, `useGitFileStatus.ts`
 - Move ke `src/renderer/core/stores/`: `settingsStore.ts`, `themeStore.ts`, `notificationStore.ts`
 - Setelah pindah, `src/renderer/stores/` hanya berisi `projectStore.ts` dan `aiStore.ts` (keduanya dibelah di Task 7–8 dan Task 12; folder dihapus saat entri terakhir pindah). Update semua import.
+- LEGACY: `useDiscordPresence.ts` dan `useGitFileStatus.ts` mengimpor `invoke` langsung — migrasikan pemanggilan itu ke wrapper `core/api` (pakai/ tambahkan command yang sudah disiapkan Task 4) sehingga kedua entri LEGACY-nya bisa dihapus dari `config/check-feature-imports.mjs` di task ini.
 
 **Interfaces:**
 
@@ -1179,6 +1182,7 @@ Jika signature/semantik aktual `readSSEStream` berbeda (baca tubuh ~752–783), 
 - [ ] **Step 3: Ekstrak 5 modul** sesuai Interfaces (potong dari `aiStore.ts`). `ai-store.ts` mengimpor dari keempat modul lain. Test + typecheck PASS.
 
 - [ ] **Step 4: Pindahkan `AIChatPanel.tsx` & `AIIntegrationsSettings.tsx`** ke feature; buat `index.ts` (`export { default as AIChatPanel } …; export { useAIStore } …`).
+- LEGACY: migrasikan pemanggilan `invoke` langsung di `AIChatPanel.tsx` ke wrapper `core/api`/`window.connexio` dan hapus entrinya dari allowlist LEGACY.
 
 - [ ] **Step 5: Update konsumen** (`git grep -l "aiStore\|AIChatPanel\|AIIntegrationsSettings"` — termasuk `Workspace.tsx` dan `SettingsModal`). Hapus file lama.
 
@@ -1223,6 +1227,7 @@ git commit -m "refactor: split aiStore into features/ai slice"
 - [ ] **Step 3: Buat `index.ts` untuk setiap feature** yang belum punya; `App.tsx` hanya mengimpor dari `features/*/` dan `core/*`.
 
 - [ ] **Step 4: Perbarui semua import** — `npm run typecheck` sampai hijau; lalu gate lengkap.
+- [ ] **Step 4b: Kosongkan allowlist LEGACY** — migrasikan sisa pemanggilan `invoke` langsung (`Terminal.tsx`, `SearchPanel.tsx`, `WebPreview.tsx`, `CodeEditor.tsx`, `FileExplorer.tsx`) ke wrapper `core/api`/`window.connexio`, hapus semua entri LEGACY tersisa dari `config/check-feature-imports.mjs`, lalu verifikasi `npm run check:boundaries` tetap hijau TANPA allowlist.
 
 - [ ] **Step 5: Smoke penuh** — seluruh alur: project → tab terminal → split → editor → explorer → tasks → preview → SSH → AI → settings → remote mode. Bandingkan dengan checklist smoke task-task sebelumnya.
 

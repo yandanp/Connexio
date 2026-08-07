@@ -13,6 +13,5 @@ src/renderer/components/ai/AIChatPanel.tsx	747
 src/renderer/components/editor/CodeEditor.tsx	537
 src/renderer/components/explorer/FileExplorer.tsx	926
 src/renderer/lib/remote-api.ts	694
-src/renderer/lib/tauri-api.ts	644
 src/renderer/stores/aiStore.ts	787
 src/renderer/stores/projectStore.ts	1451

@@ -12,7 +12,7 @@ export const shimReady: Promise<void> = (async () => {
 	if ((window as any).connexio) return;
 
 	if (isTauri) {
-		const { connexioApi } = await import("./tauri-api");
+		const { connexioApi } = await import("../core/api");
 		(window as any).connexio = connexioApi;
 	} else {
 		const { connexioRemoteApi } = await import("./remote-api");

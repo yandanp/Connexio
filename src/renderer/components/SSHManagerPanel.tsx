@@ -14,12 +14,12 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import ContextMenu from "./ContextMenu";
+import ContextMenu from "../core/ui/ContextMenu";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useProjectStore } from "../stores/projectStore";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "../core/ui/ConfirmDialog";
 import type { SFTPEntry, SSHConnection, SSHSecretRef } from "../../shared/types";
 
 interface Props {

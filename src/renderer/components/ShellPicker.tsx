@@ -2,7 +2,7 @@ import { ChevronDown, Plus, Terminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ShellInfo } from "../../shared/types";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useSettingsStore } from "../core/stores/settingsStore";
 
 interface Props {
 	onSelect: (shell?: string) => void;

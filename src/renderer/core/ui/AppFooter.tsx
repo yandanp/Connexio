@@ -12,12 +12,12 @@ import {
 	Terminal,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { GitStatus } from "../../shared/types";
+import type { GitStatus } from "../../../shared/types";
 import { useNotificationStore } from "../stores/notificationStore";
-import { useProjectStore } from "../stores/projectStore";
+import { useProjectStore } from "../../stores/projectStore";
 import { useSettingsStore } from "../stores/settingsStore";
-import RemoteConnectionBadge from "./RemoteConnectionBadge";
-import RemotePowerControls from "./RemotePowerControls";
+import RemoteConnectionBadge from "../../components/RemoteConnectionBadge";
+import RemotePowerControls from "../../components/RemotePowerControls";
 
 export default function AppFooter() {
 	const { projects, activeProjectId, workspaceTabs, activeTabIds, sidebarCollapsed } =

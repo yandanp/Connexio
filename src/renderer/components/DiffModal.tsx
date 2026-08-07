@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitChangedFile, GitDiffResult } from "../../shared/types";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "../core/ui/ConfirmDialog";
 import DiffViewer from "./DiffViewer";
 
 export type DiffFileContext = {

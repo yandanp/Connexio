@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AppSettings } from "../../shared/types";
-import { useSettingsStore } from "../stores/settingsStore";
-import { useThemeStore } from "../stores/themeStore";
+import { useSettingsStore } from "../core/stores/settingsStore";
+import { useThemeStore } from "../core/stores/themeStore";
 import AIIntegrationsSettings from "./AIIntegrationsSettings";
 import RemoteAccessSettings from "./RemoteAccessSettings";
 

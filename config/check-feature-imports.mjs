@@ -33,8 +33,6 @@ const LEGACY = [
 	"src/renderer/components/ai/AIChatPanel.tsx",
 	"src/renderer/components/editor/CodeEditor.tsx",
 	"src/renderer/components/explorer/FileExplorer.tsx",
-	"src/renderer/hooks/useDiscordPresence.ts",
-	"src/renderer/hooks/useGitFileStatus.ts",
 ];
 
 for (const f of files) {

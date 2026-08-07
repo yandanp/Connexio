@@ -15,10 +15,10 @@ import { markdown } from "@codemirror/lang-markdown";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { Save, X, Clipboard, Copy, Scissors, TextSelect } from "lucide-react";
-import ContextMenu from "../ContextMenu";
+import ContextMenu from "../../core/ui/ContextMenu";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useThemeStore } from "../../stores/themeStore";
+import { useThemeStore } from "../../core/stores/themeStore";
 
 function buildEditorTheme(appTheme: { colors: any; terminal: any } | null) {
 	if (!appTheme) {

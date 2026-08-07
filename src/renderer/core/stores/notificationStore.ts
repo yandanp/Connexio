@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ConnexioNotification, NotificationSettings } from "../../shared/types";
+import type { ConnexioNotification, NotificationSettings } from "../../../shared/types";
 
 // Shared audio instance to prevent overlapping sounds
 // biome-ignore lint/style/useLet: reassigned in handleIncoming
@@ -100,7 +100,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 	navigateToNotification: (notification: ConnexioNotification) => {
 		if (!notification.projectId || !notification.tabId) return;
 		// Import lazily to avoid circular dependency at module init time
-		import("./projectStore").then(({ useProjectStore }) => {
+		import("../../stores/projectStore").then(({ useProjectStore }) => {
 			const projectStore = useProjectStore.getState();
 			const tabs = projectStore.workspaceTabs[notification.projectId!] || [];
 			const tabExists = tabs.some((tab) => tab.id === notification.tabId);
@@ -143,7 +143,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 				if (settings.customSoundPath) {
 					soundUrl = `file://${settings.customSoundPath.replace(/\\/g, "/")}`;
 				} else {
-					soundUrl = new URL("../assets/notification.wav", import.meta.url).href;
+					soundUrl = new URL("../../assets/notification.wav", import.meta.url).href;
 				}
 
 				// Reuse or create audio instance

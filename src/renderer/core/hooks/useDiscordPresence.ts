@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { useProjectStore } from "../stores/projectStore";
-import { useAIStore } from "../stores/aiStore";
+import { discord } from "../api/discord";
+import { useProjectStore } from "../../stores/projectStore";
+import { useAIStore } from "../../stores/aiStore";
 
 /**
  * Hook that manages Discord Rich Presence.
@@ -17,7 +17,7 @@ export function useDiscordPresence(enabled: boolean) {
 	const connect = useCallback(async () => {
 		if (connectedRef.current) return;
 		try {
-			const result = await invoke<boolean>("discord_presence_connect");
+			const result = await discord.connect();
 			connectedRef.current = result;
 		} catch (e) {
 			console.warn("[Discord] Failed to connect:", e);
@@ -28,7 +28,7 @@ export function useDiscordPresence(enabled: boolean) {
 	const disconnect = useCallback(async () => {
 		if (!connectedRef.current) return;
 		try {
-			await invoke<boolean>("discord_presence_disconnect");
+			await discord.disconnect();
 		} catch {
 			// ignore
 		}
@@ -65,7 +65,7 @@ export function useDiscordPresence(enabled: boolean) {
 		}
 
 		try {
-			await invoke<boolean>("discord_presence_update", { details, status });
+			await discord.update(details, status);
 		} catch {
 			// Connection lost
 			connectedRef.current = false;

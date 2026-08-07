@@ -16,9 +16,9 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useProjectStore } from "../stores/projectStore";
+import { useProjectStore } from "../../stores/projectStore";
 import { useSettingsStore } from "../stores/settingsStore";
-import type { PinnedCommand, TaskScript } from "../../shared/types";
+import type { PinnedCommand, TaskScript } from "../../../shared/types";
 
 type PaletteAction = {
 	id: string;

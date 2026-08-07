@@ -24,8 +24,8 @@ import {
 	useGitFileStatus,
 	type GitFileIndicator,
 	type GitFileStatusMap,
-} from "../../hooks/useGitFileStatus";
-import { useNotificationStore } from "../../stores/notificationStore";
+} from "../../core/hooks/useGitFileStatus";
+import { useNotificationStore } from "../../core/stores/notificationStore";
 
 interface FileEntry {
 	name: string;

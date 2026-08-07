@@ -12,14 +12,14 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectStore, type TerminalTab } from "../stores/projectStore";
 import { AIChatPanel } from "./ai";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "../core/ui/ConfirmDialog";
 import { CodeEditor } from "./editor";
 import { FileExplorer } from "./explorer";
 import ShellPicker from "./ShellPicker";
 import SourcePanel from "./SourcePanel";
 import SSHPanel from "./SSHPanel";
-import SidePanelHeader from "./SidePanelHeader";
-import SidePanelRail from "./SidePanelRail";
+import SidePanelHeader from "../core/ui/SidePanelHeader";
+import SidePanelRail from "../core/ui/SidePanelRail";
 import SSHManagerPanel from "./SSHManagerPanel";
 import { SFTPBrowser } from "./SSHManagerPanel";
 import TaskPanel from "./TaskPanel";

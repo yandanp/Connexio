@@ -10,12 +10,12 @@ import {
 	Trash2,
 	X,
 } from "lucide-react";
-import ContextMenu from "./ContextMenu";
+import ContextMenu from "../core/ui/ContextMenu";
 import { useEffect, useState } from "react";
 import type { Project } from "../../shared/types";
 import { useProjectStore } from "../stores/projectStore";
 import AddProjectModal from "./AddProjectModal";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "../core/ui/ConfirmDialog";
 
 export default function Sidebar() {
 	const {

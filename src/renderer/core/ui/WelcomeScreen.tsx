@@ -1,8 +1,9 @@
 import { ArrowLeft, FolderPlus, Palette, Sparkles, Terminal, Zap } from "lucide-react";
 import { useState } from "react";
-import { useProjectStore } from "../stores/projectStore";
+import { useProjectStore } from "../../stores/projectStore";
 import { useThemeStore } from "../stores/themeStore";
-import AddProjectModal from "./AddProjectModal";
+import AddProjectModal from "../../components/AddProjectModal";
+import type { Project } from "../../../shared/types";
 
 export default function WelcomeScreen({
 	canClose,
@@ -40,7 +41,7 @@ export default function WelcomeScreen({
 				<section className="glass-panel overflow-hidden rounded-3xl p-8 shadow-[0_24px_70px_rgba(0,0,0,0.28)]">
 					<div className="mb-7 flex items-center gap-3">
 						<img
-							src={new URL("../assets/icon.png", import.meta.url).href}
+							src={new URL("../../assets/icon.png", import.meta.url).href}
 							alt="Connexio"
 							className="h-16 w-16 rounded-[1.35rem] object-contain shadow-[0_0_34px_rgba(56,189,248,0.2)]"
 						/>
@@ -140,7 +141,7 @@ function RecentProjects({
 	onAdd,
 	onProjectSelected,
 }: {
-	projects: import("../../shared/types").Project[];
+	projects: Project[];
 	onAdd: () => void;
 	onProjectSelected?: () => void;
 }) {
@@ -185,7 +186,7 @@ function RecentProjectItem({
 	project,
 	onProjectSelected,
 }: {
-	project: import("../../shared/types").Project;
+	project: Project;
 	onProjectSelected?: () => void;
 }) {
 	const { setActiveProject } = useProjectStore();

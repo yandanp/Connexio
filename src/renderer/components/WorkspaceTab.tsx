@@ -10,7 +10,7 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import ContextMenu from "./ContextMenu";
+import ContextMenu from "../core/ui/ContextMenu";
 
 interface TabProps {
 	id: string;

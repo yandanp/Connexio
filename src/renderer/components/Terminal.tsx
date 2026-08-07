@@ -7,10 +7,10 @@ import { Search, X as XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { TerminalThemeColors } from "../../shared/types";
-import { useTerminalResizeV2 } from "../hooks/use-terminal-resize-v2";
-import { useSettingsStore } from "../stores/settingsStore";
-import { useThemeStore } from "../stores/themeStore";
-import TerminalContextMenu from "./TerminalContextMenu";
+import { useTerminalResizeV2 } from "../core/hooks/use-terminal-resize-v2";
+import { useSettingsStore } from "../core/stores/settingsStore";
+import { useThemeStore } from "../core/stores/themeStore";
+import TerminalContextMenu from "../core/ui/TerminalContextMenu";
 import "@xterm/xterm/css/xterm.css";
 
 interface Props {

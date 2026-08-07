@@ -1,7 +1,7 @@
 import { Minus, Settings, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import NotificationBell from "./NotificationBell";
+import NotificationBell from "../../components/NotificationBell";
 
 export default function TitleBar() {
 	const { openSettings } = useSettingsStore();
@@ -23,7 +23,7 @@ export default function TitleBar() {
 			<div className="flex items-center gap-2.5">
 				<div className="flex h-6 w-6 items-center justify-center rounded-lg bg-connexio-bg-elevated shadow-[0_0_18px_rgba(56,189,248,0.12)]">
 					<img
-						src={new URL("../assets/icon.png", import.meta.url).href}
+						src={new URL("../../assets/icon.png", import.meta.url).href}
 						alt="Connexio"
 						className="h-4 w-4 rounded"
 					/>

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GitChangedFile, GitDiffResult } from "../../shared/types";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "../core/ui/ConfirmDialog";
 import DiffModal, { type DiffFileContext } from "./DiffModal";
 import DiffViewer from "./DiffViewer";
 import CommitBox from "./git/CommitBox";

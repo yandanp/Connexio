@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AppSettings, ShellInfo } from "../../shared/types";
+import type { AppSettings, ShellInfo } from "../../../shared/types";
 
 interface SettingsStore {
 	settings: AppSettings | null;

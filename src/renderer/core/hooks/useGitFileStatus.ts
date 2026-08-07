@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { git } from "../api/git";
 import type { GitChangedFile } from "@shared/types";
 
 export type GitFileIndicator = "M" | "A" | "D" | "R" | "U" | "?" | "C";
@@ -98,7 +98,7 @@ export function useGitFileStatus(projectPath: string): GitFileStatusMap {
 	const fetchStatus = useCallback(async () => {
 		if (!projectPath) return;
 		try {
-			const files = await invoke<GitChangedFile[]>("git_changed_files", { projectPath });
+			const files = (await git.changedFiles(projectPath)) as GitChangedFile[];
 			if (mountedRef.current) {
 				setStatusMap(buildStatusMap(files, projectPath));
 			}

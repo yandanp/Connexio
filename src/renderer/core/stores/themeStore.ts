@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AppTheme } from "../../shared/types";
+import type { AppTheme } from "../../../shared/types";
 
 interface ThemeStore {
 	currentTheme: AppTheme | null;

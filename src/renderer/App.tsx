@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
-import AppFooter from "./components/AppFooter";
-import CommandPalette from "./components/CommandPalette";
-import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal";
+import AppFooter from "./core/ui/AppFooter";
+import CommandPalette from "./core/ui/CommandPalette";
+import KeyboardShortcutsModal from "./core/ui/KeyboardShortcutsModal";
 import NotificationToast from "./components/NotificationToast";
 import RemoteLoginGate from "./components/RemoteLoginGate";
 import RemoteMobileShell from "./components/RemoteMobileShell";
 import SettingsModal from "./components/SettingsModal";
 import Sidebar from "./components/Sidebar";
-import TitleBar from "./components/TitleBar";
-import UpdateNotification from "./components/UpdateNotification";
-import WelcomeScreen from "./components/WelcomeScreen";
+import TitleBar from "./core/ui/TitleBar";
+import UpdateNotification from "./core/ui/UpdateNotification";
+import WelcomeScreen from "./core/ui/WelcomeScreen";
 import Workspace from "./components/Workspace";
 
-import { useDiscordPresence } from "./hooks/useDiscordPresence";
+import { useDiscordPresence } from "./core/hooks/useDiscordPresence";
 import { isRemoteMode } from "./lib/tauri-shim";
-import { useNotificationStore } from "./stores/notificationStore";
+import { useNotificationStore } from "./core/stores/notificationStore";
 import { useProjectStore } from "./stores/projectStore";
-import { useSettingsStore } from "./stores/settingsStore";
-import { useThemeStore } from "./stores/themeStore";
+import { useSettingsStore } from "./core/stores/settingsStore";
+import { useThemeStore } from "./core/stores/themeStore";
 
 const UI_FONT_SIZE_MAP = {
 	small: "11px",

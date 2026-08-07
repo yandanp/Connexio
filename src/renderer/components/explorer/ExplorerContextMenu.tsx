@@ -9,7 +9,7 @@ import {
 	Terminal,
 	Trash2,
 } from "lucide-react";
-import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
+import ContextMenu, { type ContextMenuItem } from "../../core/ui/ContextMenu";
 
 interface Props {
 	x: number;

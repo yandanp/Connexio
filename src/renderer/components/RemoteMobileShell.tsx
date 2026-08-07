@@ -1,6 +1,6 @@
 import { FolderTree, ListTodo, Monitor, Settings, Terminal, X } from "lucide-react";
 import { useState } from "react";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useSettingsStore } from "../core/stores/settingsStore";
 import RemoteConnectionBadge from "./RemoteConnectionBadge";
 import RemotePowerControls from "./RemotePowerControls";
 import Sidebar from "./Sidebar";

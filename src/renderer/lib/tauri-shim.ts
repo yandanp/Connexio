@@ -15,7 +15,7 @@ export const shimReady: Promise<void> = (async () => {
 		const { connexioApi } = await import("../core/api");
 		(window as any).connexio = connexioApi;
 	} else {
-		const { connexioRemoteApi } = await import("./remote-api");
+		const { connexioRemoteApi } = await import("../core/api-remote");
 		(window as any).connexio = connexioRemoteApi;
 		(window as any).__CONNEXIO_REMOTE__ = true;
 	}

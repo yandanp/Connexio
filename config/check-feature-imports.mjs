@@ -23,11 +23,9 @@ const featureOf = (p) => {
 	return m ? m[1] : null;
 };
 
-// Allowlist sementara (fase migrasi): entri lib/ dihapus di Task 5 Step 8;
-// entri lainnya dihapus saat Tasks 4-6 memigrasikan call site invoke/listen ke core/api*.
+// Allowlist sementara (fase migrasi): entri lainnya dihapus saat Tasks 6-13
+// memigrasikan call site invoke/listen ke core/api*.
 const LEGACY = [
-	"src/renderer/lib/tauri-api.ts",
-	"src/renderer/lib/remote-api.ts",
 	// Existing invoke() call sites (pre-Task 2):
 	"src/renderer/components/SearchPanel.tsx",
 	"src/renderer/components/Terminal.tsx",

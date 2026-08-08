@@ -6,308 +6,35 @@ let _workspaceRestored = false;
 
 import type { Project, WorkspaceState, WorkspaceTabState } from "../../shared/types";
 
-// === Split Layout Types (Recursive Tree) ===
+// Split-layout types, tree ops, geometry, and persistence helpers are extracted
+// to features/workspace (Task 7); the store itself is split in Task 8.
+import {
+	collectLeaves,
+	collectTerminalIds,
+	findNode,
+	findParent,
+	removeNode,
+	replaceNode,
+} from "../features/workspace/split-layout";
+import type {
+	SplitBranch,
+	SplitDirection,
+	SplitLayout,
+	SplitLeaf,
+	SplitNode,
+} from "../features/workspace/split-layout";
+import {
+	createTerminalsForTree,
+	deserializeNode,
+	serializeNode,
+} from "../features/workspace/workspace-persistence";
+import type { PersistedNode } from "../features/workspace/workspace-persistence";
 
-export type SplitDirection = "horizontal" | "vertical";
-
-export interface SplitLeaf {
-	type: "leaf";
-	id: string;
-	kind: "terminal" | "editor";
-	terminalId: string | null;
-	filePath?: string;
-}
-
-export interface SplitBranch {
-	type: "branch";
-	id: string;
-	direction: SplitDirection;
-	children: SplitNode[];
-	/** Ratio for each child (0-1), must sum to 1. If absent, equal split. */
-	ratios?: number[];
-}
-
-export type SplitNode = SplitLeaf | SplitBranch;
-
-export interface SplitLayout {
-	root: SplitNode;
-	activePaneId: string;
-}
-
-// === Tree helpers ===
-
-function findNode(node: SplitNode, id: string): SplitNode | null {
-	if (node.id === id) return node;
-	if (node.type === "branch") {
-		for (const child of node.children) {
-			const found = findNode(child, id);
-			if (found) return found;
-		}
-	}
-	return null;
-}
-
-function findParent(root: SplitNode, targetId: string): SplitBranch | null {
-	if (root.type === "branch") {
-		for (const child of root.children) {
-			if (child.id === targetId) return root;
-			const found = findParent(child, targetId);
-			if (found) return found;
-		}
-	}
-	return null;
-}
-
-function replaceNode(root: SplitNode, targetId: string, replacement: SplitNode): SplitNode {
-	if (root.id === targetId) return replacement;
-	if (root.type === "branch") {
-		return { ...root, children: root.children.map((c) => replaceNode(c, targetId, replacement)) };
-	}
-	return root;
-}
-
-function removeNode(root: SplitNode, targetId: string): SplitNode | null {
-	if (root.id === targetId) return null;
-	if (root.type === "branch") {
-		const removedIndices: number[] = [];
-		const newChildren = root.children
-			.map((c, i) => {
-				const result = removeNode(c, targetId);
-				if (result === null) removedIndices.push(i);
-				return result;
-			})
-			.filter((c): c is SplitNode => c !== null);
-		if (newChildren.length === 0) return null;
-		if (newChildren.length === 1) return newChildren[0]; // collapse
-
-		// Recalculate ratios: redistribute removed children's space proportionally
-		let newRatios: number[] | undefined;
-		if (root.ratios && root.ratios.length === root.children.length) {
-			const keptRatios = root.ratios.filter((_, i) => !removedIndices.includes(i));
-			const keptTotal = keptRatios.reduce((sum, r) => sum + r, 0);
-			if (keptTotal > 0) {
-				newRatios = keptRatios.map((r) => r / keptTotal);
-			}
-		}
-
-		return { ...root, children: newChildren, ratios: newRatios };
-	}
-	return root;
-}
-
-function collectLeaves(node: SplitNode): SplitLeaf[] {
-	if (node.type === "leaf") return [node];
-	return node.children.flatMap(collectLeaves);
-}
-
-function collectTerminalIds(node: SplitNode): string[] {
-	if (node.type === "leaf")
-		return node.kind === "terminal" && node.terminalId ? [node.terminalId] : [];
-	return node.children.flatMap(collectTerminalIds);
-}
-
-/** Compute absolute bounds (0-1 range) for each leaf in the tree */
-export interface PaneBounds {
-	paneId: string;
-	kind: "terminal" | "editor";
-	terminalId: string | null;
-	filePath?: string;
-	top: number;
-	left: number;
-	width: number;
-	height: number;
-}
-
-export interface ResizeHandleBounds {
-	branchId: string;
-	dividerIndex: number;
-	direction: SplitDirection;
-	/** Absolute position of the divider line (0-1) */
-	top: number;
-	left: number;
-	/** Full branch bounds for ratio calculation */
-	branchTop: number;
-	branchLeft: number;
-	branchWidth: number;
-	branchHeight: number;
-}
-
-export function computePaneBounds(
-	node: SplitNode,
-	bounds = { top: 0, left: 0, width: 1, height: 1 },
-): PaneBounds[] {
-	if (node.type === "leaf") {
-		return [
-			{
-				paneId: node.id,
-				kind: node.kind,
-				terminalId: node.terminalId,
-				filePath: node.filePath,
-				top: bounds.top,
-				left: bounds.left,
-				width: bounds.width,
-				height: bounds.height,
-			},
-		];
-	}
-
-	const results: PaneBounds[] = [];
-	const count = node.children.length;
-	const isHorizontal = node.direction === "horizontal";
-	const ratios =
-		node.ratios && node.ratios.length === count ? node.ratios : node.children.map(() => 1 / count);
-
-	let offset = 0;
-	for (let i = 0; i < count; i++) {
-		const ratio = ratios[i];
-		const childBounds = isHorizontal
-			? {
-					top: bounds.top,
-					left: bounds.left + bounds.width * offset,
-					width: bounds.width * ratio,
-					height: bounds.height,
-				}
-			: {
-					top: bounds.top + bounds.height * offset,
-					left: bounds.left,
-					width: bounds.width,
-					height: bounds.height * ratio,
-				};
-		results.push(...computePaneBounds(node.children[i], childBounds));
-		offset += ratio;
-	}
-
-	return results;
-}
-
-/** Compute branch divider handles. Handles belong to branch dividers, not leaf borders. */
-export function computeResizeHandleBounds(
-	node: SplitNode,
-	bounds = { top: 0, left: 0, width: 1, height: 1 },
-): ResizeHandleBounds[] {
-	if (node.type === "leaf") return [];
-
-	const handles: ResizeHandleBounds[] = [];
-	const count = node.children.length;
-	const isHorizontal = node.direction === "horizontal";
-	const ratios =
-		node.ratios && node.ratios.length === count ? node.ratios : node.children.map(() => 1 / count);
-
-	let offset = 0;
-	for (let i = 0; i < count; i++) {
-		const ratio = ratios[i];
-		const childBounds = isHorizontal
-			? {
-					top: bounds.top,
-					left: bounds.left + bounds.width * offset,
-					width: bounds.width * ratio,
-					height: bounds.height,
-				}
-			: {
-					top: bounds.top + bounds.height * offset,
-					left: bounds.left,
-					width: bounds.width,
-					height: bounds.height * ratio,
-				};
-
-		if (i > 0) {
-			handles.push({
-				branchId: node.id,
-				dividerIndex: i,
-				direction: node.direction,
-				// Divider position (absolute 0-1)
-				top: isHorizontal ? bounds.top : childBounds.top,
-				left: isHorizontal ? childBounds.left : bounds.left,
-				// Full branch bounds for ratio calculation
-				branchTop: bounds.top,
-				branchLeft: bounds.left,
-				branchWidth: bounds.width,
-				branchHeight: bounds.height,
-			});
-		}
-
-		handles.push(...computeResizeHandleBounds(node.children[i], childBounds));
-		offset += ratio;
-	}
-
-	return handles;
-}
-
-// === Persistence helpers ===
-
-interface PersistedNode {
-	type: "leaf" | "branch";
-	id: string;
-	kind?: "terminal" | "editor";
-	direction?: SplitDirection;
-	children?: PersistedNode[];
-	ratios?: number[];
-	shell?: string;
-	filePath?: string;
-}
-
-function serializeNode(node: SplitNode, tabShell?: string): PersistedNode {
-	if (node.type === "leaf") {
-		return { type: "leaf", id: node.id, kind: node.kind, shell: tabShell, filePath: node.filePath };
-	}
-	return {
-		type: "branch",
-		id: node.id,
-		direction: node.direction,
-		ratios: node.ratios,
-		children: node.children.map((c) => serializeNode(c, tabShell)),
-	};
-}
-
-function deserializeNode(persisted: PersistedNode): SplitNode {
-	if (persisted.type === "leaf") {
-		return {
-			type: "leaf",
-			id: persisted.id,
-			kind: persisted.kind || "terminal",
-			terminalId: null,
-			filePath: persisted.filePath,
-		};
-	}
-	return {
-		type: "branch",
-		id: persisted.id,
-		direction: persisted.direction || "horizontal",
-		ratios: persisted.ratios,
-		children: (persisted.children || []).map(deserializeNode),
-	};
-}
-
-async function createTerminalsForTree(
-	node: SplitNode,
-	projectPath: string,
-	projectId: string,
-	projectName: string,
-	tabLabel: string,
-	shell?: string,
-): Promise<SplitNode> {
-	if (node.type === "leaf") {
-		if (node.kind === "editor") return node; // editor leaves don't need terminal
-		try {
-			const terminalId = await window.connexio.terminal.create(projectPath, shell, {
-				projectId,
-				projectName,
-				tabId: node.id,
-				tabLabel: `${tabLabel} (split)`,
-			});
-			return { ...node, terminalId };
-		} catch {
-			return node;
-		}
-	}
-	const children: SplitNode[] = [];
-	for (const child of node.children) {
-		children.push(
-			await createTerminalsForTree(child, projectPath, projectId, projectName, tabLabel, shell),
-		);
-	}
-	return { ...node, children };
-}
+// Temporary re-exports so existing consumers (e.g. TerminalLayer.tsx) keep
+// compiling; Task 8 removes these and points consumers at features/workspace.
+export * from "../features/workspace/split-layout";
+export * from "../features/workspace/split-layout-geometry";
+export * from "../features/workspace/workspace-persistence";
 
 // === Tab Types ===
 

@@ -557,7 +557,7 @@ pub fn notification_install_hook(app: AppHandle, provider_id: String) -> Result<
                 "hooks": [{"type": "command", "command": command, "timeout": 10}]
             });
 
-            if !settings.get("hooks").is_some() {
+            if settings.get("hooks").is_none() {
                 settings["hooks"] = serde_json::json!({});
             }
             settings["hooks"]["Stop"] = serde_json::json!([hook_entry]);

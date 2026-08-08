@@ -1,7 +1,7 @@
 import { Globe, Loader2, RefreshCw, Copy, Check, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import QRCode from "qrcode";
-import { remote, type RemoteStatus } from "../core/api/remote";
+import { remote, type RemoteStatus } from "../../core/api/remote";
 
 export default function RemoteAccessSettings() {
 	const [status, setStatus] = useState<RemoteStatus | null>(null);

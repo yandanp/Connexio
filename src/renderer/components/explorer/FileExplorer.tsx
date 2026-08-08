@@ -20,11 +20,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ExplorerContextMenu from "./ExplorerContextMenu";
-import {
-	useGitFileStatus,
-	type GitFileIndicator,
-	type GitFileStatusMap,
-} from "../../core/hooks/useGitFileStatus";
+import { useGitFileStatus, type GitFileIndicator, type GitFileStatusMap } from "../../features/git";
 import { useNotificationStore } from "../../core/stores/notificationStore";
 
 interface FileEntry {

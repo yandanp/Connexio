@@ -1,6 +1,6 @@
 import { Check, GitBranch, Globe, Loader2, Plus, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { GitActionResult, GitBranchEntry } from "../../../shared/types";
+import type { GitActionResult, GitBranchEntry } from "@shared/types";
 
 interface Props {
 	projectPath: string;

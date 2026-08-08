@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { git } from "../api/git";
+import { git } from "../../core/api/git";
 import type { GitChangedFile } from "@shared/types";
 
 export type GitFileIndicator = "M" | "A" | "D" | "R" | "U" | "?" | "C";

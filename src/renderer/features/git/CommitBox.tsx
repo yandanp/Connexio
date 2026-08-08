@@ -9,7 +9,7 @@ import {
 	Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { GitActionResult } from "../../../shared/types";
+import type { GitActionResult } from "@shared/types";
 
 interface Props {
 	projectPath: string;

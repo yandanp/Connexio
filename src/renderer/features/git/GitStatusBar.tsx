@@ -1,7 +1,7 @@
 import { AlertCircle, ArrowDown, ArrowUp, ChevronDown, GitBranch, GitCommit } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { GitStatus } from "../../shared/types";
-import BranchPicker from "./git/BranchPicker";
+import type { GitStatus } from "@shared/types";
+import BranchPicker from "./BranchPicker";
 
 interface Props {
 	projectPath: string;

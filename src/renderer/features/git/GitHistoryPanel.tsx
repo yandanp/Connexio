@@ -1,6 +1,6 @@
 import { Clock, Copy, GitCommit, Loader2, RefreshCw, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { GitCommitEntry } from "../../../shared/types";
+import type { GitCommitEntry } from "@shared/types";
 
 interface Props {
 	projectPath: string;

@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import type { GitDiffHunk, GitDiffLine, GitDiffResult } from "../../shared/types";
+import type { GitDiffHunk, GitDiffLine, GitDiffResult } from "@shared/types";
 
 // ============================================
 // Lazy-loaded Syntax Highlighter

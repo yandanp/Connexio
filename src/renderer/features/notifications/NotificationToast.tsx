@@ -1,6 +1,6 @@
 import { Bell, X } from "lucide-react";
 import { useEffect } from "react";
-import { useNotificationStore } from "../core/stores/notificationStore";
+import { useNotificationStore } from "../../core/stores/notificationStore";
 
 export default function NotificationToast() {
 	const { toast, dismissToast } = useNotificationStore();

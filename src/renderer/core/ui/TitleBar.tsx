@@ -1,7 +1,7 @@
 import { Minus, Settings, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import NotificationBell from "../../components/NotificationBell";
+import { NotificationBell } from "../../features/notifications";
 
 export default function TitleBar() {
 	const { openSettings } = useSettingsStore();

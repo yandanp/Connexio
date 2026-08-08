@@ -1,33 +1,15 @@
-import {
-	Bot,
-	Columns2,
-	FolderTree,
-	GitBranch,
-	Globe,
-	ListTodo,
-	PanelRightClose,
-	Rows2,
-	Server,
-} from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useProjectsStore } from "../features/projects";
-import { useWorkspaceStore, type TerminalTab } from "../features/workspace";
-import { SSHManagerPanel, SSHPanel, SFTPBrowser } from "../features/ssh";
-import { SourcePanel } from "../features/git";
-import { AIChatPanel } from "../features/ai";
-import ConfirmDialog from "../core/ui/ConfirmDialog";
-import { CodeEditor } from "./editor";
-import { FileExplorer } from "./explorer";
-import ShellPicker from "./ShellPicker";
-import SidePanelHeader from "../core/ui/SidePanelHeader";
-import SidePanelRail from "../core/ui/SidePanelRail";
-import TaskPanel from "./TaskPanel";
-import type { SSHConnection } from "../../shared/types";
-import TerminalLayer from "./TerminalLayer";
+import { Bot, Columns2, FolderTree, GitBranch, Globe, ListTodo, Rows2, Server } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useProjectsStore } from "../projects";
+import { useWorkspaceStore } from "./workspace-store";
+import { SFTPBrowser, SSHManagerPanel } from "../ssh";
+import ConfirmDialog from "../../core/ui/ConfirmDialog";
+import { CodeEditor, RemoteEditorWrapper } from "../editor";
+import { TerminalLayer } from "../terminal";
+import type { SSHConnection } from "../../../shared/types";
+import SidePanelHost, { type SidePanelTab } from "./SidePanelHost";
 import WebPreview from "./WebPreview";
-import WorkspaceTab from "./WorkspaceTab";
-
-type SidePanelTab = "ai" | "explorer" | "tasks" | "ssh" | "source";
+import WorkspaceTabBar from "./WorkspaceTabBar";
 
 export default function Workspace() {
 	const { projects, activeProjectId } = useProjectsStore();
@@ -49,15 +31,10 @@ export default function Workspace() {
 		splitTerminal,
 	} = useWorkspaceStore();
 
-	// Drag state
-	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
-	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-	const [dragSide, setDragSide] = useState<"left" | "right" | null>(null);
 	const [showSidePanel, setShowSidePanel] = useState(false);
 	const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>("tasks");
 	const [closeConfirmTabId, setCloseConfirmTabId] = useState<string | null>(null);
 	const [dirtyTabs, setDirtyTabs] = useState<Set<string>>(new Set());
-	const tabBarRef = useRef<HTMLDivElement>(null);
 
 	const closeTabs = useCallback(
 		(tabIds: string[]) => {
@@ -68,46 +45,6 @@ export default function Workspace() {
 		},
 		[activeProjectId, closeTerminalTab],
 	);
-
-	// Resizable side panel
-	const [panelWidth, setPanelWidth] = useState(340);
-	const [isPanelResizing, setIsPanelResizing] = useState(false);
-	const isResizing = useRef(false);
-	const panelRef = useRef<HTMLDivElement>(null);
-
-	const handleResizeStart = useCallback((e: React.MouseEvent) => {
-		e.preventDefault();
-		isResizing.current = true;
-		setIsPanelResizing(true);
-		document.body.style.cursor = "col-resize";
-		document.body.style.userSelect = "none";
-	}, []);
-
-	useEffect(() => {
-		const handleResizeMove = (e: MouseEvent) => {
-			if (!isResizing.current || !panelRef.current) return;
-			const containerRect = panelRef.current.parentElement?.getBoundingClientRect();
-			if (!containerRect) return;
-			const newWidth = containerRect.right - e.clientX;
-			setPanelWidth(Math.max(300, Math.min(600, newWidth)));
-		};
-
-		const handleResizeEnd = () => {
-			if (isResizing.current) {
-				isResizing.current = false;
-				setIsPanelResizing(false);
-				document.body.style.cursor = "";
-				document.body.style.userSelect = "";
-			}
-		};
-
-		document.addEventListener("mousemove", handleResizeMove);
-		document.addEventListener("mouseup", handleResizeEnd);
-		return () => {
-			document.removeEventListener("mousemove", handleResizeMove);
-			document.removeEventListener("mouseup", handleResizeEnd);
-		};
-	}, []);
 
 	// Listen for footer panel open/close events
 	useEffect(() => {
@@ -213,67 +150,6 @@ export default function Workspace() {
 	const activeTabId = activeTabIds[activeProjectId] || null;
 	const activeTab = tabs.find((t) => t.id === activeTabId);
 	const activeFilePath = activeTab?.type === "editor" ? activeTab.filePath : null;
-	const sidePanelItems = [
-		{ id: "ai" as const, label: "AI", icon: Bot },
-		{ id: "explorer" as const, label: "Files", icon: FolderTree, badge: !!activeFilePath },
-		{ id: "source" as const, label: "Source", icon: GitBranch },
-		{ id: "tasks" as const, label: "Tasks", icon: ListTodo },
-		{ id: "ssh" as const, label: "SSH", icon: Server },
-	];
-
-	const handleDragStart = (index: number) => {
-		setDragFromIndex(index);
-	};
-
-	const handleDragOver = (index: number) => {
-		if (dragFromIndex === null || dragFromIndex === index) {
-			if (dragOverIndex !== null) {
-				setDragOverIndex(null);
-				setDragSide(null);
-			}
-			return;
-		}
-		const newSide = dragFromIndex < index ? "right" : "left";
-		if (dragOverIndex === index && dragSide === newSide) return; // no change
-		setDragOverIndex(index);
-		setDragSide(newSide);
-	};
-
-	const handleDragEnd = () => {
-		if (dragFromIndex !== null && dragOverIndex !== null && dragFromIndex !== dragOverIndex) {
-			reorderTabs(activeProjectId, dragFromIndex, dragOverIndex);
-		}
-		setDragFromIndex(null);
-		setDragOverIndex(null);
-		setDragSide(null);
-	};
-
-	const handleTabBarDragOver = (e: React.DragEvent) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = "move";
-	};
-
-	const handleTabBarDrop = (e: React.DragEvent) => {
-		e.preventDefault();
-		handleDragEnd();
-	};
-
-	const getTabDetail = (tab: TerminalTab) => {
-		if (tab.type === "editor" || tab.type === "remoteEditor" || tab.type === "preview")
-			return tab.filePath;
-		if (tab.type === "sftp") return tab.sftpConnection?.host;
-		if (tab.type === "sshManager") return "SSH connections";
-		return tab.status ? `${tab.shell || "terminal"} · ${tab.status}` : tab.shell || "terminal";
-	};
-
-	const getSplitCount = (tab: TerminalTab) => {
-		if (!tab.splitLayout) return 1;
-		const countLeaves = (node: any): number =>
-			node.type === "leaf"
-				? 1
-				: node.children.reduce((sum: number, child: any) => sum + countLeaves(child), 0);
-		return countLeaves(tab.splitLayout.root);
-	};
 
 	// Run command in active terminal
 	const handleRunCommand = (command: string) => {
@@ -285,6 +161,15 @@ export default function Workspace() {
 	// SSH connect — use the integrated SSH backend so saved credentials work.
 	const handleSSHConnect = async (connection: SSHConnection, label: string, password?: string) => {
 		await openSshTerminalTab(activeProjectId, label, connection, password);
+	};
+
+	// Open file in a split pane next to the active tab
+	const handleOpenFileInSplit = (filePath: string, direction: "horizontal" | "vertical") => {
+		if (!activeTab) return;
+		const paneId = activeTab.splitLayout ? activeTab.splitLayout.activePaneId : activeTab.id;
+		useWorkspaceStore
+			.getState()
+			.openEditorInSplit(activeProjectId, activeTab.id, paneId, direction, filePath);
 	};
 
 	// Close tab with confirmation
@@ -454,72 +339,21 @@ export default function Workspace() {
 			</div>
 
 			{/* Terminal TabBar */}
-			<div
-				ref={tabBarRef}
-				className="flex h-10 items-center bg-connexio-bg-secondary/50 px-2 soft-separator-bottom"
-				onContextMenu={(e) => e.preventDefault()}
-				onDragOver={handleTabBarDragOver}
-				onDrop={handleTabBarDrop}
-				onDragLeave={(e) => {
-					// Only clear if leaving the tab bar entirely (not entering a child)
-					if (!tabBarRef.current?.contains(e.relatedTarget as Node)) {
-						setDragOverIndex(null);
-						setDragSide(null);
-					}
+			<WorkspaceTabBar
+				tabs={tabs}
+				activeTabId={activeTabId}
+				dirtyTabs={dirtyTabs}
+				onSelect={(tabId) => setActiveTerminalTab(activeProjectId, tabId)}
+				onClose={handleCloseTab}
+				onCloseMany={closeTabs}
+				onRevealInExplorer={() => {
+					setShowSidePanel(true);
+					setSidePanelTab("explorer");
 				}}
-			>
-				<div className="flex flex-1 items-center overflow-x-auto">
-					{tabs.map((tab, index) => (
-						<WorkspaceTab
-							key={tab.id}
-							id={tab.id}
-							label={tab.label}
-							isActive={activeTabId === tab.id}
-							index={index}
-							canClose={tabs.length > 1}
-							isDirty={dirtyTabs.has(tab.id)}
-							tabType={tab.type}
-							detail={getTabDetail(tab)}
-							splitCount={getSplitCount(tab)}
-							status={tab.status}
-							onSelect={() => setActiveTerminalTab(activeProjectId, tab.id)}
-							onClose={() => handleCloseTab(tab.id)}
-							onCloseOthers={
-								tabs.length > 1
-									? () =>
-											closeTabs(tabs.filter((item) => item.id !== tab.id).map((item) => item.id))
-									: undefined
-							}
-							onCloseTabsToRight={
-								index < tabs.length - 1
-									? () => closeTabs(tabs.slice(index + 1).map((item) => item.id))
-									: undefined
-							}
-							onRevealInExplorer={
-								tab.filePath
-									? () => {
-											setShowSidePanel(true);
-											setSidePanelTab("explorer");
-										}
-									: undefined
-							}
-							onRename={(newLabel) => renameTerminalTab(activeProjectId, tab.id, newLabel)}
-							onDragStart={handleDragStart}
-							onDragOver={handleDragOver}
-							onDragEnd={handleDragEnd}
-							onDrop={handleDragEnd}
-							isDragOver={dragOverIndex === index}
-							dragSide={dragOverIndex === index ? dragSide : null}
-							isDragging={dragFromIndex === index}
-						/>
-					))}
-
-					{/* Add tab — inline after last tab */}
-					<div className="flex-shrink-0 ml-0.5">
-						<ShellPicker onSelect={(shell) => openTerminalTab(activeProjectId, undefined, shell)} />
-					</div>
-				</div>
-			</div>
+				onRename={(tabId, newLabel) => renameTerminalTab(activeProjectId, tabId, newLabel)}
+				onReorder={(fromIndex, toIndex) => reorderTabs(activeProjectId, fromIndex, toIndex)}
+				onAddTerminal={(shell) => openTerminalTab(activeProjectId, undefined, shell)}
+			/>
 
 			{/* Main content area */}
 			<div className="flex flex-1 overflow-hidden">
@@ -549,7 +383,7 @@ export default function Workspace() {
 						const files = e.dataTransfer.files;
 						if (files.length > 0) {
 							for (let i = 0; i < files.length; i++) {
-								const filePath = (files[i] as any).path;
+								const filePath = (files[i] as unknown as { path?: string }).path;
 								if (filePath) {
 									openEditorTab(activeProjectId, filePath);
 								}
@@ -661,113 +495,25 @@ export default function Workspace() {
 
 				{/* Right Side Panel */}
 				{showSidePanel && (
-					<div
-						ref={panelRef}
-						className="glass-panel animate-panel-in relative flex flex-shrink-0 flex-col overflow-hidden border-l border-connexio-border/45 shadow-[-8px_0_22px_rgba(0,0,0,0.10),inset_1px_0_0_rgba(255,255,255,0.03)]"
-						style={{ width: panelWidth }}
-					>
-						{/* Resize handle */}
-						<div
-							className={`absolute bottom-0 left-0 top-0 z-10 w-1 cursor-col-resize transition-colors hover:bg-connexio-accent/30 active:bg-connexio-accent/50 ${isPanelResizing ? "resize-rail-active" : ""}`}
-							onMouseDown={handleResizeStart}
-						/>
-						<div className="flex min-h-0 flex-1 overflow-hidden">
-							{/* Panel content */}
-							<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-								{sidePanelTab === "ai" && (
-									<>
-										<SidePanelHeader icon={Bot} title="AI Assistant" subtitle={project.name} />
-										<div className="min-h-0 flex-1 overflow-hidden">
-											<AIChatPanel />
-										</div>
-									</>
-								)}
-								{sidePanelTab === "explorer" && (
-									<>
-										<SidePanelHeader
-											icon={FolderTree}
-											title="Explorer"
-											subtitle={activeFilePath ? activeFilePath.split(/[\\/]/).pop() : project.name}
-										/>
-										<div className="min-h-0 flex-1 overflow-hidden">
-											<FileExplorer
-												projectPath={project.path}
-												activeFilePath={activeFilePath}
-												onOpenInTerminal={(path) => {
-													openTerminalTab(
-														activeProjectId,
-														`Terminal (${path.split(/[\\/]/).pop()})`,
-													);
-												}}
-												onOpenFile={(filePath, lineNumber) =>
-													openEditorTab(activeProjectId, filePath, lineNumber)
-												}
-												onOpenFileInSplit={(filePath, direction) => {
-													if (!activeTab) return;
-													const paneId = activeTab.splitLayout
-														? activeTab.splitLayout.activePaneId
-														: activeTab.id;
-													useWorkspaceStore
-														.getState()
-														.openEditorInSplit(
-															activeProjectId,
-															activeTab.id,
-															paneId,
-															direction,
-															filePath,
-														);
-												}}
-											/>
-										</div>
-									</>
-								)}
-								{sidePanelTab === "source" && (
-									<>
-										<SidePanelHeader
-											icon={GitBranch}
-											title="Source Control"
-											subtitle={project.name}
-										/>
-										<div className="min-h-0 flex-1 overflow-hidden">
-											<SourcePanel projectPath={project.path} />
-										</div>
-									</>
-								)}
-								{sidePanelTab === "tasks" && (
-									<>
-										<SidePanelHeader icon={ListTodo} title="Tasks" subtitle={project.name} />
-										<div className="min-h-0 flex-1 overflow-hidden">
-											<TaskPanel
-												projectId={activeProjectId}
-												projectPath={project.path}
-												onRunCommand={handleRunCommand}
-											/>
-										</div>
-									</>
-								)}
-								{sidePanelTab === "ssh" && (
-									<>
-										<SidePanelHeader icon={Server} title="SSH" subtitle={project.name} />
-										<div className="min-h-0 flex-1 overflow-hidden">
-											<SSHPanel
-												projectId={activeProjectId}
-												onConnect={handleSSHConnect}
-												onOpenManager={() => openSSHManagerTab(activeProjectId)}
-												onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
-											/>
-										</div>
-									</>
-								)}
-							</div>
-							<SidePanelRail
-								items={sidePanelItems}
-								activeId={sidePanelTab}
-								onSelect={setSidePanelTab}
-								onClose={() => setShowSidePanel(false)}
-								closeIcon={PanelRightClose}
-							/>
-						</div>
-					</div>
+					<SidePanelHost
+						activePanel={sidePanelTab}
+						project={project}
+						projectId={activeProjectId}
+						activeFilePath={activeFilePath}
+						onSelectPanel={setSidePanelTab}
+						onClose={() => setShowSidePanel(false)}
+						onOpenInTerminal={(path) => {
+							openTerminalTab(activeProjectId, `Terminal (${path.split(/[\\/]/).pop()})`);
+						}}
+						onOpenFile={(filePath, lineNumber) =>
+							openEditorTab(activeProjectId, filePath, lineNumber)
+						}
+						onOpenFileInSplit={handleOpenFileInSplit}
+						onRunCommand={handleRunCommand}
+						onSSHConnect={handleSSHConnect}
+						onOpenSSHManager={() => openSSHManagerTab(activeProjectId)}
+						onOpenSftp={(connection) => openSftpTab(activeProjectId, connection)}
+					/>
 				)}
 			</div>
 
@@ -781,74 +527,5 @@ export default function Workspace() {
 				/>
 			)}
 		</div>
-	);
-}
-
-// === Remote Editor Wrapper ===
-// Stabilizes loadContent/saveContent references to prevent CodeEditor re-mount loops
-function RemoteEditorWrapper({
-	tab,
-	onClose,
-	onDirtyChange,
-}: {
-	tab: TerminalTab;
-	onClose: () => void;
-	onDirtyChange: (dirty: boolean) => void;
-}) {
-	const { workspaceTabs } = useWorkspaceStore();
-	const { activeProjectId } = useProjectsStore();
-
-	// Stable loadContent — only recreated when tab.id changes
-	const loadContent = useCallback(async () => {
-		return tab.remoteContent || "";
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [tab.id]);
-
-	// Stable saveContent — uses refs internally
-	const tabRef = useRef(tab);
-	tabRef.current = tab;
-
-	const saveContent = useCallback(
-		async (content: string) => {
-			const currentTab = tabRef.current;
-			const conn = currentTab.remoteConnection!;
-			const ref = conn.authMethod === "key" ? conn.passphraseSecretRef : conn.passwordSecretRef;
-			const password = ref?.key ? await window.connexio.ssh.getSecret(ref.key) : null;
-			if (conn.authMethod !== "agent" && !password) {
-				throw new Error(
-					"Saved SSH secret is required to save this remote file. Reopen SFTP and save the password/passphrase first.",
-				);
-			}
-			await window.connexio.ssh.sftpWrite(
-				conn,
-				currentTab.remotePath!,
-				content,
-				password || undefined,
-			);
-			// Update store immutably
-			const projId = useProjectsStore.getState().activeProjectId;
-			if (projId) {
-				const store = useWorkspaceStore.getState();
-				const tabs = store.workspaceTabs[projId] || [];
-				const updated = tabs.map((t) =>
-					t.id === currentTab.id ? { ...t, remoteContent: content } : t,
-				);
-				useWorkspaceStore.setState({
-					workspaceTabs: { ...store.workspaceTabs, [projId]: updated },
-				});
-			}
-			// eslint-disable-next-line react-hooks/exhaustive-deps
-		},
-		[tab.id],
-	);
-
-	return (
-		<CodeEditor
-			filePath={tab.filePath!}
-			loadContent={loadContent}
-			saveContent={saveContent}
-			onClose={onClose}
-			onDirtyChange={onDirtyChange}
-		/>
 	);
 }

@@ -1,12 +1,8 @@
 import { Columns2, Rows2, X } from "lucide-react";
 import { useCallback } from "react";
-import { useProjectsStore } from "../features/projects";
-import {
-	computePaneBounds,
-	computeResizeHandleBounds,
-	useWorkspaceStore,
-} from "../features/workspace";
-import { CodeEditor } from "./editor";
+import { useProjectsStore } from "../projects";
+import { computePaneBounds, computeResizeHandleBounds, useWorkspaceStore } from "../workspace";
+import { CodeEditor } from "../editor";
 import Terminal from "./Terminal";
 
 /**

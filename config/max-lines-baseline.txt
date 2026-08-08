@@ -1,11 +1,11 @@
 # path	max-lines — hanya boleh turun; entri dihapus saat file di-split
-src/renderer/components/Sidebar.tsx	625
-src/renderer/components/TaskPanel.tsx	416
-src/renderer/components/Terminal.tsx	599
-src/renderer/components/WebPreview.tsx	438
-src/renderer/components/Workspace.tsx	857
-src/renderer/components/editor/CodeEditor.tsx	537
-src/renderer/components/explorer/FileExplorer.tsx	926
+src/renderer/features/projects/Sidebar.tsx	625
+src/renderer/features/tasks/TaskPanel.tsx	416
+src/renderer/features/terminal/Terminal.tsx	599
+src/renderer/features/workspace/WebPreview.tsx	438
+src/renderer/features/workspace/Workspace.tsx	532
+src/renderer/features/editor/CodeEditor.tsx	537
+src/renderer/features/explorer/FileExplorer.tsx	926
 src/renderer/features/ai/AIChatPanel.tsx	750
 src/renderer/features/git/DiffModal.tsx	504
 src/renderer/features/git/DiffViewer.tsx	583

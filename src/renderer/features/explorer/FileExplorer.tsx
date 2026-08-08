@@ -18,9 +18,9 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { explorer } from "../../core/api/explorer";
 import ExplorerContextMenu from "./ExplorerContextMenu";
-import { useGitFileStatus, type GitFileIndicator, type GitFileStatusMap } from "../../features/git";
+import { useGitFileStatus, type GitFileIndicator, type GitFileStatusMap } from "../git";
 import { useNotificationStore } from "../../core/stores/notificationStore";
 
 interface FileEntry {
@@ -267,7 +267,8 @@ function FileTreeNode({
 		if (shouldExpand && !expanded) {
 			setExpanded(true);
 			if (!children) {
-				invoke<FileEntry[]>("explorer_list_dir", { dirPath: entry.path })
+				explorer
+					.listDir(entry.path)
 					.then(setChildren)
 					.catch(() => {});
 			}
@@ -284,9 +285,7 @@ function FileTreeNode({
 		if (!entry.isDir) return;
 		if (!expanded && !children) {
 			setLoading(true);
-			const result = await invoke<FileEntry[]>("explorer_list_dir", { dirPath: entry.path }).catch(
-				() => [],
-			);
+			const result = await explorer.listDir(entry.path).catch(() => []);
 			setChildren(result as FileEntry[]);
 			setLoading(false);
 		}
@@ -463,7 +462,8 @@ export default function FileExplorer({
 
 	const refresh = useCallback(() => {
 		if (!projectPath) return;
-		invoke<FileEntry[]>("explorer_list_dir", { dirPath: projectPath })
+		explorer
+			.listDir(projectPath)
 			.then((result) => {
 				setEntries(result);
 				setLoading(false);
@@ -490,12 +490,7 @@ export default function FileExplorer({
 		setSearching(true);
 		setSearched(true);
 		try {
-			const res = await invoke<SearchResult[]>("explorer_search_in_files", {
-				projectPath,
-				query: trimmed,
-				caseSensitive,
-				maxResults: 200,
-			});
+			const res = await explorer.searchInFiles(projectPath, trimmed, caseSensitive, 200);
 			setSearchResults(res);
 		} catch {
 			setSearchResults([]);
@@ -517,7 +512,7 @@ export default function FileExplorer({
 		const currentName = oldPath.replace(/\\/g, "/").split("/").pop();
 		if (!newName || newName === currentName) return;
 		try {
-			await invoke("explorer_rename", { oldPath, newPath: joinPath(parentDir(oldPath), newName) });
+			await explorer.rename(oldPath, joinPath(parentDir(oldPath), newName));
 			refresh();
 		} catch (e) {
 			console.error("Rename failed:", e);
@@ -528,7 +523,7 @@ export default function FileExplorer({
 		const name = targetPath.replace(/\\/g, "/").split("/").pop();
 		if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
 		try {
-			await invoke("explorer_delete", { targetPath });
+			await explorer.delete(targetPath);
 			refresh();
 		} catch (e) {
 			console.error("Delete failed:", e);
@@ -539,8 +534,8 @@ export default function FileExplorer({
 		setNewItem(null);
 		const fullPath = joinPath(parent, name);
 		try {
-			if (type === "file") await invoke("explorer_new_file", { filePath: fullPath });
-			else await invoke("explorer_new_folder", { dirPath: fullPath });
+			if (type === "file") await explorer.newFile(fullPath);
+			else await explorer.newFolder(fullPath);
 			refresh();
 			// Open new file in editor
 			if (type === "file" && onOpenFile) onOpenFile(fullPath);
@@ -574,7 +569,7 @@ export default function FileExplorer({
 
 	const handleOpenExternal = async (path: string) => {
 		try {
-			await invoke("explorer_open_path", { targetPath: path });
+			await explorer.openPath(path);
 		} catch {
 			notify("Open failed", "Could not open the selected path externally.");
 		}

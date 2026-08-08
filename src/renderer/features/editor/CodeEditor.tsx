@@ -17,7 +17,7 @@ import { rust } from "@codemirror/lang-rust";
 import { Save, X, Clipboard, Copy, Scissors, TextSelect } from "lucide-react";
 import ContextMenu from "../../core/ui/ContextMenu";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { explorer } from "../../core/api/explorer";
 import { useThemeStore } from "../../core/stores/themeStore";
 
 function buildEditorTheme(appTheme: { colors: any; terminal: any } | null) {
@@ -170,10 +170,7 @@ export default function CodeEditor({
 			if (saveContentRef.current) {
 				await saveContentRef.current(content);
 			} else {
-				await invoke("explorer_write_file", {
-					filePath: filePathRef.current,
-					content,
-				});
+				await explorer.writeFile(filePathRef.current, content);
 			}
 			originalContentRef.current = content;
 			setDirty(false);
@@ -319,8 +316,7 @@ export default function CodeEditor({
 
 		let destroyed = false;
 
-		const contentLoader =
-			loadContentRef.current || (() => invoke<string>("explorer_read_file", { filePath }));
+		const contentLoader = loadContentRef.current || (() => explorer.readFile(filePath));
 		contentLoader()
 			.then((content) => {
 				if (destroyed || !containerRef.current) return;

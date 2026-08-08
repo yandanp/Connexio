@@ -8,7 +8,7 @@ import {
 	Tablet,
 	X,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { explorer } from "../../core/api/explorer";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 interface Props {
@@ -56,7 +56,7 @@ function normalizeUrl(value: string) {
 
 async function openExternalUrl(targetUrl: string) {
 	try {
-		await invoke("explorer_open_path", { targetPath: targetUrl });
+		await explorer.openPath(targetUrl);
 	} catch (error) {
 		console.error("[Connexio] Failed to open external URL:", error);
 	}

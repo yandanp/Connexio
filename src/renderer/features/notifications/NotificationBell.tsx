@@ -1,8 +1,8 @@
 import { Bell, CheckCheck, Clock, Trash2, X, Zap } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { ConnexioNotification } from "../../shared/types";
-import { useNotificationStore } from "../core/stores/notificationStore";
+import type { ConnexioNotification } from "../../../shared/types";
+import { useNotificationStore } from "../../core/stores/notificationStore";
 
 export default function NotificationBell() {
 	const { unreadCount, isOpen, togglePanel, closePanel } = useNotificationStore();

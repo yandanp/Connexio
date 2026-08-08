@@ -1,6 +1,6 @@
 import { FolderOpen, X } from "lucide-react";
 import { useState } from "react";
-import { useProjectsStore } from "../features/projects";
+import { useProjectsStore } from "./projects-store";
 
 interface Props {
 	onClose: () => void;

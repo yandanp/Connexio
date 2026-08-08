@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
-import type { PinnedCommand, TaskScript } from "../../shared/types";
+import type { PinnedCommand, TaskScript } from "../../../shared/types";
 
 interface Props {
 	projectId: string;

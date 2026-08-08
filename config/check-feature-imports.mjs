@@ -23,19 +23,7 @@ const featureOf = (p) => {
 	return m ? m[1] : null;
 };
 
-// Allowlist sementara (fase migrasi): entri lainnya dihapus saat Tasks 6-13
-// memigrasikan call site invoke/listen ke core/api*.
-const LEGACY = [
-	// Existing invoke() call sites (pre-Task 2):
-	"src/renderer/components/SearchPanel.tsx",
-	"src/renderer/components/Terminal.tsx",
-	"src/renderer/components/WebPreview.tsx",
-	"src/renderer/components/editor/CodeEditor.tsx",
-	"src/renderer/components/explorer/FileExplorer.tsx",
-];
-
 for (const f of files) {
-	if (LEGACY.includes(f)) continue;
 	const src = readFileSync(f, "utf8");
 	const myFeature = featureOf(f);
 	for (const m of src.matchAll(/from\s+["']([^"']+)["']/g)) {

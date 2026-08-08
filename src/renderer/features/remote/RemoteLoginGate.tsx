@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { isRemoteMode } from "../lib/tauri-shim";
-import { authenticate, isAuthenticated, logout } from "../core/api-remote/connection";
+import { isRemoteMode } from "../../lib/tauri-shim";
+import { authenticate, isAuthenticated, logout } from "../../core/api-remote/connection";
 
 /**
  * Remote login gate — shows PIN login when accessed from browser.

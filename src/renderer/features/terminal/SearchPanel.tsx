@@ -1,12 +1,6 @@
 import { FileCode, Loader2, Search, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-
-interface SearchResult {
-	filePath: string;
-	lineNumber: number;
-	lineContent: string;
-}
+import { explorer, type SearchResult } from "../../core/api/explorer";
 
 interface Props {
 	projectPath: string;
@@ -30,12 +24,7 @@ export default function SearchPanel({ projectPath, onOpenFile }: Props) {
 		setSearching(true);
 		setSearched(true);
 		try {
-			const res = await invoke<SearchResult[]>("explorer_search_in_files", {
-				projectPath,
-				query: trimmed,
-				caseSensitive,
-				maxResults: 200,
-			});
+			const res = await explorer.searchInFiles(projectPath, trimmed, caseSensitive, 200);
 			if (!abortRef.current) {
 				setResults(res);
 			}

@@ -5,12 +5,12 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { Search, X as XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type { TerminalThemeColors } from "../../shared/types";
-import { useTerminalResizeV2 } from "../core/hooks/use-terminal-resize-v2";
-import { useSettingsStore } from "../core/stores/settingsStore";
-import { useThemeStore } from "../core/stores/themeStore";
-import TerminalContextMenu from "../core/ui/TerminalContextMenu";
+import { clipboard } from "../../core/api/clipboard";
+import type { TerminalThemeColors } from "../../../shared/types";
+import { useTerminalResizeV2 } from "../../core/hooks/use-terminal-resize-v2";
+import { useSettingsStore } from "../../core/stores/settingsStore";
+import { useThemeStore } from "../../core/stores/themeStore";
+import TerminalContextMenu from "../../core/ui/TerminalContextMenu";
 import "@xterm/xterm/css/xterm.css";
 
 interface Props {
@@ -204,13 +204,13 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			try {
 				// Check image FIRST — if clipboard has image, always send \x16
 				// so TUI apps (opencode) can read it themselves
-				const hasImage = await invoke<boolean>("clipboard_has_image");
+				const hasImage = await clipboard.hasImage();
 				if (hasImage) {
 					window.connexio.terminal.write(terminalId, "\x16");
 					return;
 				}
 				// No image — paste text normally
-				const text = await invoke<string | null>("clipboard_read_text");
+				const text = await clipboard.readText();
 				if (text) {
 					xtermRef.current?.paste(text);
 				}

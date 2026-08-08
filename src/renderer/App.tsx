@@ -2,23 +2,21 @@ import { useEffect, useState } from "react";
 import AppFooter from "./core/ui/AppFooter";
 import CommandPalette from "./core/ui/CommandPalette";
 import KeyboardShortcutsModal from "./core/ui/KeyboardShortcutsModal";
-import NotificationToast from "./components/NotificationToast";
-import RemoteLoginGate from "./components/RemoteLoginGate";
-import RemoteMobileShell from "./components/RemoteMobileShell";
-import Sidebar from "./components/Sidebar";
 import TitleBar from "./core/ui/TitleBar";
 import UpdateNotification from "./core/ui/UpdateNotification";
 import WelcomeScreen from "./core/ui/WelcomeScreen";
-import Workspace from "./components/Workspace";
 
 import { useDiscordPresence } from "./core/hooks/useDiscordPresence";
 import { isRemoteMode } from "./lib/tauri-shim";
 import { useNotificationStore } from "./core/stores/notificationStore";
-import { useProjectsStore } from "./features/projects";
-import { SettingsModal } from "./features/settings";
-import { useWorkspaceStore } from "./features/workspace";
 import { useSettingsStore } from "./core/stores/settingsStore";
 import { useThemeStore } from "./core/stores/themeStore";
+import { NotificationToast } from "./features/notifications";
+import { Sidebar, useProjectsStore } from "./features/projects";
+import { RemoteLoginGate, RemoteMobileShell } from "./features/remote";
+import { SettingsModal } from "./features/settings";
+import { useWorkspaceStore } from "./features/workspace";
+import Workspace from "./features/workspace/Workspace";
 
 const UI_FONT_SIZE_MAP = {
 	small: "11px",

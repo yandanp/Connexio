@@ -1,8 +1,7 @@
 import { ArrowLeft, FolderPlus, Palette, Sparkles, Terminal, Zap } from "lucide-react";
 import { useState } from "react";
-import { useProjectsStore } from "../../features/projects";
+import { AddProjectModal, useProjectsStore } from "../../features/projects";
 import { useThemeStore } from "../stores/themeStore";
-import AddProjectModal from "../../components/AddProjectModal";
 import type { Project } from "../../../shared/types";
 
 export default function WelcomeScreen({

@@ -17,8 +17,7 @@ import { useNotificationStore } from "../stores/notificationStore";
 import { useProjectsStore } from "../../features/projects";
 import { useWorkspaceStore } from "../../features/workspace";
 import { useSettingsStore } from "../stores/settingsStore";
-import RemoteConnectionBadge from "../../components/RemoteConnectionBadge";
-import RemotePowerControls from "../../components/RemotePowerControls";
+import { RemoteConnectionBadge, RemotePowerControls } from "../../features/remote";
 
 export default function AppFooter() {
 	const { projects, activeProjectId, sidebarCollapsed } = useProjectsStore();

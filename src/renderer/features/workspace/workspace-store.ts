@@ -4,10 +4,8 @@ import { create } from "zustand";
 // Module-level guard to prevent double restore from React StrictMode
 let _workspaceRestored = false;
 
-import type { Project, WorkspaceState, WorkspaceTabState } from "../../shared/types";
-
-// Split-layout types, tree ops, geometry, and persistence helpers are extracted
-// to features/workspace (Task 7); the store itself is split in Task 8.
+import type { SSHConnection, WorkspaceState, WorkspaceTabState } from "@shared/types";
+import { useProjectsStore } from "../projects";
 import {
 	collectLeaves,
 	collectTerminalIds,
@@ -15,26 +13,16 @@ import {
 	findParent,
 	removeNode,
 	replaceNode,
-} from "../features/workspace/split-layout";
+} from "./split-layout";
 import type {
 	SplitBranch,
 	SplitDirection,
 	SplitLayout,
 	SplitLeaf,
 	SplitNode,
-} from "../features/workspace/split-layout";
-import {
-	createTerminalsForTree,
-	deserializeNode,
-	serializeNode,
-} from "../features/workspace/workspace-persistence";
-import type { PersistedNode } from "../features/workspace/workspace-persistence";
-
-// Temporary re-exports so existing consumers (e.g. TerminalLayer.tsx) keep
-// compiling; Task 8 removes these and points consumers at features/workspace.
-export * from "../features/workspace/split-layout";
-export * from "../features/workspace/split-layout-geometry";
-export * from "../features/workspace/workspace-persistence";
+} from "./split-layout";
+import { createTerminalsForTree, deserializeNode, serializeNode } from "./workspace-persistence";
+import type { PersistedNode } from "./workspace-persistence";
 
 // === Tab Types ===
 
@@ -48,56 +36,39 @@ export interface TerminalTab {
 	status?: TerminalStatus;
 	type?: "terminal" | "editor" | "preview" | "remoteEditor" | "sshManager" | "sftp";
 	filePath?: string;
-	remoteConnection?: import("../../shared/types").SSHConnection;
+	remoteConnection?: SSHConnection;
 	remotePath?: string;
 	remoteContent?: string;
-	sftpConnection?: import("../../shared/types").SSHConnection;
+	sftpConnection?: SSHConnection;
 	splitLayout?: SplitLayout;
 }
 
-interface ProjectStore {
-	projects: Project[];
-	activeProjectId: string | null;
-	searchQuery: string;
-	sidebarCollapsed: boolean;
+export interface WorkspaceStore {
 	isRestoring: boolean;
 
 	workspaceTabs: Record<string, TerminalTab[]>;
 	activeTabIds: Record<string, string>;
 
 	// Actions
-	loadProjects: () => Promise<void>;
-	addProject: (name: string, path: string, group: string) => Promise<void>;
-	deleteProject: (id: string) => Promise<void>;
-	renameProject: (id: string, name: string) => Promise<void>;
-	setActiveProject: (id: string) => void;
-	setSearchQuery: (query: string) => void;
-	toggleSidebar: () => void;
-	updateProjectLastOpened: (id: string) => Promise<void>;
-
-	reorderProjects: (fromId: string, toId: string) => Promise<void>;
-	moveProjectToGroup: (projectId: string, newGroup: string) => Promise<void>;
-	renameProjectGroup: (oldGroup: string, newGroup: string) => Promise<void>;
-
 	openTerminalTab: (projectId: string, label?: string, shell?: string) => Promise<void>;
 	openCommandTerminalTab: (projectId: string, label: string, command: string[]) => Promise<void>;
 	openSshTerminalTab: (
 		projectId: string,
 		label: string,
-		connection: import("../../shared/types").SSHConnection,
+		connection: SSHConnection,
 		password?: string,
 	) => Promise<void>;
 	openEditorTab: (projectId: string, filePath: string, lineNumber?: number) => void;
 	openRemoteEditorTab: (
 		projectId: string,
-		connection: import("../../shared/types").SSHConnection,
+		connection: SSHConnection,
 		remotePath: string,
 		content: string,
 		activate?: boolean,
 	) => void;
 	openPreviewTab: (projectId: string, url?: string) => void;
 	openSSHManagerTab: (projectId: string) => void;
-	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => void;
+	openSftpTab: (projectId: string, connection: SSHConnection) => void;
 	closeTerminalTab: (projectId: string, tabId: string) => void;
 	setActiveTerminalTab: (projectId: string, tabId: string) => void;
 	markTerminalExited: (terminalId: string) => void;
@@ -148,144 +119,16 @@ function debouncedSave(fn: () => void) {
 	saveTimer = setTimeout(fn, 500);
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
-	projects: [],
-	activeProjectId: null,
-	searchQuery: "",
-	sidebarCollapsed: false,
+export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 	isRestoring: false,
 	workspaceTabs: {},
 	activeTabIds: {},
 
-	loadProjects: async () => {
-		const projects = await window.connexio.project.list();
-		set({ projects });
-	},
-
-	addProject: async (name: string, projectPath: string, group: string) => {
-		const project: Project = {
-			id: uuid(),
-			name,
-			path: projectPath,
-			group,
-			tabs: [{ id: uuid(), label: "Terminal 1" }],
-			createdAt: Date.now(),
-			lastOpenedAt: Date.now(),
-		};
-		await window.connexio.project.add(project);
-		const projects = await window.connexio.project.list();
-		set({ projects });
-		get().setActiveProject(project.id);
-	},
-
-	deleteProject: async (id: string) => {
-		const { workspaceTabs, activeTabIds, activeProjectId, projects } = get();
-		const tabs = workspaceTabs[id] || [];
-
-		const { [id]: _removedTabs, ...restTabs } = workspaceTabs;
-		const { [id]: _removedActive, ...restActiveIds } = activeTabIds;
-
-		let newActiveId: string | null = activeProjectId;
-		if (activeProjectId === id) {
-			const remaining = projects.filter((p) => p.id !== id);
-			newActiveId = remaining.length > 0 ? remaining[0].id : null;
-		}
-
-		set({ workspaceTabs: restTabs, activeTabIds: restActiveIds, activeProjectId: newActiveId });
-
-		for (const tab of tabs) {
-			if (tab.splitLayout) {
-				for (const tid of collectTerminalIds(tab.splitLayout.root)) {
-					await window.connexio.terminal.close(tid);
-				}
-			} else if (tab.terminalId) {
-				await window.connexio.terminal.close(tab.terminalId);
-			}
-		}
-
-		await window.connexio.project.delete(id);
-		set({ projects: await window.connexio.project.list() });
-		get().persistWorkspace();
-	},
-
-	renameProject: async (id: string, name: string) => {
-		const trimmed = name.trim();
-		if (!trimmed) return;
-		const { projects } = get();
-		const project = projects.find((p) => p.id === id);
-		if (!project || project.name === trimmed) return;
-		const updated = { ...project, name: trimmed };
-		await window.connexio.project.update(updated);
-		set({ projects: projects.map((p) => (p.id === id ? updated : p)) });
-	},
-
-	setActiveProject: (id: string) => {
-		const { activeProjectId, projects, isRestoring } = get();
-		if (activeProjectId === id) return;
-		const project = projects.find((p) => p.id === id);
-		if (!project) return;
-		set({ activeProjectId: id });
-		if (!isRestoring) {
-			const tabs = get().workspaceTabs[id];
-			if (!tabs || tabs.length === 0) get().openTerminalTab(id, "Terminal 1");
-		}
-		get().updateProjectLastOpened(id);
-		get().persistWorkspace();
-	},
-
-	setSearchQuery: (query: string) => set({ searchQuery: query }),
-	toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-
-	updateProjectLastOpened: async (id: string) => {
-		const { projects } = get();
-		const project = projects.find((p) => p.id === id);
-		if (project) {
-			const updated = { ...project, lastOpenedAt: Date.now() };
-			await window.connexio.project.update(updated);
-		}
-	},
-
-	reorderProjects: async (fromId: string, toId: string) => {
-		const { projects } = get();
-		const fromIndex = projects.findIndex((p) => p.id === fromId);
-		const toIndex = projects.findIndex((p) => p.id === toId);
-		if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
-		const reordered = [...projects];
-		const [moved] = reordered.splice(fromIndex, 1);
-		reordered.splice(toIndex, 0, moved);
-		set({ projects: reordered });
-		await window.connexio.project.reorder(reordered.map((p) => p.id));
-	},
-
-	moveProjectToGroup: async (projectId: string, newGroup: string) => {
-		const { projects } = get();
-		const project = projects.find((p) => p.id === projectId);
-		const group = newGroup.trim() || "default";
-		if (!project || project.group === group) return;
-		const updated = { ...project, group };
-		await window.connexio.project.update(updated);
-		set({ projects: projects.map((p) => (p.id === projectId ? updated : p)) });
-	},
-
-	renameProjectGroup: async (oldGroup: string, newGroup: string) => {
-		const group = newGroup.trim() || "default";
-		if (oldGroup === group) return;
-		const { projects } = get();
-		const affected = projects.filter((p) => (p.group || "default") === oldGroup);
-		if (affected.length === 0) return;
-		const updatedProjects = projects.map((project) =>
-			(project.group || "default") === oldGroup ? { ...project, group } : project,
-		);
-		await Promise.all(
-			affected.map((project) => window.connexio.project.update({ ...project, group })),
-		);
-		set({ projects: updatedProjects });
-	},
-
 	// === Tab Actions ===
 
 	openTerminalTab: async (projectId: string, label?: string, shell?: string) => {
-		const { projects, workspaceTabs, activeTabIds } = get();
+		const projects = useProjectsStore.getState().projects;
+		const { workspaceTabs, activeTabIds } = get();
 		const project = projects.find((p) => p.id === projectId);
 		if (!project) return;
 
@@ -321,7 +164,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	},
 
 	openCommandTerminalTab: async (projectId: string, label: string, command: string[]) => {
-		const { projects, workspaceTabs, activeTabIds } = get();
+		const projects = useProjectsStore.getState().projects;
+		const { workspaceTabs, activeTabIds } = get();
 		const project = projects.find((p) => p.id === projectId);
 		if (!project) return;
 
@@ -352,7 +196,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	openSshTerminalTab: async (
 		projectId: string,
 		label: string,
-		connection: import("../../shared/types").SSHConnection,
+		connection: SSHConnection,
 		password?: string,
 	) => {
 		const { workspaceTabs, activeTabIds } = get();
@@ -414,7 +258,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 	openRemoteEditorTab: (
 		projectId: string,
-		connection: import("../../shared/types").SSHConnection,
+		connection: SSHConnection,
 		remotePath: string,
 		content: string,
 		activate = true,
@@ -470,7 +314,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		get().persistWorkspace();
 	},
 
-	openSftpTab: (projectId: string, connection: import("../../shared/types").SSHConnection) => {
+	openSftpTab: (projectId: string, connection: SSHConnection) => {
 		const { workspaceTabs, activeTabIds } = get();
 		const existingTabs = workspaceTabs[projectId] || [];
 		const existing = existingTabs.find(
@@ -629,7 +473,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		paneId: string,
 		direction: SplitDirection,
 	) => {
-		const { workspaceTabs, projects } = get();
+		const { workspaceTabs } = get();
+		const projects = useProjectsStore.getState().projects;
 		const tabs = workspaceTabs[projectId] || [];
 		const tab = tabs.find((t) => t.id === tabId);
 		if (!tab) return;
@@ -712,7 +557,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	 * Creates a split layout with the editor as one pane and a new terminal as the other.
 	 */
 	splitTerminalFromEditor: async (projectId: string, tabId: string, direction: SplitDirection) => {
-		const { workspaceTabs, projects } = get();
+		const { workspaceTabs } = get();
+		const projects = useProjectsStore.getState().projects;
 		const tabs = workspaceTabs[projectId] || [];
 		const tab = tabs.find((t) => t.id === tabId);
 		if (!tab || tab.type !== "editor" || !tab.filePath) return;
@@ -1014,7 +860,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				return;
 			}
 
-			const { projects } = get();
+			const { projects } = useProjectsStore.getState();
 			const restoredTabs: Record<string, TerminalTab[]> = {};
 			const restoredActiveIds: Record<string, string> = {};
 
@@ -1100,10 +946,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 					? saved.activeProjectId
 					: null;
 
+			useProjectsStore.setState({ activeProjectId });
 			set({
 				workspaceTabs: restoredTabs,
 				activeTabIds: restoredActiveIds,
-				activeProjectId,
 				isRestoring: false,
 			});
 		} catch (error) {
@@ -1115,7 +961,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 	persistWorkspace: () => {
 		if (get().isRestoring) return;
 		debouncedSave(() => {
-			const { activeProjectId, workspaceTabs, activeTabIds } = get();
+			const activeProjectId = useProjectsStore.getState().activeProjectId;
+			const { workspaceTabs, activeTabIds } = get();
 			const projectTabs: Record<string, WorkspaceTabState[]> = {};
 			for (const [projectId, tabs] of Object.entries(workspaceTabs)) {
 				const persistableTabs = tabs.filter((t) => t.type !== "remoteEditor" && t.type !== "sftp");
@@ -1129,7 +976,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 							filePath: t.filePath,
 						};
 						if (t.splitLayout) {
-							state.splitTree = serializeNode(t.splitLayout.root, t.shell) as any;
+							state.splitTree = serializeNode(t.splitLayout.root, t.shell);
 						}
 						return state;
 					});
@@ -1148,9 +995,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			clearTimeout(saveTimer);
 			saveTimer = null;
 		}
-		const { activeProjectId, workspaceTabs, activeTabIds, isRestoring } = get();
+		const { workspaceTabs, activeTabIds, isRestoring } = get();
 		if (isRestoring) return;
 
+		const activeProjectId = useProjectsStore.getState().activeProjectId;
 		const projectTabs: Record<string, WorkspaceTabState[]> = {};
 		for (const [projectId, tabs] of Object.entries(workspaceTabs)) {
 			const persistableTabs = tabs.filter((t) => t.type !== "remoteEditor" && t.type !== "sftp");
@@ -1164,7 +1012,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 						filePath: t.filePath,
 					};
 					if (t.splitLayout) {
-						state.splitTree = serializeNode(t.splitLayout.root, t.shell) as any;
+						state.splitTree = serializeNode(t.splitLayout.root, t.shell);
 					}
 					return state;
 				});

@@ -14,14 +14,15 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitStatus } from "../../../shared/types";
 import { useNotificationStore } from "../stores/notificationStore";
-import { useProjectStore } from "../../stores/projectStore";
+import { useProjectsStore } from "../../features/projects";
+import { useWorkspaceStore } from "../../features/workspace";
 import { useSettingsStore } from "../stores/settingsStore";
 import RemoteConnectionBadge from "../../components/RemoteConnectionBadge";
 import RemotePowerControls from "../../components/RemotePowerControls";
 
 export default function AppFooter() {
-	const { projects, activeProjectId, workspaceTabs, activeTabIds, sidebarCollapsed } =
-		useProjectStore();
+	const { projects, activeProjectId, sidebarCollapsed } = useProjectsStore();
+	const { workspaceTabs, activeTabIds } = useWorkspaceStore();
 	const { notifications } = useNotificationStore();
 	const { isSettingsOpen } = useSettingsStore();
 	const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);

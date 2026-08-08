@@ -10,7 +10,8 @@ import {
 	Server,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useProjectStore, type TerminalTab } from "../stores/projectStore";
+import { useProjectsStore } from "../features/projects";
+import { useWorkspaceStore, type TerminalTab } from "../features/workspace";
 import { AIChatPanel } from "./ai";
 import ConfirmDialog from "../core/ui/ConfirmDialog";
 import { CodeEditor } from "./editor";
@@ -31,9 +32,8 @@ import WorkspaceTab from "./WorkspaceTab";
 type SidePanelTab = "ai" | "explorer" | "tasks" | "ssh" | "source";
 
 export default function Workspace() {
+	const { projects, activeProjectId } = useProjectsStore();
 	const {
-		projects,
-		activeProjectId,
 		workspaceTabs,
 		activeTabIds,
 		openTerminalTab,
@@ -49,7 +49,7 @@ export default function Workspace() {
 		updatePreviewTabUrl,
 		reorderTabs,
 		splitTerminal,
-	} = useProjectStore();
+	} = useWorkspaceStore();
 
 	// Drag state
 	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
@@ -135,9 +135,9 @@ export default function Workspace() {
 	// Keyboard shortcuts
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			const state = useProjectStore.getState();
-			const projId = state.activeProjectId;
+			const projId = useProjectsStore.getState().activeProjectId;
 			if (!projId) return;
+			const state = useWorkspaceStore.getState();
 			const currentTabs = state.workspaceTabs[projId] || [];
 			const currentActiveTabId = state.activeTabIds[projId];
 			if (!currentActiveTabId) return;
@@ -348,7 +348,7 @@ export default function Workspace() {
 
 				{/* Web Preview — open as tab */}
 				<button
-					onClick={() => useProjectStore.getState().openPreviewTab(activeProjectId)}
+					onClick={() => useWorkspaceStore.getState().openPreviewTab(activeProjectId)}
 					className="dock-button p-1.5"
 					title="Web Preview"
 					type="button"
@@ -365,7 +365,7 @@ export default function Workspace() {
 									const paneId = activeTab.splitLayout.activePaneId;
 									splitTerminal(activeProjectId, activeTab.id, paneId, "horizontal");
 								} else if (activeTab.type === "editor") {
-									useProjectStore
+									useWorkspaceStore
 										.getState()
 										.splitTerminalFromEditor(activeProjectId, activeTab.id, "horizontal");
 								} else {
@@ -384,7 +384,7 @@ export default function Workspace() {
 									const paneId = activeTab.splitLayout.activePaneId;
 									splitTerminal(activeProjectId, activeTab.id, paneId, "vertical");
 								} else if (activeTab.type === "editor") {
-									useProjectStore
+									useWorkspaceStore
 										.getState()
 										.splitTerminalFromEditor(activeProjectId, activeTab.id, "vertical");
 								} else {
@@ -709,7 +709,7 @@ export default function Workspace() {
 													const paneId = activeTab.splitLayout
 														? activeTab.splitLayout.activePaneId
 														: activeTab.id;
-													useProjectStore
+													useWorkspaceStore
 														.getState()
 														.openEditorInSplit(
 															activeProjectId,
@@ -797,7 +797,8 @@ function RemoteEditorWrapper({
 	onClose: () => void;
 	onDirtyChange: (dirty: boolean) => void;
 }) {
-	const { workspaceTabs, activeProjectId } = useProjectStore();
+	const { workspaceTabs } = useWorkspaceStore();
+	const { activeProjectId } = useProjectsStore();
 
 	// Stable loadContent — only recreated when tab.id changes
 	const loadContent = useCallback(async () => {
@@ -827,14 +828,16 @@ function RemoteEditorWrapper({
 				password || undefined,
 			);
 			// Update store immutably
-			const store = useProjectStore.getState();
-			const projId = store.activeProjectId;
+			const projId = useProjectsStore.getState().activeProjectId;
 			if (projId) {
+				const store = useWorkspaceStore.getState();
 				const tabs = store.workspaceTabs[projId] || [];
 				const updated = tabs.map((t) =>
 					t.id === currentTab.id ? { ...t, remoteContent: content } : t,
 				);
-				useProjectStore.setState({ workspaceTabs: { ...store.workspaceTabs, [projId]: updated } });
+				useWorkspaceStore.setState({
+					workspaceTabs: { ...store.workspaceTabs, [projId]: updated },
+				});
 			}
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		},

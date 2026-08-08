@@ -16,7 +16,8 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useProjectStore } from "../../stores/projectStore";
+import { useProjectsStore } from "../../features/projects";
+import { useWorkspaceStore } from "../../features/workspace";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { PinnedCommand, TaskScript } from "../../../shared/types";
 
@@ -47,18 +48,16 @@ export default function CommandPalette({ open, onClose }: Props) {
 	const [tasks, setTasks] = useState<TaskScript[]>([]);
 	const [pinnedCommands, setPinnedCommands] = useState<PinnedCommand[]>([]);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const { projects, activeProjectId, setActiveProject } = useProjectsStore();
 	const {
-		projects,
-		activeProjectId,
 		workspaceTabs,
 		activeTabIds,
-		setActiveProject,
 		setActiveTerminalTab,
 		openTerminalTab,
 		openCommandTerminalTab,
 		openPreviewTab,
 		openSSHManagerTab,
-	} = useProjectStore();
+	} = useWorkspaceStore();
 	const { openSettings } = useSettingsStore();
 
 	const activeProject = projects.find((project) => project.id === activeProjectId);

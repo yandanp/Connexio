@@ -1,6 +1,6 @@
 import { ArrowLeft, FolderPlus, Palette, Sparkles, Terminal, Zap } from "lucide-react";
 import { useState } from "react";
-import { useProjectStore } from "../../stores/projectStore";
+import { useProjectsStore } from "../../features/projects";
 import { useThemeStore } from "../stores/themeStore";
 import AddProjectModal from "../../components/AddProjectModal";
 import type { Project } from "../../../shared/types";
@@ -14,7 +14,7 @@ export default function WelcomeScreen({
 	onClose?: () => void;
 	onProjectSelected?: () => void;
 }) {
-	const { projects } = useProjectStore();
+	const { projects } = useProjectsStore();
 	const { themes, setTheme, currentTheme } = useThemeStore();
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [showThemes, setShowThemes] = useState(false);
@@ -189,7 +189,7 @@ function RecentProjectItem({
 	project: Project;
 	onProjectSelected?: () => void;
 }) {
-	const { setActiveProject } = useProjectStore();
+	const { setActiveProject } = useProjectsStore();
 
 	return (
 		<button

@@ -13,7 +13,8 @@ import {
 import ContextMenu from "../core/ui/ContextMenu";
 import { useEffect, useState } from "react";
 import type { Project } from "../../shared/types";
-import { useProjectStore } from "../stores/projectStore";
+import { useProjectsStore } from "../features/projects";
+import { useWorkspaceStore } from "../features/workspace";
 import AddProjectModal from "./AddProjectModal";
 import ConfirmDialog from "../core/ui/ConfirmDialog";
 
@@ -23,7 +24,6 @@ export default function Sidebar() {
 		activeProjectId,
 		searchQuery,
 		sidebarCollapsed,
-		workspaceTabs,
 		setSearchQuery,
 		setActiveProject,
 		deleteProject,
@@ -32,7 +32,8 @@ export default function Sidebar() {
 		reorderProjects,
 		moveProjectToGroup,
 		renameProjectGroup,
-	} = useProjectStore();
+	} = useProjectsStore();
+	const { workspaceTabs } = useWorkspaceStore();
 
 	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["default"]));
 	const [showAddModal, setShowAddModal] = useState(false);

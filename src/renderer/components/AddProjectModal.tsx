@@ -1,13 +1,13 @@
 import { FolderOpen, X } from "lucide-react";
 import { useState } from "react";
-import { useProjectStore } from "../stores/projectStore";
+import { useProjectsStore } from "../features/projects";
 
 interface Props {
 	onClose: () => void;
 }
 
 export default function AddProjectModal({ onClose }: Props) {
-	const { addProject } = useProjectStore();
+	const { addProject } = useProjectsStore();
 	const [name, setName] = useState("");
 	const [path, setPath] = useState("");
 	const [group, setGroup] = useState("default");

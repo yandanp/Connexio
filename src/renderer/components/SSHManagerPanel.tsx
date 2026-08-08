@@ -18,7 +18,8 @@ import ContextMenu from "../core/ui/ContextMenu";
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { useProjectStore } from "../stores/projectStore";
+import { useProjectsStore } from "../features/projects";
+import { useWorkspaceStore } from "../features/workspace";
 import ConfirmDialog from "../core/ui/ConfirmDialog";
 import type { SFTPEntry, SSHConnection, SSHSecretRef } from "../../shared/types";
 
@@ -1021,7 +1022,8 @@ export function SFTPBrowser({
 	connection: SSHConnection;
 	onBack?: () => void;
 }) {
-	const { activeProjectId, openRemoteEditorTab } = useProjectStore();
+	const { activeProjectId } = useProjectsStore();
+	const { openRemoteEditorTab } = useWorkspaceStore();
 	const mountedRef = useRef(true);
 
 	// Restore from cache on mount

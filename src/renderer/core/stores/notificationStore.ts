@@ -100,23 +100,24 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 	navigateToNotification: (notification: ConnexioNotification) => {
 		if (!notification.projectId || !notification.tabId) return;
 		// Import lazily to avoid circular dependency at module init time
-		import("../../stores/projectStore").then(({ useProjectStore }) => {
-			const projectStore = useProjectStore.getState();
-			const tabs = projectStore.workspaceTabs[notification.projectId!] || [];
-			const tabExists = tabs.some((tab) => tab.id === notification.tabId);
-			if (!tabExists) return;
+		Promise.all([import("../../features/projects"), import("../../features/workspace")]).then(
+			([{ useProjectsStore }, { useWorkspaceStore }]) => {
+				const tabs = useWorkspaceStore.getState().workspaceTabs[notification.projectId!] || [];
+				const tabExists = tabs.some((tab) => tab.id === notification.tabId);
+				if (!tabExists) return;
 
-			// Set both in one synchronous state update. Calling setActiveProject first
-			// can auto-open tabs/persist state before the target tab is selected.
-			useProjectStore.setState((state) => ({
-				activeProjectId: notification.projectId!,
-				activeTabIds: {
-					...state.activeTabIds,
-					[notification.projectId!]: notification.tabId!,
-				},
-			}));
-			useProjectStore.getState().persistWorkspace();
-		});
+				// Set both stores synchronously (no setActiveProject action — it can
+				// auto-open tabs/persist state before the target tab is selected).
+				useProjectsStore.setState({ activeProjectId: notification.projectId! });
+				useWorkspaceStore.setState((state) => ({
+					activeTabIds: {
+						...state.activeTabIds,
+						[notification.projectId!]: notification.tabId!,
+					},
+				}));
+				useWorkspaceStore.getState().persistWorkspace();
+			},
+		);
 	},
 
 	handleIncoming: (notification: ConnexioNotification) => {

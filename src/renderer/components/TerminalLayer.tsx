@@ -1,7 +1,11 @@
 import { Columns2, Rows2, X } from "lucide-react";
 import { useCallback } from "react";
-import { useProjectStore } from "../stores/projectStore";
-import { computePaneBounds, computeResizeHandleBounds } from "../stores/projectStore";
+import { useProjectsStore } from "../features/projects";
+import {
+	computePaneBounds,
+	computeResizeHandleBounds,
+	useWorkspaceStore,
+} from "../features/workspace";
 import { CodeEditor } from "./editor";
 import Terminal from "./Terminal";
 
@@ -14,7 +18,8 @@ import Terminal from "./Terminal";
  * This guarantees xterm.js instances never remount.
  */
 export default function TerminalLayer() {
-	const { workspaceTabs, activeTabIds, activeProjectId } = useProjectStore();
+	const { workspaceTabs, activeTabIds } = useWorkspaceStore();
+	const { activeProjectId } = useProjectsStore();
 
 	const allPanes: Array<{
 		projectId: string;
@@ -157,7 +162,7 @@ function ResizeHandle({
 	branchHeight: number;
 	isVisible: boolean;
 }) {
-	const { resizeSplitBranch } = useProjectStore();
+	const { resizeSplitBranch } = useWorkspaceStore();
 
 	const isHorizontal = direction === "horizontal";
 
@@ -278,7 +283,7 @@ function PaneRenderer({
 	isActivePane: boolean;
 	isSplit: boolean;
 }) {
-	const { closeSplitPane, setActiveSplitPane, splitTerminal } = useProjectStore();
+	const { closeSplitPane, setActiveSplitPane, splitTerminal } = useWorkspaceStore();
 
 	const handleFocus = () => {
 		if (isSplit) setActiveSplitPane(projectId, tabId, paneId);

@@ -15,7 +15,8 @@ import Workspace from "./components/Workspace";
 import { useDiscordPresence } from "./core/hooks/useDiscordPresence";
 import { isRemoteMode } from "./lib/tauri-shim";
 import { useNotificationStore } from "./core/stores/notificationStore";
-import { useProjectStore } from "./stores/projectStore";
+import { useProjectsStore } from "./features/projects";
+import { useWorkspaceStore } from "./features/workspace";
 import { useSettingsStore } from "./core/stores/settingsStore";
 import { useThemeStore } from "./core/stores/themeStore";
 
@@ -30,7 +31,8 @@ function useIsRemoteMobile() {
 }
 
 export default function App() {
-	const { loadProjects, activeProjectId, restoreWorkspace } = useProjectStore();
+	const { loadProjects, activeProjectId } = useProjectsStore();
+	const { restoreWorkspace } = useWorkspaceStore();
 	const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 	const [showStartPage, setShowStartPage] = useState(false);
@@ -115,7 +117,7 @@ export default function App() {
 
 	useEffect(() => {
 		const unsubscribe = window.connexio.terminal.onExit((terminalId) => {
-			useProjectStore.getState().markTerminalExited(terminalId);
+			useWorkspaceStore.getState().markTerminalExited(terminalId);
 		});
 		return unsubscribe;
 	}, []);
@@ -172,11 +174,11 @@ export default function App() {
 	// Flush workspace state on app close so position is always saved
 	useEffect(() => {
 		const handleBeforeUnload = () => {
-			useProjectStore.getState().flushPersistWorkspace();
+			useWorkspaceStore.getState().flushPersistWorkspace();
 		};
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === "hidden") {
-				useProjectStore.getState().flushPersistWorkspace();
+				useWorkspaceStore.getState().flushPersistWorkspace();
 			}
 		};
 		window.addEventListener("beforeunload", handleBeforeUnload);

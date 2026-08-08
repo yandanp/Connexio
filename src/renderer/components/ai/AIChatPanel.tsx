@@ -21,7 +21,8 @@ import {
 	type AIProviderConfig,
 	type AIProviderType,
 } from "../../stores/aiStore";
-import { useProjectStore } from "../../stores/projectStore";
+import { useProjectsStore } from "../../features/projects";
+import { useWorkspaceStore } from "../../features/workspace";
 
 function CodeBlock({
 	code,
@@ -239,7 +240,8 @@ function MessageBubble({
 }
 
 function findActiveFilePath(): string | null {
-	const { activeProjectId, workspaceTabs, activeTabIds } = useProjectStore.getState();
+	const activeProjectId = useProjectsStore.getState().activeProjectId;
+	const { workspaceTabs, activeTabIds } = useWorkspaceStore.getState();
 	if (!activeProjectId) return null;
 	const tab = (workspaceTabs[activeProjectId] || []).find(
 		(t) => t.id === activeTabIds[activeProjectId],
@@ -256,7 +258,8 @@ function findActiveFilePath(): string | null {
 }
 
 function findActiveTerminalId(): string | null {
-	const { activeProjectId, workspaceTabs, activeTabIds } = useProjectStore.getState();
+	const activeProjectId = useProjectsStore.getState().activeProjectId;
+	const { workspaceTabs, activeTabIds } = useWorkspaceStore.getState();
 	if (!activeProjectId) return null;
 	const tab = (workspaceTabs[activeProjectId] || []).find(
 		(t: any) => t.id === activeTabIds[activeProjectId],
@@ -280,7 +283,7 @@ export default function AIChatPanel() {
 		getChatSessionsForProject,
 		newChat,
 	} = useAIStore();
-	const { activeProjectId } = useProjectStore();
+	const { activeProjectId } = useProjectsStore();
 	const [input, setInput] = useState("");
 	const [showSettings, setShowSettings] = useState(false);
 	const [showHistory, setShowHistory] = useState(false);

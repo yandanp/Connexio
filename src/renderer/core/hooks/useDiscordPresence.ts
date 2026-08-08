@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { discord } from "../api/discord";
-import { useProjectStore } from "../../stores/projectStore";
+import { useProjectsStore } from "../../features/projects";
+import { useWorkspaceStore } from "../../features/workspace";
 import { useAIStore } from "../../stores/aiStore";
 
 /**
@@ -38,7 +39,8 @@ export function useDiscordPresence(enabled: boolean) {
 	const updatePresence = useCallback(async () => {
 		if (!connectedRef.current) return;
 
-		const { projects, workspaceTabs } = useProjectStore.getState();
+		const { projects } = useProjectsStore.getState();
+		const { workspaceTabs } = useWorkspaceStore.getState();
 		const { isLoading, config } = useAIStore.getState();
 
 		// Count active terminals

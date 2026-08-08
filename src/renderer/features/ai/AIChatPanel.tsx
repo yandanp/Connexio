@@ -14,15 +14,11 @@ import {
 	X,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import {
-	useAIStore,
-	type AIMessage,
-	type AIProviderConfig,
-	type AIProviderType,
-} from "../../stores/aiStore";
-import { useProjectsStore } from "../../features/projects";
-import { useWorkspaceStore } from "../../features/workspace";
+import { explorer } from "../../core/api/explorer";
+import { useProjectsStore } from "../projects";
+import { useWorkspaceStore } from "../workspace";
+import { useAIStore } from "./ai-store";
+import type { AIMessage, AIProviderConfig, AIProviderType } from "./ai-types";
 
 function CodeBlock({
 	code,
@@ -268,7 +264,7 @@ function findActiveTerminalId(): string | null {
 	return null;
 }
 
-export default function AIChatPanel() {
+export function AIChatPanel() {
 	const {
 		messages,
 		isLoading,
@@ -315,7 +311,7 @@ export default function AIChatPanel() {
 			const filePath = findActiveFilePath();
 			if (filePath) {
 				try {
-					context.file = `${filePath}\n\n${(await invoke<string>("explorer_read_file", { filePath })).slice(0, 12000)}`;
+					context.file = `${filePath}\n\n${(await explorer.readFile(filePath)).slice(0, 12000)}`;
 				} catch {}
 			}
 		}

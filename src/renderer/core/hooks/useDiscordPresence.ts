@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { discord } from "../api/discord";
 import { useProjectsStore } from "../../features/projects";
 import { useWorkspaceStore } from "../../features/workspace";
-import { useAIStore } from "../../stores/aiStore";
+import { useAIStore } from "../../features/ai";
 
 /**
  * Hook that manages Discord Rich Presence.

@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2, Download, Loader2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { AIProvider } from "../../shared/types";
+import type { AIProvider } from "../../../shared/types";
 
 export default function AIIntegrationsSettings() {
 	const [providers, setProviders] = useState<AIProvider[]>([]);

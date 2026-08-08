@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { NotificationSettings } from "../../../shared/types";
-import AIIntegrationsSettings from "../../components/AIIntegrationsSettings";
+import { AIIntegrationsSettings } from "../ai";
 import SettingsCard from "../../core/ui/SettingsCard";
 import ToggleSwitch from "../../core/ui/ToggleSwitch";
 

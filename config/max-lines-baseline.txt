@@ -4,13 +4,12 @@ src/renderer/components/TaskPanel.tsx	416
 src/renderer/components/Terminal.tsx	599
 src/renderer/components/WebPreview.tsx	438
 src/renderer/components/Workspace.tsx	857
-src/renderer/components/ai/AIChatPanel.tsx	750
 src/renderer/components/editor/CodeEditor.tsx	537
 src/renderer/components/explorer/FileExplorer.tsx	926
+src/renderer/features/ai/AIChatPanel.tsx	750
 src/renderer/features/git/DiffModal.tsx	504
 src/renderer/features/git/DiffViewer.tsx	583
 src/renderer/features/git/SourcePanel.tsx	690
 src/renderer/features/ssh/SFTPBrowser.tsx	727
 src/renderer/features/ssh/SSHEditForm.tsx	405
 src/renderer/features/workspace/workspace-store.ts	1026
-src/renderer/stores/aiStore.ts	787

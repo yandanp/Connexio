@@ -30,7 +30,6 @@ const LEGACY = [
 	"src/renderer/components/SearchPanel.tsx",
 	"src/renderer/components/Terminal.tsx",
 	"src/renderer/components/WebPreview.tsx",
-	"src/renderer/components/ai/AIChatPanel.tsx",
 	"src/renderer/components/editor/CodeEditor.tsx",
 	"src/renderer/components/explorer/FileExplorer.tsx",
 ];

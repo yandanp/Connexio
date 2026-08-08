@@ -14,7 +14,7 @@ import { useProjectsStore } from "../features/projects";
 import { useWorkspaceStore, type TerminalTab } from "../features/workspace";
 import { SSHManagerPanel, SSHPanel, SFTPBrowser } from "../features/ssh";
 import { SourcePanel } from "../features/git";
-import { AIChatPanel } from "./ai";
+import { AIChatPanel } from "../features/ai";
 import ConfirmDialog from "../core/ui/ConfirmDialog";
 import { CodeEditor } from "./editor";
 import { FileExplorer } from "./explorer";

@@ -83,3 +83,96 @@ pub fn ssh_build_command_args(connection: SSHConnection) -> Vec<String> {
     args.push(format!("{}@{}", connection.username, connection.host));
     args
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn connection(port: u16) -> SSHConnection {
+        SSHConnection {
+            id: "x".into(),
+            name: "x".into(),
+            host: "example.com".into(),
+            port,
+            username: "user".into(),
+            auth_method: SSHAuthMethod::Password,
+            private_key_path: None,
+            color: None,
+            folder: None,
+            tags: vec![],
+            notes: None,
+            identity_id: None,
+            password_secret_ref: None,
+            passphrase_secret_ref: None,
+            startup_commands: vec![],
+            keep_alive_secs: None,
+            tunnels: vec![],
+        }
+    }
+
+    #[test]
+    fn build_command_args_includes_port_and_target() {
+        let args = ssh_build_command_args(connection(2222));
+        assert!(args.iter().any(|a| a == "-p"));
+        assert!(args.iter().any(|a| a == "2222"));
+        assert!(args.iter().any(|a| a.contains("user@example.com")));
+    }
+
+    #[test]
+    fn build_command_args_omits_port_flag_for_default_port() {
+        let args = ssh_build_command_args(connection(22));
+        assert_eq!(args.first().map(String::as_str), Some("ssh"));
+        assert!(!args.iter().any(|a| a == "-p"));
+        assert_eq!(args.last().map(String::as_str), Some("user@example.com"));
+    }
+
+    #[test]
+    fn build_command_args_includes_key_and_keepalive() {
+        let mut conn = connection(2222);
+        conn.auth_method = SSHAuthMethod::Key;
+        conn.private_key_path = Some("/keys/id_rsa".into());
+        conn.keep_alive_secs = Some(30);
+        let args = ssh_build_command_args(conn);
+        // Characterization: the args builder passes the key path through unquoted
+        // (unlike ssh_build_command) and emits one arg per flag value.
+        assert_eq!(
+            args,
+            vec![
+                "ssh",
+                "-p",
+                "2222",
+                "-i",
+                "/keys/id_rsa",
+                "-o",
+                "ServerAliveInterval=30",
+                "user@example.com",
+            ]
+        );
+    }
+
+    #[test]
+    fn shell_quote_passes_through_safe_chars() {
+        assert_eq!(shell_quote("user@example.com"), "user@example.com");
+        assert_eq!(shell_quote("C:\\keys\\id_rsa"), "C:\\keys\\id_rsa");
+    }
+
+    #[test]
+    fn shell_quote_wraps_spaces() {
+        // Characterization: quoting style is platform-specific — double quotes on
+        // Windows, single quotes elsewhere.
+        #[cfg(target_os = "windows")]
+        assert_eq!(shell_quote("a b"), "\"a b\"");
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(shell_quote("a b"), "'a b'");
+    }
+
+    #[test]
+    fn build_command_joins_startup_commands() {
+        let mut conn = connection(22);
+        conn.startup_commands = vec!["".into(), "   ".into(), "htop".into(), " vim ".into()];
+        assert_eq!(
+            ssh_build_command(conn),
+            "ssh user@example.com && htop && vim"
+        );
+    }
+}

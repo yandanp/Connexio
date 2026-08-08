@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { isRemoteMode } from "../../lib/tauri-shim";
+import { isRemoteMode } from "../../core/tauri-shim";
 import { authenticate, isAuthenticated, logout } from "../../core/api-remote/connection";
 
 /**

@@ -1,5 +1,5 @@
 import { Bot, FolderTree, GitBranch, ListTodo, PanelRightClose, Server } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
 import type { Project, SSHConnection } from "../../../shared/types";
 import SidePanelHeader from "../../core/ui/SidePanelHeader";
 import SidePanelRail from "../../core/ui/SidePanelRail";
@@ -16,6 +16,12 @@ interface Props {
 	project: Project;
 	projectId: string;
 	activeFilePath?: string | null;
+	// Resize chrome is owned by Workspace so the width survives close/reopen
+	// (this component unmounts when the panel closes).
+	panelWidth: number;
+	isPanelResizing: boolean;
+	panelRef: RefObject<HTMLDivElement>;
+	onResizeStart: (e: ReactMouseEvent) => void;
 	onSelectPanel: (tab: SidePanelTab) => void;
 	onClose: () => void;
 	onOpenInTerminal: (path: string) => void;
@@ -32,6 +38,10 @@ export default function SidePanelHost({
 	project,
 	projectId,
 	activeFilePath,
+	panelWidth,
+	isPanelResizing,
+	panelRef,
+	onResizeStart,
 	onSelectPanel,
 	onClose,
 	onOpenInTerminal,
@@ -42,46 +52,6 @@ export default function SidePanelHost({
 	onOpenSSHManager,
 	onOpenSftp,
 }: Props) {
-	// Resizable side panel
-	const [panelWidth, setPanelWidth] = useState(340);
-	const [isPanelResizing, setIsPanelResizing] = useState(false);
-	const isResizing = useRef(false);
-	const panelRef = useRef<HTMLDivElement>(null);
-
-	const handleResizeStart = useCallback((e: React.MouseEvent) => {
-		e.preventDefault();
-		isResizing.current = true;
-		setIsPanelResizing(true);
-		document.body.style.cursor = "col-resize";
-		document.body.style.userSelect = "none";
-	}, []);
-
-	useEffect(() => {
-		const handleResizeMove = (e: MouseEvent) => {
-			if (!isResizing.current || !panelRef.current) return;
-			const containerRect = panelRef.current.parentElement?.getBoundingClientRect();
-			if (!containerRect) return;
-			const newWidth = containerRect.right - e.clientX;
-			setPanelWidth(Math.max(300, Math.min(600, newWidth)));
-		};
-
-		const handleResizeEnd = () => {
-			if (isResizing.current) {
-				isResizing.current = false;
-				setIsPanelResizing(false);
-				document.body.style.cursor = "";
-				document.body.style.userSelect = "";
-			}
-		};
-
-		document.addEventListener("mousemove", handleResizeMove);
-		document.addEventListener("mouseup", handleResizeEnd);
-		return () => {
-			document.removeEventListener("mousemove", handleResizeMove);
-			document.removeEventListener("mouseup", handleResizeEnd);
-		};
-	}, []);
-
 	const sidePanelItems = [
 		{ id: "ai" as const, label: "AI", icon: Bot },
 		{ id: "explorer" as const, label: "Files", icon: FolderTree, badge: !!activeFilePath },
@@ -99,7 +69,7 @@ export default function SidePanelHost({
 			{/* Resize handle */}
 			<div
 				className={`absolute bottom-0 left-0 top-0 z-10 w-1 cursor-col-resize transition-colors hover:bg-connexio-accent/30 active:bg-connexio-accent/50 ${isPanelResizing ? "resize-rail-active" : ""}`}
-				onMouseDown={handleResizeStart}
+				onMouseDown={onResizeStart}
 			/>
 			<div className="flex min-h-0 flex-1 overflow-hidden">
 				{/* Panel content */}

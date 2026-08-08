@@ -1,5 +1,5 @@
 import { Bot, Columns2, FolderTree, GitBranch, Globe, ListTodo, Rows2, Server } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectsStore } from "../projects";
 import { useWorkspaceStore } from "./workspace-store";
 import { SFTPBrowser, SSHManagerPanel } from "../ssh";
@@ -45,6 +45,47 @@ export default function Workspace() {
 		},
 		[activeProjectId, closeTerminalTab],
 	);
+
+	// Resizable side panel — state lives here (not in SidePanelHost) so the
+	// width survives panel close/reopen cycles (SidePanelHost unmounts).
+	const [panelWidth, setPanelWidth] = useState(340);
+	const [isPanelResizing, setIsPanelResizing] = useState(false);
+	const isResizing = useRef(false);
+	const panelRef = useRef<HTMLDivElement>(null);
+
+	const handleResizeStart = useCallback((e: React.MouseEvent) => {
+		e.preventDefault();
+		isResizing.current = true;
+		setIsPanelResizing(true);
+		document.body.style.cursor = "col-resize";
+		document.body.style.userSelect = "none";
+	}, []);
+
+	useEffect(() => {
+		const handleResizeMove = (e: MouseEvent) => {
+			if (!isResizing.current || !panelRef.current) return;
+			const containerRect = panelRef.current.parentElement?.getBoundingClientRect();
+			if (!containerRect) return;
+			const newWidth = containerRect.right - e.clientX;
+			setPanelWidth(Math.max(300, Math.min(600, newWidth)));
+		};
+
+		const handleResizeEnd = () => {
+			if (isResizing.current) {
+				isResizing.current = false;
+				setIsPanelResizing(false);
+				document.body.style.cursor = "";
+				document.body.style.userSelect = "";
+			}
+		};
+
+		document.addEventListener("mousemove", handleResizeMove);
+		document.addEventListener("mouseup", handleResizeEnd);
+		return () => {
+			document.removeEventListener("mousemove", handleResizeMove);
+			document.removeEventListener("mouseup", handleResizeEnd);
+		};
+	}, []);
 
 	// Listen for footer panel open/close events
 	useEffect(() => {
@@ -500,6 +541,10 @@ export default function Workspace() {
 						project={project}
 						projectId={activeProjectId}
 						activeFilePath={activeFilePath}
+						panelWidth={panelWidth}
+						isPanelResizing={isPanelResizing}
+						panelRef={panelRef}
+						onResizeStart={handleResizeStart}
 						onSelectPanel={setSidePanelTab}
 						onClose={() => setShowSidePanel(false)}
 						onOpenInTerminal={(path) => {

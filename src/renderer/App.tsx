@@ -7,7 +7,7 @@ import UpdateNotification from "./core/ui/UpdateNotification";
 import WelcomeScreen from "./core/ui/WelcomeScreen";
 
 import { useDiscordPresence } from "./core/hooks/useDiscordPresence";
-import { isRemoteMode } from "./lib/tauri-shim";
+import { isRemoteMode } from "./core/tauri-shim";
 import { useNotificationStore } from "./core/stores/notificationStore";
 import { useSettingsStore } from "./core/stores/settingsStore";
 import { useThemeStore } from "./core/stores/themeStore";

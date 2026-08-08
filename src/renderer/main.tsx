@@ -1,4 +1,4 @@
-import { shimReady } from "./lib/tauri-shim";
+import { shimReady } from "./core/tauri-shim";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";

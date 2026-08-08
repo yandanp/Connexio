@@ -11,11 +11,14 @@ const isTauri = !!(window as any).__TAURI_INTERNALS__;
 export const shimReady: Promise<void> = (async () => {
 	if ((window as any).connexio) return;
 
+	// Dynamic import is required: the adapter is chosen at runtime (Tauri desktop
+	// vs remote browser) and only ONE of the two may be loaded. A static import
+	// would bundle/evaluate both adapters eagerly.
 	if (isTauri) {
-		const { connexioApi } = await import("../core/api");
+		const { connexioApi } = await import("./api");
 		(window as any).connexio = connexioApi;
 	} else {
-		const { connexioRemoteApi } = await import("../core/api-remote");
+		const { connexioRemoteApi } = await import("./api-remote");
 		(window as any).connexio = connexioRemoteApi;
 		(window as any).__CONNEXIO_REMOTE__ = true;
 	}

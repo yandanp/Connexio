@@ -3,7 +3,7 @@ src/renderer/features/projects/Sidebar.tsx	625
 src/renderer/features/tasks/TaskPanel.tsx	416
 src/renderer/features/terminal/Terminal.tsx	599
 src/renderer/features/workspace/WebPreview.tsx	438
-src/renderer/features/workspace/Workspace.tsx	532
+src/renderer/features/workspace/Workspace.tsx	577
 src/renderer/features/editor/CodeEditor.tsx	537
 src/renderer/features/explorer/FileExplorer.tsx	926
 src/renderer/features/ai/AIChatPanel.tsx	750

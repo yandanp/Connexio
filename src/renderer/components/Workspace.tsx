@@ -12,17 +12,15 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectsStore } from "../features/projects";
 import { useWorkspaceStore, type TerminalTab } from "../features/workspace";
+import { SSHManagerPanel, SSHPanel, SFTPBrowser } from "../features/ssh";
 import { AIChatPanel } from "./ai";
 import ConfirmDialog from "../core/ui/ConfirmDialog";
 import { CodeEditor } from "./editor";
 import { FileExplorer } from "./explorer";
 import ShellPicker from "./ShellPicker";
 import SourcePanel from "./SourcePanel";
-import SSHPanel from "./SSHPanel";
 import SidePanelHeader from "../core/ui/SidePanelHeader";
 import SidePanelRail from "../core/ui/SidePanelRail";
-import SSHManagerPanel from "./SSHManagerPanel";
-import { SFTPBrowser } from "./SSHManagerPanel";
 import TaskPanel from "./TaskPanel";
 import type { SSHConnection } from "../../shared/types";
 import TerminalLayer from "./TerminalLayer";

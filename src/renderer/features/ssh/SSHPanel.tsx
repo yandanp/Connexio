@@ -1,6 +1,6 @@
 import { FolderOpen, Key, Plus, Server } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { SSHConnection } from "../../shared/types";
+import type { SSHConnection } from "../../../shared/types";
 
 interface Props {
 	projectId: string;

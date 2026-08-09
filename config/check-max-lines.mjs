@@ -18,7 +18,7 @@ if (existsSync(baselinePath)) {
 const files = execSync('git ls-files -- "*.ts" "*.tsx" "*.rs"', { encoding: "utf8" })
 	.trim()
 	.split("\n")
-	.filter((f) => f.startsWith("src/"));
+	.filter((f) => f.startsWith("src/") || f.startsWith("src-tauri/src/"));
 
 let failed = false;
 for (const f of files) {

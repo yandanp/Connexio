@@ -4,9 +4,9 @@ src/renderer/features/tasks/TaskPanel.tsx	416
 src/renderer/features/terminal/Terminal.tsx	599
 src/renderer/features/workspace/WebPreview.tsx	438
 src/renderer/features/workspace/Workspace.tsx	577
-src/renderer/features/editor/CodeEditor.tsx	537
-src/renderer/features/explorer/FileExplorer.tsx	926
-src/renderer/features/ai/AIChatPanel.tsx	750
+src/renderer/features/editor/CodeEditor.tsx	533
+src/renderer/features/explorer/FileExplorer.tsx	917
+src/renderer/features/ai/AIChatPanel.tsx	523
 src/renderer/features/git/DiffModal.tsx	504
 src/renderer/features/git/DiffViewer.tsx	583
 src/renderer/features/git/SourcePanel.tsx	690

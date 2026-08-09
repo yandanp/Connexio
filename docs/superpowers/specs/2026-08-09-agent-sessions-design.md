@@ -30,14 +30,13 @@ tersebut di atas fondasi Connexio yang sudah ada.
 ## 2. Keputusan yang Terkunci
 
 | # | Keputusan | Pilihan |
-| 7 | Platform hook Claude | **Windows dulu** (ps1, sesuai implementasi existing); varian sh/bash macOS/Linux = susulan eksplisit (§9) |
 | 1 | Bentuk UX v1 | **Session dashboard** (panel daftar session) + **badge status di tab terminal** |
 | 2 | Linkage agent ↔ terminal | **Env var** — adapter membaca `CONNEXIO_TERMINAL_ID` (sudah disuntik pty manager saat context ada) + `CONNEXIO_NOTIFICATION_PORT`; TIDAK menambah var baru |
 | 3 | Kedalaman dukungan agent | **Matriks kemampuan per-agent** (lihat §5.1): Claude Code penuh (working/waiting_input/done); OpenCode & Pi sesuai kemampuan event API mereka — diverifikasi saat planning |
 | 4 | Arsitektur | **Backend-owned session state** (`modules/agent_sessions.rs`) + protokol hook ternormalisasi + slice frontend baru `features/agents/` |
 | 5 | Persistensi | **In-memory dulu** untuk v1; history persisten = phase berikutnya |
-| 6 | API publik | Domain baru `window.connexio.agents` — test api-shape diupdate 15 → 16 key (perubahan bentuk yang disengaja untuk fitur baru); `types/global.d.ts` dan `src/shared/types.ts` ikut diupdate |
-| 7 | Platform hook Claude | **Windows dulu** (ps1, sesuai implementasi现有); varian sh/bash macOS/Linux = susulan eksplisit (§9) |
+| 6 | API publik | Domain baru `window.connexio.agents` — test api-shape diupdate 15 → 16 key (perubahan bentuk yang disengaja untuk fitur baru); `src/renderer/types/global.d.ts` dan `src/shared/types.ts` ikut diupdate; kedua command baru didaftarkan di `invoke_handler` lib.rs |
+| 7 | Platform hook Claude | **Windows dulu** (ps1, sesuai implementasi existing); varian sh/bash macOS/Linux = susulan eksplisit (§9) |
 | 8 | Scope terminal | Hanya terminal lokal (pty manager). **Terminal SSH dikecualikan** v1 |
 
 ## 3. Arsitektur

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ConnexioNotification, NotificationSettings } from "../../../shared/types";
+import { localFileToAssetUrl } from "../api/notification";
 
 // Shared audio instance to prevent overlapping sounds
 // biome-ignore lint/style/useLet: reassigned in handleIncoming
@@ -142,7 +143,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 			try {
 				let soundUrl: string;
 				if (settings.customSoundPath) {
-					soundUrl = `file://${settings.customSoundPath.replace(/\\/g, "/")}`;
+					soundUrl = localFileToAssetUrl(settings.customSoundPath);
 				} else {
 					soundUrl = new URL("../../assets/notification.wav", import.meta.url).href;
 				}

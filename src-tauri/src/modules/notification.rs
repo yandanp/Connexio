@@ -145,7 +145,7 @@ fn load_notif_settings(app: &AppHandle) -> NotificationSettings {
         .unwrap_or_default()
 }
 
-fn save_notif_settings(app: &AppHandle, settings: &NotificationSettings) {
+pub(crate) fn save_notif_settings(app: &AppHandle, settings: &NotificationSettings) {
     let path = notif_settings_file(app);
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -635,32 +635,4 @@ pub fn notification_uninstall_hook(provider_id: String) -> Result<(), String> {
         }
         _ => Err(format!("Unknown provider: {}", provider_id)),
     }
-}
-
-#[tauri::command]
-pub fn notification_upload_sound(_app: AppHandle) -> Result<serde_json::Value, String> {
-    // This will be triggered from frontend using tauri-plugin-dialog
-    // For now return stub — frontend handles file picker via dialog plugin
-    Ok(serde_json::json!({"success": false, "error": "Use dialog plugin from frontend"}))
-}
-
-#[tauri::command]
-pub fn notification_remove_custom_sound(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<NotificationState>();
-    let mut settings = state.settings.lock().unwrap();
-    if let Some(ref path) = settings.custom_sound_path {
-        if std::path::Path::new(path).exists() {
-            let _ = fs::remove_file(path);
-        }
-    }
-    settings.custom_sound_path = None;
-    save_notif_settings(&app, &settings);
-    Ok(())
-}
-
-#[tauri::command]
-pub fn notification_get_sound_path(app: AppHandle) -> Option<String> {
-    let state = app.state::<NotificationState>();
-    let path = state.settings.lock().unwrap().custom_sound_path.clone();
-    path
 }

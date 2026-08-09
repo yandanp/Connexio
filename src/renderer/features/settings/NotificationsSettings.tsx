@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { NotificationSettings } from "../../../shared/types";
+import { localFileToAssetUrl } from "../../core/api/notification";
 import { AIIntegrationsSettings } from "../ai";
 import SettingsCard from "../../core/ui/SettingsCard";
 import ToggleSwitch from "../../core/ui/ToggleSwitch";
@@ -23,7 +24,7 @@ export default function NotificationsSettings() {
 		try {
 			let soundUrl: string;
 			if (settings?.customSoundPath) {
-				soundUrl = `file://${settings.customSoundPath.replace(/\\/g, "/")}`;
+				soundUrl = localFileToAssetUrl(settings.customSoundPath);
 			} else {
 				soundUrl = new URL("../../assets/notification.wav", import.meta.url).href;
 			}

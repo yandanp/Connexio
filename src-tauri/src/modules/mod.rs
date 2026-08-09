@@ -3,6 +3,7 @@ pub mod discord;
 pub mod explorer;
 pub mod git;
 pub mod notification;
+pub mod notification_sound;
 pub mod pinned;
 pub mod projects;
 pub mod pty;

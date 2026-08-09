@@ -151,9 +151,9 @@ pub fn run() {
             modules::notification::notification_get_providers,
             modules::notification::notification_install_hook,
             modules::notification::notification_uninstall_hook,
-            modules::notification::notification_upload_sound,
-            modules::notification::notification_remove_custom_sound,
-            modules::notification::notification_get_sound_path,
+            modules::notification_sound::notification_upload_sound,
+            modules::notification_sound::notification_remove_custom_sound,
+            modules::notification_sound::notification_get_sound_path,
             // Explorer
             modules::explorer::explorer_list_dir,
             modules::explorer::explorer_read_tree,

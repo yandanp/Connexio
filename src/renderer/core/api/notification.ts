@@ -1,6 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+
+/** Converts an absolute local file path into a webview-safe asset URL (asset protocol enabled in tauri.conf.json). */
+export const localFileToAssetUrl = (path: string): string => convertFileSrc(path);
 
 // ─── Notification ────────────────────────────────────────────────────────────
 

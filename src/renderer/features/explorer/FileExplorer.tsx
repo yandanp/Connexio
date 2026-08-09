@@ -286,7 +286,7 @@ function FileTreeNode({
 		if (!expanded && !children) {
 			setLoading(true);
 			const result = await explorer.listDir(entry.path).catch(() => []);
-			setChildren(result as FileEntry[]);
+			setChildren(result);
 			setLoading(false);
 		}
 		setExpanded(!expanded);

@@ -2,8 +2,7 @@ import { v4 as uuid } from "uuid";
 import { create } from "zustand";
 
 import type { Project } from "@shared/types";
-import { collectTerminalIds } from "../workspace";
-import { useWorkspaceStore } from "../workspace";
+import { collectTerminalIds, useWorkspaceStore } from "../workspace";
 
 export interface ProjectsStore {
 	projects: Project[];

@@ -5,9 +5,8 @@ Rulebook for humans and AI agents. UI rules live in `docs/STYLEGUIDE.md`.
 
 ## Layout
 
-- `src/renderer/core/` = kernel (api, ui, hooks, stores). `src/renderer/features/<domain>/` = fitur; API publik hanya lewat `index.ts`.
-- `src/shared/` = tipe murni frontend↔Rust. Backend: `src-tauri/src/modules/`.
-- core/+features/ adalah arsitektur target; kode legacy di `src/renderer/components/` dimigrasikan bertahap (T4–T13).
+- `src/renderer/core/` = kernel (api, api-remote, ui, hooks, stores, tauri-shim.ts). `src/renderer/features/<domain>/` = fitur; API publik hanya lewat `index.ts`.
+- `src/shared/` = tipe murni frontend↔Rust. Backend: `src-tauri/src/modules/` (ssh/ dan remote/ adalah folder modul).
 
 ## Boundaries (dipaksa config/check-feature-imports.mjs)
 
@@ -22,7 +21,7 @@ Rulebook for humans and AI agents. UI rules live in `docs/STYLEGUIDE.md`.
 ## Style
 
 - Komentar singkat, hanya yang non-obvious (WHY, bukan HOW).
-- File ≤400 baris; pengecualian yang sedang di-split ada di `config/max-lines-baseline.txt` (ratchet: hanya boleh turun).
+- File ≤400 baris (TS frontend maupun Rust); pengecualian yang sedang di-split ada di `config/max-lines-baseline.txt` (ratchet: hanya boleh turun).
 - UI baru WAJIB memakai token/kelas desain yang sudah ada — lihat `docs/STYLEGUIDE.md`.
 
 ## IPC & cross-platform

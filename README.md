@@ -148,40 +148,48 @@ Tag patterns for release channels:
 
 ```
 Connexio/
+├── AGENTS.md                    # Written conventions for AI agents & contributors
+├── docs/
+│   └── STYLEGUIDE.md            # Canonical design tokens & utility classes
+├── config/                      # Tooling & quality gates
+│   ├── check-max-lines.mjs      # Max-lines ratchet (frontend + Rust)
+│   ├── max-lines-baseline.txt   # Big-file baseline (numbers only go down)
+│   ├── check-feature-imports.mjs# Feature boundary checker
+│   └── vitest.config.ts         # Test config
 ├── src/
-│   ├── renderer/                # React frontend
-│   │   ├── components/
-│   │   │   ├── Workspace.tsx         # Main workspace (tabs, terminal, panels)
-│   │   │   ├── Terminal.tsx          # xterm.js terminal instance
-│   │   │   ├── TerminalLayer.tsx     # Global terminal renderer (never unmounts)
-│   │   │   ├── Sidebar.tsx           # Project sidebar with drag & drop
-│   │   │   ├── TaskPanel.tsx         # Task runner + pinned commands
-│   │   │   ├── SSHPanel.tsx          # SSH connection manager UI
-│   │   │   ├── GitStatusBar.tsx      # Git status display
-│   │   │   ├── SearchPanel.tsx       # Terminal search
-│   │   │   ├── SettingsModal.tsx     # Settings UI
-│   │   │   ├── ShellPicker.tsx       # Shell selection dropdown
-│   │   │   ├── WorkspaceTab.tsx      # Draggable, renameable tab
-│   │   │   ├── WebPreview.tsx        # Live web preview panel
-│   │   │   ├── WelcomeScreen.tsx     # Welcome/onboarding screen
-│   │   │   ├── UpdateNotification.tsx
-│   │   │   ├── ai/                   # AI chat panel
-│   │   │   ├── editor/              # CodeMirror code editor
-│   │   │   ├── explorer/            # File explorer tree
-│   │   │   └── git/                 # Branch picker, commit box, history
-│   │   ├── stores/              # Zustand state management
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── lib/                 # Utility functions
-│   │   ├── styles/              # Global CSS
-│   │   └── types/               # TypeScript declarations
-│   └── shared/
-│       └── types.ts             # Shared types (frontend ↔ backend)
+│   ├── shared/
+│   │   └── types.ts             # Pure shared types (frontend ↔ Rust)
+│   └── renderer/                # React frontend
+│       ├── core/                # Kernel — importable by every feature
+│       │   ├── api/             # Typed IPC wrappers per domain (window.connexio)
+│       │   ├── api-remote/      # Same API shape for remote (mobile/web) mode
+│       │   ├── ui/              # Small primitives (ContextMenu, ConfirmDialog, …)
+│       │   ├── hooks/           # use-terminal-resize-v2, useDiscordPresence
+│       │   ├── stores/          # Cross-cutting stores: settings, theme, notifications
+│       │   └── tauri-shim.ts    # Picks desktop vs remote API at startup
+│       ├── features/            # 1 folder = 1 domain; public API via index.ts only
+│       │   ├── terminal/        # Terminal, TerminalLayer, ShellPicker, SearchPanel
+│       │   ├── workspace/       # Workspace composition, tab bar, split layout, store
+│       │   ├── projects/        # Sidebar, AddProjectModal, projects store
+│       │   ├── git/             # SourcePanel, DiffViewer, BranchPicker, CommitBox, …
+│       │   ├── ssh/             # SSH manager: hosts, identities, known hosts, SFTP
+│       │   ├── remote/          # Remote access: login gate, mobile shell, settings
+│       │   ├── tasks/           # TaskPanel + pinned commands
+│       │   ├── explorer/        # FileExplorer
+│       │   ├── editor/          # CodeEditor + RemoteEditorWrapper
+│       │   ├── ai/              # AIChatPanel + provider client & store
+│       │   ├── settings/        # SettingsModal + settings tabs
+│       │   └── notifications/   # NotificationBell, NotificationToast
+│       ├── styles/              # globals.css (design token source)
+│       └── App.tsx / main.tsx   # Composition root — only place features are joined
 ├── src-tauri/
 │   ├── src/
 │   │   ├── main.rs              # Tauri app entry point
 │   │   ├── lib.rs               # Plugin registration & command setup
 │   │   └── modules/
 │   │       ├── pty/             # PTY process management (portable-pty)
+│   │       ├── ssh/             # SSH module folder (connection, sftp, trust, secrets, …)
+│   │       ├── remote/          # Remote access server folder (http, websocket, wol, …)
 │   │       ├── projects.rs      # Project CRUD
 │   │       ├── workspace.rs     # Workspace state persistence
 │   │       ├── session.rs       # Session persistence
@@ -190,8 +198,6 @@ Connexio/
 │   │       ├── git.rs           # Git status & operations
 │   │       ├── tasks.rs         # Task runner (script detection)
 │   │       ├── pinned.rs        # Pinned commands
-│   │       ├── ssh.rs           # SSH connection manager
-│   │       ├── remote/          # Remote access protocol and server
 │   │       ├── theme.rs         # Theme management
 │   │       ├── explorer.rs      # File system explorer
 │   │       ├── clipboard.rs     # Native clipboard handling
@@ -202,7 +208,7 @@ Connexio/
 │   ├── Cargo.toml               # Rust dependencies
 │   └── capabilities/            # Tauri permission capabilities
 ├── assets/                      # App icons
-├── .github/workflows/           # CI/CD (multi-platform release)
+├── .github/workflows/           # CI gates + multi-platform release
 ├── vite.config.ts               # Vite configuration
 ├── tailwind.config.js           # Tailwind configuration
 └── package.json

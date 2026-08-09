@@ -111,10 +111,7 @@ fn now_ms() -> u128 {
 }
 
 fn now_ms_u64() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64
+    now_ms() as u64
 }
 
 fn load_notifications(app: &AppHandle) -> Vec<ConnexioNotification> {
@@ -201,7 +198,10 @@ pub fn start_notification_server(app: &AppHandle) {
             thread::spawn(move || {
                 let reader = BufReader::new(&stream);
                 let mut data = String::new();
-                for line in reader.lines().map_while(Result::ok) {
+                // Behavior-preservation: filter_map skips a read error and continues;
+                // map_while would stop iteration. Original code used filter_map.
+                #[allow(clippy::lines_filter_map_ok)]
+                for line in reader.lines().filter_map(Result::ok) {
                     data.push_str(&line);
                     data.push('\n');
                 }

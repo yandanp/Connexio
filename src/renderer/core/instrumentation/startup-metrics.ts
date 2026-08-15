@@ -34,7 +34,10 @@ const firstOutputDurations: number[] = [];
 // First outputs that arrive BEFORE their spawn-start is anchored (the Rust
 // reader thread can emit before create resolves) are buffered here and
 // reconciled when setSpawnStart/registerSpawnStart supplies the anchor.
-const prematureOutputs = new Map<string, number>(); // terminalId → output timestamp
+// Bounded: only the lazy-spawn path anchors, so unknown ids from the global
+// subscriber (openTerminalTab, SSH, restored terminals) must not accumulate.
+const MAX_PREMATURE_OUTPUTS = 128;
+const prematureOutputs = new Map<string, number>(); // terminalId → FIRST output timestamp
 const recordedFirstOutput = new Set<string>();
 let firstTerminalReadyAt: number | null = null;
 let appMountTimestamp: number | null = null;
@@ -52,8 +55,15 @@ function recordFirstOutput(terminalId: string): void {
 	if (recordedFirstOutput.has(terminalId)) return;
 	const spawnStart = spawnStarts.get(terminalId);
 	if (spawnStart === undefined) {
-		// Output arrived before the spawn-start anchor — buffer it; the anchor
-		// (setSpawnStart) will reconcile the latency when it arrives.
+		// Output arrived before the spawn-start anchor — buffer the FIRST chunk
+		// only (later chunks must not overwrite the timestamp); the anchor
+		// (setSpawnStart) reconciles the latency when it arrives.
+		if (prematureOutputs.has(terminalId)) return;
+		if (prematureOutputs.size >= MAX_PREMATURE_OUTPUTS) {
+			// FIFO eviction: Map iterates in insertion order — drop the oldest.
+			const oldest = prematureOutputs.keys().next().value;
+			if (oldest !== undefined) prematureOutputs.delete(oldest);
+		}
 		prematureOutputs.set(terminalId, performance.now());
 		return;
 	}

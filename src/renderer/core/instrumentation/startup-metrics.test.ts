@@ -208,4 +208,32 @@ describe("startup-metrics", () => {
 		emitTerminalData()("race-id", "more output");
 		expect(getStartupMetrics().outputStats.count).toBe(1);
 	});
+
+	it("keeps the FIRST chunk timestamp when multiple outputs precede the anchor", () => {
+		const emit = emitTerminalData();
+		const startedAt = performance.now();
+		emit("chatty-id", "chunk-1");
+		emit("chatty-id", "chunk-2");
+		emit("chatty-id", "chunk-3");
+		setSpawnStart("chatty-id", startedAt);
+		// Exactly one sample — reconciled from the FIRST buffered chunk, and
+		// later chunks never created extra samples.
+		const metrics = getStartupMetrics();
+		expect(metrics.outputStats.count).toBe(1);
+		expect(metrics.outputStats.max).toBe(metrics.outputStats.min);
+	});
+
+	it("bounds the premature-output buffer with FIFO eviction", () => {
+		const emit = emitTerminalData();
+		// 200 unknown ids far exceed the 128-entry bound; oldest are evicted.
+		for (let i = 0; i < 200; i++) emit(`unknown-${i}`, "x");
+		// Oldest (unknown-0) was evicted → anchoring it records no sample.
+		setSpawnStart("unknown-0", performance.now() - 1000);
+		expect(getStartupMetrics().outputStats.count).toBe(0);
+		// Newest (unknown-199) is still buffered → anchoring reconciles it.
+		setSpawnStart("unknown-199", performance.now() - 1000);
+		const metrics = getStartupMetrics();
+		expect(metrics.outputStats.count).toBe(1);
+		expect(metrics.outputStats.min).toBeGreaterThan(0);
+	});
 });

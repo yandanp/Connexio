@@ -13,6 +13,7 @@ import {
 	registerSpawnComplete,
 	registerSpawnStart,
 	resetMetrics,
+	setSpawnStart,
 } from "./startup-metrics";
 
 // The module subscribes once at module scope — grab that callback so tests can
@@ -172,5 +173,16 @@ describe("startup-metrics", () => {
 		]);
 
 		clock.mockRestore();
+	});
+	it("setSpawnStart anchors a pre-captured timestamp for ids known only after create", () => {
+		const startedAt = performance.now();
+		setSpawnStart("late-id", startedAt);
+		const duration = registerSpawnComplete("late-id");
+		expect(duration).toBeGreaterThanOrEqual(0);
+		expect(getStartupMetrics().spawnStats.count).toBe(1);
+
+		// First output emitted under the same id correlates against the anchor.
+		emitTerminalData()("late-id", "hello");
+		expect(getStartupMetrics().outputStats.count).toBe(1);
 	});
 });

@@ -20,10 +20,12 @@ vi.mock("../../core/api", () => ({
 const registerPhaseComplete = vi.fn();
 const registerSpawnStart = vi.fn();
 const registerSpawnComplete = vi.fn();
+const setSpawnStart = vi.fn();
 vi.mock("../../core/instrumentation/startup-metrics", () => ({
 	registerPhaseComplete,
 	registerSpawnStart,
 	registerSpawnComplete,
+	setSpawnStart,
 }));
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
@@ -77,6 +79,30 @@ function makeSavedState(): SavedState {
 	};
 }
 
+/** Fixture for the collapse-mid-spawn test: a 2-pane split. */
+function makeSavedStateForCollapse(): SavedState {
+	const splitTree = {
+		type: "branch",
+		id: "root-branch",
+		direction: "horizontal",
+		ratios: [0.5, 0.5],
+		children: [
+			{ type: "leaf", id: "pane-a", kind: "terminal" },
+			{ type: "leaf", id: "pane-b", kind: "terminal" },
+		],
+	} satisfies object;
+	return {
+		activeProjectId: "proj-1",
+		activeTabIds: { "proj-1": "tab-split" },
+		projectTabs: {
+			"proj-1": [
+				{ id: "tab-single", label: "Shell", shell: "bash" },
+				{ id: "tab-split", label: "Split", shell: "bash", splitTree },
+			],
+		},
+	};
+}
+
 function makeSinglePaneState(): SavedState {
 	return {
 		activeProjectId: "proj-1",
@@ -102,6 +128,11 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		registerPhaseComplete.mockClear();
 		registerSpawnStart.mockClear();
 		registerSpawnComplete.mockClear();
+		setSpawnStart.mockClear();
+		terminalCreate.mockImplementation(
+			async (_path: string, _shell?: string, ctx?: Record<string, unknown>) =>
+				`term-${String(ctx?.paneId ?? Math.random())}`,
+		);
 		vi.resetModules();
 		savedState = makeSavedState();
 
@@ -140,6 +171,10 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		for (const child of tab.splitLayout.root.children) {
 			if (child.type === "leaf") expect(child.terminalId).not.toBeNull();
 		}
+		// Metrics anchored under the REAL terminal ids (first-output correlation):
+		expect(setSpawnStart).toHaveBeenCalledWith("term-pane-1", expect.any(Number));
+		expect(registerSpawnComplete).toHaveBeenCalledWith("term-pane-1");
+		expect(registerSpawnStart).not.toHaveBeenCalled(); // no paneId pre-anchor
 	});
 
 	it("is idempotent under concurrent calls (StrictMode-safe)", async () => {
@@ -172,13 +207,6 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 			.workspaceTabs[pid]?.find((t) => t.id === "tab-hidden");
 		if (!hidden) throw new Error("hidden tab missing");
 		expect(hidden.terminalId).toBeNull();
-		const split = useWorkspaceStore
-			.getState()
-			.workspaceTabs[pid]?.find((t) => t.id === "tab-split");
-		if (!split?.splitLayout) throw new Error("split tab missing layout");
-		for (const leaf of [split.splitLayout.root]) {
-			if (leaf.type === "leaf") expect(leaf.terminalId).toBeNull();
-		}
 	});
 
 	it("disposes late-created PTY when pane closed mid-spawn", async () => {
@@ -269,5 +297,47 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		const pane2 = tab.splitLayout.root.children.find((c) => c.type === "leaf" && c.id === "pane-2");
 		if (pane2?.type !== "leaf") throw new Error("pane-2 leaf missing");
 		expect(pane2.terminalId).toBe("respawn-ok");
+	});
+
+	it("split collapse mid-spawn adopts the survivor and disposes the removed pane", async () => {
+		savedState = makeSavedStateForCollapse();
+		const { useProjectsStore, useWorkspaceStore } = await importStores();
+		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
+		await useWorkspaceStore.getState().restoreWorkspace();
+
+		const pid = "proj-1";
+		const tid = "tab-split";
+		const resolvers: Array<(id: string) => void> = [];
+		terminalCreate.mockImplementation(
+			() =>
+				new Promise<string>((res) => {
+					resolvers.push((id: string) => res(id));
+				}),
+		);
+
+		const p = useWorkspaceStore.getState().ensureTerminalSpawned(pid, tid);
+		// Pool kick → both creates in flight (order = tree order: pane-a, pane-b).
+		await Promise.resolve();
+		expect(resolvers).toHaveLength(2);
+
+		// Remove pane-b → the split collapses to a single-pane tab whose
+		// terminalId is still null (pane-a's create is pending).
+		useWorkspaceStore.getState().closeSplitPane(pid, tid, "pane-b");
+		const midTab = useWorkspaceStore.getState().workspaceTabs[pid]?.find((t) => t.id === tid);
+		if (!midTab) throw new Error("tab missing after collapse");
+		expect(midTab.splitLayout).toBeUndefined();
+		expect(midTab.terminalId).toBeNull();
+
+		resolvers[0]("term-a"); // survivor pane-a
+		resolvers[1]("term-b"); // removed pane-b
+		await p;
+
+		// Removed pane's late PTY is disposed; survivor's is adopted by the tab.
+		expect(terminalClose).toHaveBeenCalledTimes(1);
+		expect(terminalClose).toHaveBeenCalledWith("term-b");
+		const tab = useWorkspaceStore.getState().workspaceTabs[pid]?.find((t) => t.id === tid);
+		if (!tab) throw new Error("tab missing");
+		expect(tab.splitLayout).toBeUndefined();
+		expect(tab.terminalId).toBe("term-a");
 	});
 });

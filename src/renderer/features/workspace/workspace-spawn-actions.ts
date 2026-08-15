@@ -23,10 +23,7 @@ import type { StoreApi } from "zustand";
 import type { WorkspaceStore } from "./workspace-store";
 import { useProjectsStore } from "../projects";
 import { useSettingsStore } from "../../core/stores/settingsStore";
-import {
-	registerSpawnComplete,
-	registerSpawnStart,
-} from "../../core/instrumentation/startup-metrics";
+import { registerSpawnComplete, setSpawnStart } from "../../core/instrumentation/startup-metrics";
 import { collectLeaves, findNode } from "./split-layout";
 import type { SplitLeaf, SplitNode } from "./split-layout";
 import { runWithSpawnLimit } from "./spawn-pool";
@@ -56,12 +53,26 @@ export async function waitForSpawn(projectId: string, tabId: string): Promise<vo
 	await inFlight.get(`${projectId}:${tabId}`);
 }
 
+/**
+ * Panes that survived a split collapse while their spawn was still in-flight:
+ * key `${projectId}:${tabId}` → surviving paneId. closeSplitPane records the
+ * survivor when it collapses a split whose surviving leaf is still lazy, so
+ * the pane's late create is ADOPTED as the tab terminal instead of disposed.
+ */
+const collapsedSurvivors = new Map<string, string>();
+
+/** Record a collapse survivor (called by closeSplitPane on lazy collapse). */
+export function noteSplitCollapseSurvivor(projectId: string, tabId: string, paneId: string): void {
+	collapsedSurvivors.set(`${projectId}:${tabId}`, paneId);
+}
+
 /** Does the pane still exist in the CURRENT tree? Walks live store state. */
 export function leafExists(get: Get, projectId: string, tabId: string, paneId: string): boolean {
 	const tab = get().workspaceTabs[projectId]?.find((t) => t.id === tabId);
 	if (!tab) return false;
-	// A single-pane tab IS the leaf (its paneId is the tabId).
-	if (!tab.splitLayout) return true;
+	// A single-pane tab IS its own leaf — its paneId is the tabId. A pane id
+	// from a since-collapsed split never matches, so late creates dispose.
+	if (!tab.splitLayout) return paneId === tab.id;
 	return findNode(tab.splitLayout.root, paneId) !== null;
 }
 
@@ -160,6 +171,7 @@ async function spawnTargets(
 	set: Set,
 	projectId: string,
 	tabId: string,
+	key: string, // `${projectId}:${tabId}` for adoption registry
 	targets: SpawnTarget[],
 ): Promise<void> {
 	const tab = get().workspaceTabs[projectId]?.find((t) => t.id === tabId);
@@ -177,7 +189,7 @@ async function spawnTargets(
 
 	await runWithSpawnLimit(
 		targets.map(({ paneId, split }) => async (): Promise<void> => {
-			registerSpawnStart(paneId);
+			const startedAt = performance.now();
 			let terminalId: string;
 			try {
 				terminalId = await window.connexio.terminal.create(project.path, shell, {
@@ -188,10 +200,24 @@ async function spawnTargets(
 				setPaneError(set, paneId, err);
 				return;
 			}
-			registerSpawnComplete(paneId);
+			// Anchor spawn metrics under the REAL terminal id (knowable only now)
+			// with the pre-captured start: duration stays accurate and Task 1's
+			// first-output correlation (keyed by the bus-emitted id) works.
+			setSpawnStart(terminalId, startedAt);
+			registerSpawnComplete(terminalId);
 			// Disposal: leaf removed mid-spawn (closeTab / closeSplitPane /
 			// deleteProject) → close the fresh PTY, never touch state.
 			if (!leafExists(get, projectId, tabId, paneId)) {
+				// Exception: this pane SURVIVED a split collapse to single-pane and
+				// the tab still has no terminal → adopt as the tab's terminal.
+				const collapsed = get().workspaceTabs[projectId]?.find(
+					(t) => t.id === tabId && !t.splitLayout && t.terminalId == null,
+				);
+				if (collapsed && collapsedSurvivors.get(key) === paneId) {
+					collapsedSurvivors.delete(key);
+					commitTerminalId(set, projectId, tabId, tabId, terminalId, false);
+					return;
+				}
 				await window.connexio.terminal.close(terminalId).catch(() => {});
 				return;
 			}
@@ -208,8 +234,9 @@ async function runTabSpawn(get: Get, set: Set, projectId: string, tabId: string)
 	set((state) => ({ spawningTabs: { ...state.spawningTabs, [key]: true } }));
 	try {
 		const targets = collectSpawnTargets(get(), projectId, tabId);
-		if (targets.length > 0) await spawnTargets(get, set, projectId, tabId, targets);
+		if (targets.length > 0) await spawnTargets(get, set, projectId, tabId, key, targets);
 	} finally {
+		collapsedSurvivors.delete(key); // stale survivor markers after batch settles
 		set((state) => {
 			if (!(key in state.spawningTabs)) return {};
 			const next = { ...state.spawningTabs };
@@ -237,10 +264,10 @@ export function createSpawnActions(set: Set, get: Get): SpawnActions {
 			clearPaneError(set, paneId);
 			const targets = collectSpawnTargets(get(), projectId, tabId, paneId);
 			if (targets.length === 0) return;
-			set((state) => ({ spawningTabs: { ...state.spawningTabs, [key]: true } }));
 			try {
-				await spawnTargets(get, set, projectId, tabId, targets);
+				await spawnTargets(get, set, projectId, tabId, key, targets);
 			} finally {
+				collapsedSurvivors.delete(key);
 				set((state) => {
 					if (!(key in state.spawningTabs)) return {};
 					const next = { ...state.spawningTabs };
@@ -251,7 +278,6 @@ export function createSpawnActions(set: Set, get: Get): SpawnActions {
 		},
 	};
 }
-
 /** Re-exported for tests: leaves of a tree (kind !== "editor"). */
 export function terminalLeavesOf(node: SplitNode): SplitLeaf[] {
 	return collectLeaves(node).filter((leaf) => leaf.kind !== "editor");

@@ -23,7 +23,12 @@ import type {
 } from "./split-layout";
 import { deserializeNode, serializeNode } from "./workspace-persistence";
 import type { PersistedNode } from "./workspace-persistence";
-import { createSpawnActions, waitForSpawn, type SpawnActions } from "./workspace-spawn-actions";
+import {
+	createSpawnActions,
+	noteSplitCollapseSurvivor,
+	waitForSpawn,
+	type SpawnActions,
+} from "./workspace-spawn-actions";
 import { registerPhaseComplete } from "../../core/instrumentation/startup-metrics";
 
 // === Tab Types ===
@@ -725,6 +730,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 					splitLayout: undefined,
 				};
 			} else {
+				if (newRoot?.type === "leaf" && !newRoot.terminalId)
+					noteSplitCollapseSurvivor(projectId, tabId, newRoot.id);
 				updatedTab = {
 					...tab,
 					type: "terminal",

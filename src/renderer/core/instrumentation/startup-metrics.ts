@@ -87,6 +87,17 @@ export function registerSpawnStart(terminalId: string): void {
 	spawnStarts.set(terminalId, performance.now());
 }
 
+/**
+ * Anchor a spawn start under an id that is only knowable AFTER the create
+ * call resolves (the real terminalId). `startedAtMs` must be captured just
+ * before invoking create so the measured duration stays accurate. The
+ * timestamp persists past completion, letting first-output latency correlate
+ * against the id the terminal data bus actually emits.
+ */
+export function setSpawnStart(terminalId: string, startedAtMs: number): void {
+	spawnStarts.set(terminalId, startedAtMs);
+}
+
 export function registerSpawnComplete(terminalId: string): number {
 	const start = spawnStarts.get(terminalId);
 	if (start === undefined || spawnCompleted.has(terminalId)) return 0;

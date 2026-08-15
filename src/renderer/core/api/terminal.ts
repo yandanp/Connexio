@@ -7,6 +7,8 @@ interface TerminalContext {
 	projectName: string;
 	tabId: string;
 	tabLabel: string;
+	/** Pane within a split tab, when the spawn targets one specific leaf. */
+	paneId?: string;
 }
 
 export const terminal = {

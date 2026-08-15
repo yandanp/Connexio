@@ -9,6 +9,7 @@ interface ConnexioAPI {
 				projectName: string;
 				tabId: string;
 				tabLabel: string;
+				paneId?: string;
 			},
 		) => Promise<string>;
 		createCommand: (

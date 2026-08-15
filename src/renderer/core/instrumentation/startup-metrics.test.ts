@@ -185,4 +185,27 @@ describe("startup-metrics", () => {
 		emitTerminalData()("late-id", "hello");
 		expect(getStartupMetrics().outputStats.count).toBe(1);
 	});
+
+	it("records first-output latency when output arrives BEFORE the spawn anchor", () => {
+		// Rust starts the reader thread before create resolves — fast shells can
+		// emit terminal:data first. The sample must be buffered, not dropped.
+		const startedAt = performance.now();
+
+		// Output arrives with NO anchor yet → buffered.
+		emitTerminalData()("race-id", "early banner");
+		expect(getStartupMetrics().outputStats.count).toBe(0);
+
+		// Anchor arrives after create resolves, carrying the pre-create start.
+		setSpawnStart("race-id", startedAt);
+		registerSpawnComplete("race-id");
+
+		const metrics = getStartupMetrics();
+		expect(metrics.outputStats.count).toBe(1); // reconciled, not lost
+		expect(metrics.outputStats.min).toBeGreaterThanOrEqual(0);
+		expect(metrics.spawnStats.count).toBe(1);
+
+		// Later output for the same id is still ignored (first-only).
+		emitTerminalData()("race-id", "more output");
+		expect(getStartupMetrics().outputStats.count).toBe(1);
+	});
 });

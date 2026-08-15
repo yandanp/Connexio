@@ -18,8 +18,7 @@ export interface StartupMetrics {
 	phases: PhaseMetric[];
 	spawnStats: Stats;
 	outputStats: Stats;
-	/** ms dari app-mount, null bila belum ada terminal yang mount */
-	firstTerminalReadyAt: number | null;
+	firstTerminalReadyAt: number | null; // ms dari app-mount, null bila belum
 }
 
 const APP_MOUNT_PHASE = "app-mount";
@@ -32,6 +31,10 @@ const spawnStarts = new Map<string, number>();
 const spawnCompleted = new Set<string>();
 const spawnDurations: number[] = [];
 const firstOutputDurations: number[] = [];
+// First outputs that arrive BEFORE their spawn-start is anchored (the Rust
+// reader thread can emit before create resolves) are buffered here and
+// reconciled when setSpawnStart/registerSpawnStart supplies the anchor.
+const prematureOutputs = new Map<string, number>(); // terminalId → output timestamp
 const recordedFirstOutput = new Set<string>();
 let firstTerminalReadyAt: number | null = null;
 let appMountTimestamp: number | null = null;
@@ -40,17 +43,32 @@ function computeStats(durations: number[]): Stats {
 	const count = durations.length;
 	if (count === 0) return { min: 0, max: 0, median: 0, count: 0 };
 	const sorted = [...durations].sort((a, b) => a - b);
-	const mid = Math.floor(count / 2);
-	const median = count % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+	const median =
+		count % 2 === 0 ? (sorted[count / 2 - 1] + sorted[count / 2]) / 2 : sorted[(count - 1) / 2];
 	return { min: sorted[0], max: sorted[count - 1], median, count };
 }
 
 function recordFirstOutput(terminalId: string): void {
 	if (recordedFirstOutput.has(terminalId)) return;
-	recordedFirstOutput.add(terminalId);
 	const spawnStart = spawnStarts.get(terminalId);
-	if (spawnStart === undefined) return; // no spawn start — no derivable latency
+	if (spawnStart === undefined) {
+		// Output arrived before the spawn-start anchor — buffer it; the anchor
+		// (setSpawnStart) will reconcile the latency when it arrives.
+		prematureOutputs.set(terminalId, performance.now());
+		return;
+	}
+	recordedFirstOutput.add(terminalId);
 	firstOutputDurations.push(performance.now() - spawnStart);
+}
+
+/** If this id has a buffered premature output, compute its latency now. */
+function processPrematureOutput(terminalId: string, startedAtMs: number): void {
+	const outputAt = prematureOutputs.get(terminalId);
+	if (outputAt === undefined) return;
+	prematureOutputs.delete(terminalId);
+	if (recordedFirstOutput.has(terminalId)) return;
+	recordedFirstOutput.add(terminalId);
+	firstOutputDurations.push(outputAt - startedAtMs);
 }
 
 // Global first-output subscription — registered once at module import and kept
@@ -64,6 +82,7 @@ export function resetMetrics(): void {
 	spawnCompleted.clear();
 	spawnDurations.length = 0;
 	firstOutputDurations.length = 0;
+	prematureOutputs.clear();
 	recordedFirstOutput.clear();
 	firstTerminalReadyAt = null;
 	appMountTimestamp = null;
@@ -84,7 +103,9 @@ export function registerPhaseComplete(name: string): number {
 }
 
 export function registerSpawnStart(terminalId: string): void {
-	spawnStarts.set(terminalId, performance.now());
+	const startedAt = performance.now();
+	spawnStarts.set(terminalId, startedAt);
+	processPrematureOutput(terminalId, startedAt);
 }
 
 /**
@@ -92,10 +113,12 @@ export function registerSpawnStart(terminalId: string): void {
  * call resolves (the real terminalId). `startedAtMs` must be captured just
  * before invoking create so the measured duration stays accurate. The
  * timestamp persists past completion, letting first-output latency correlate
- * against the id the terminal data bus actually emits.
+ * against the id the terminal data bus actually emits. A first output that
+ * arrived BEFORE this anchor is buffered and reconciled here.
  */
 export function setSpawnStart(terminalId: string, startedAtMs: number): void {
 	spawnStarts.set(terminalId, startedAtMs);
+	processPrematureOutput(terminalId, startedAtMs);
 }
 
 export function registerSpawnComplete(terminalId: string): number {

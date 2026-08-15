@@ -266,6 +266,14 @@ adapter memakainya.
 5. **CLI** — scripting workflow Connexio.
 6. **Settings panel ala Orca** — sidebar grouped + search level row (sudah
    brainstorm terpisah; item kecil, bisa diselipkan antar sub-project).
+7. **Startup & Memory Optimization** — lazy restore (shell hanya spawn saat tab
+   dibuka; saat ini restoreWorkspace menspawn SEMUA shell semua project secara
+   eager & serial di createTerminalsForTree), spawn paralel utk kasus eager
+   tersisa, idle project suspension (kill/delay proses project non-aktif,
+   restore on open), instrumentasi waktu-per-fase startup + RAM, dan hint
+   deteksi shell-init lambat (oh-my-posh dsb. di profile shell). Target:
+   first-terminal-ready < 2s pada workspace 5+ project, dan RAM background
+   proporsional project aktif saja.
 
 ## 11. Kriteria Sukses
 

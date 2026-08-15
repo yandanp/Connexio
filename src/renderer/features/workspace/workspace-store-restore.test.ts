@@ -109,6 +109,9 @@ describe("restoreWorkspace (lazy)", () => {
 			workspace: { getState: async () => savedState, saveState: async () => {} },
 		} as unknown as Window["connexio"];
 		Reflect.set(globalThis, "window", { connexio } as unknown as Window);
+		// workspace-spawn-actions imports settingsStore, which reads localStorage
+		// at module scope — stub it for the node env (dynamic imports run later).
+		Reflect.set(globalThis, "localStorage", { getItem: () => null });
 	});
 
 	// Dynamic imports (not static): must resolve AFTER vi.resetModules() so the

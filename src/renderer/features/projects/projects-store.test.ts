@@ -1,8 +1,14 @@
 // Mock event bus to avoid @tauri-apps listen() crashes when running tests in Node.
 vi.mock("../../core/api/terminal-event-bus", () => ({
 	onTerminalData: vi.fn(() => () => {}),
-	onTerminalExit: vi.fn(() => () => {}),
+	onTerminalExit: vi.fn(() => {}),
 }));
+
+// settingsStore (imported transitively via workspace-store) reads localStorage at
+// module scope — stub it for the node test env, hoisted above the static imports.
+vi.hoisted(() => {
+	if (!globalThis.localStorage) Reflect.set(globalThis, "localStorage", { getItem: () => null });
+});
 
 import { describe, expect, it, vi } from "vitest";
 import { useProjectsStore } from ".";

@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+// Mock event bus to avoid @tauri-apps listen() crashes when running tests in Node.
+vi.mock("../../core/api/terminal-event-bus", () => ({
+	onTerminalData: vi.fn(() => () => {}),
+	onTerminalExit: vi.fn(() => () => {}),
+}));
+
+import { describe, expect, it, vi } from "vitest";
 import { useProjectsStore } from ".";
 import { useWorkspaceStore } from "../workspace";
 

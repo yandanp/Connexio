@@ -21,8 +21,9 @@ import type {
 	SplitLeaf,
 	SplitNode,
 } from "./split-layout";
-import { createTerminalsForTree, deserializeNode, serializeNode } from "./workspace-persistence";
+import { deserializeNode, serializeNode } from "./workspace-persistence";
 import type { PersistedNode } from "./workspace-persistence";
+import { registerPhaseComplete } from "../../core/instrumentation/startup-metrics";
 
 // === Tab Types ===
 
@@ -48,6 +49,9 @@ export interface WorkspaceStore {
 
 	workspaceTabs: Record<string, TerminalTab[]>;
 	activeTabIds: Record<string, string>;
+	/** Tabs with an in-flight lazy spawn (key: `${projectId}:${tabId}`), paneErrors per-pane errors (key: paneId). */
+	spawningTabs: Record<string, true>;
+	paneErrors: Record<string, string>;
 
 	// Actions
 	openTerminalTab: (projectId: string, label?: string, shell?: string) => Promise<void>;
@@ -119,15 +123,28 @@ function debouncedSave(fn: () => void) {
 	saveTimer = setTimeout(fn, 500);
 }
 
+/** Apply `fn` to every leaf of a split tree, in place. */
+function transformLeaves(node: SplitNode, fn: (leaf: SplitLeaf) => void): void {
+	if (node.type === "leaf") {
+		fn(node);
+		return;
+	}
+	for (const child of node.children) {
+		transformLeaves(child, fn);
+	}
+}
+
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 	isRestoring: false,
 	workspaceTabs: {},
 	activeTabIds: {},
+	spawningTabs: {},
+	paneErrors: {},
 
 	// === Tab Actions ===
 
 	openTerminalTab: async (projectId: string, label?: string, shell?: string) => {
-		const projects = useProjectsStore.getState().projects;
+		const { projects } = useProjectsStore.getState();
 		const { workspaceTabs, activeTabIds } = get();
 		const project = projects.find((p) => p.id === projectId);
 		if (!project) return;
@@ -872,74 +889,54 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 				}))
 				.filter((e) => e.project && e.tabStates.length > 0);
 
-			await Promise.all(
-				projectEntries.map(async ({ projectId, tabStates, project }) => {
-					const tabs: TerminalTab[] = [];
-					for (const tabState of tabStates) {
-						try {
-							if (tabState.type === "editor" && tabState.filePath) {
-								tabs.push({
-									id: tabState.id,
-									label: tabState.label,
-									type: "editor",
-									filePath: tabState.filePath,
-									terminalId: null,
-								});
-							} else if (tabState.splitTree) {
-								// Restore split layout
-								const deserialized = deserializeNode(
-									tabState.splitTree as unknown as PersistedNode,
-								);
-								const restored = await createTerminalsForTree(
-									deserialized,
-									project!.path,
-									projectId,
-									project!.name,
-									tabState.label,
-									tabState.shell,
-								);
-								const leaves = collectLeaves(restored);
-								const termIds = collectTerminalIds(restored);
-								if (termIds.length > 0) {
-									tabs.push({
-										id: tabState.id,
-										label: tabState.label,
-										shell: tabState.shell,
-										terminalId: null,
-										splitLayout: { root: restored, activePaneId: leaves[0]?.id || "" },
-									});
-								}
-							} else {
-								const terminalId = await window.connexio.terminal.create(
-									project!.path,
-									tabState.shell,
-									{
-										projectId,
-										projectName: project!.name,
-										tabId: tabState.id,
-										tabLabel: tabState.label,
-									},
-								);
+			// Lazy restore: reconstruct tab structure only — shells spawn on demand, never calls terminal.create.
+			for (const { projectId, tabStates } of projectEntries) {
+				const tabs: TerminalTab[] = [];
+				for (const tabState of tabStates) {
+					try {
+						if (tabState.type === "editor" && tabState.filePath) {
+							tabs.push({
+								id: tabState.id,
+								label: tabState.label,
+								type: "editor",
+								filePath: tabState.filePath,
+								terminalId: null,
+							});
+						} else if (tabState.splitTree) {
+							const deserialized = deserializeNode(tabState.splitTree as unknown as PersistedNode);
+							transformLeaves(deserialized, (leaf) => {
+								if (leaf.kind !== "editor") leaf.terminalId = null;
+							});
+							const leaves = collectLeaves(deserialized);
+							if (leaves.length > 0) {
 								tabs.push({
 									id: tabState.id,
 									label: tabState.label,
 									shell: tabState.shell,
-									terminalId,
+									terminalId: null,
+									splitLayout: { root: deserialized, activePaneId: leaves[0]?.id || "" },
 								});
 							}
-						} catch {
-							/* skip */
+						} else {
+							tabs.push({
+								id: tabState.id,
+								label: tabState.label,
+								shell: tabState.shell,
+								terminalId: null,
+							});
 						}
+					} catch {
+						/* skip malformed tab */
 					}
-					if (tabs.length > 0) {
-						restoredTabs[projectId] = tabs;
-						const savedActiveId = saved.activeTabIds[projectId];
-						restoredActiveIds[projectId] = tabs.find((t) => t.id === savedActiveId)
-							? savedActiveId
-							: tabs[0].id;
-					}
-				}),
-			);
+				}
+				if (tabs.length > 0) {
+					restoredTabs[projectId] = tabs;
+					const savedActiveId = saved.activeTabIds[projectId];
+					restoredActiveIds[projectId] = tabs.find((t) => t.id === savedActiveId)
+						? savedActiveId
+						: tabs[0].id;
+				}
+			}
 
 			const activeProjectId =
 				saved.activeProjectId && projects.find((p) => p.id === saved.activeProjectId)
@@ -952,6 +949,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 				activeTabIds: restoredActiveIds,
 				isRestoring: false,
 			});
+			registerPhaseComplete("workspace-structure-restored");
 		} catch (error) {
 			console.error("Failed to restore workspace:", error);
 			set({ isRestoring: false });

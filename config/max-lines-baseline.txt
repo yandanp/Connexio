@@ -1,0 +1,18 @@
+# path	max-lines — hanya boleh turun; entri dihapus saat file di-split (frontend src/ + Rust src-tauri/src/)
+src/renderer/features/projects/Sidebar.tsx	625
+src/renderer/features/tasks/TaskPanel.tsx	416
+src/renderer/features/terminal/Terminal.tsx	599
+src/renderer/features/workspace/WebPreview.tsx	438
+src/renderer/features/workspace/Workspace.tsx	577
+src/renderer/features/editor/CodeEditor.tsx	533
+src/renderer/features/explorer/FileExplorer.tsx	917
+src/renderer/features/ai/AIChatPanel.tsx	523
+src/renderer/features/git/DiffModal.tsx	504
+src/renderer/features/git/DiffViewer.tsx	583
+src/renderer/features/git/SourcePanel.tsx	690
+src/renderer/features/ssh/SFTPBrowser.tsx	727
+src/renderer/features/ssh/SSHEditForm.tsx	405
+src/renderer/features/workspace/workspace-store.ts	1026
+src-tauri/src/modules/git.rs	612
+src-tauri/src/modules/notification.rs	639
+src-tauri/src/modules/pty/manager.rs	523

@@ -102,17 +102,17 @@ pub fn terminal_create(
         .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
     // Determine shell
-    let shell_path = shell.unwrap_or_else(|| default_shell());
+    let shell_path = shell.unwrap_or_else(default_shell);
 
     // Build command — detect PowerShell for shell integration
     let shell_lower = shell_path.replace('\\', "/").to_lowercase();
-    let is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
+    let _is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
 
     let mut cmd = CommandBuilder::new(&shell_path);
 
     // For PowerShell: set UTF-8 encoding via -Command but let profile load normally
     #[cfg(target_os = "windows")]
-    if is_powershell {
+    if _is_powershell {
         cmd.arg("-NoLogo");
         cmd.arg("-NoExit");
         cmd.arg("-Command");
@@ -151,7 +151,10 @@ pub fn terminal_create(
     // These are picked up by shell profile/init without visible injection
     if shell_lower.contains("bash") {
         // Bash: PROMPT_COMMAND emits OSC 7
-        cmd.env("PROMPT_COMMAND", r#"printf "\e]7;file://%s%s\a" "$HOSTNAME" "$PWD""#);
+        cmd.env(
+            "PROMPT_COMMAND",
+            r#"printf "\e]7;file://%s%s\a" "$HOSTNAME" "$PWD""#,
+        );
     }
     if let Some(ref ctx) = context {
         cmd.env("CONNEXIO_PROJECT_ID", &ctx.project_id);
@@ -347,11 +350,19 @@ pub fn terminal_create_ssh(
     let rows = rows.unwrap_or(24).max(1);
     let session = crate::modules::ssh::ssh_connect_session(&connection, password.as_deref())?;
     let _ = app.emit("terminal:ssh-status", (&id, "authenticated"));
-    let mut channel = session.channel_session().map_err(|e| format!("Failed to open SSH channel: {}", e))?;
+    let mut channel = session
+        .channel_session()
+        .map_err(|e| format!("Failed to open SSH channel: {}", e))?;
     channel
-        .request_pty("xterm-256color", None, Some((cols as u32, rows as u32, 0, 0)))
+        .request_pty(
+            "xterm-256color",
+            None,
+            Some((cols as u32, rows as u32, 0, 0)),
+        )
         .map_err(|e| format!("Failed to request SSH PTY: {}", e))?;
-    channel.shell().map_err(|e| format!("Failed to start SSH shell: {}", e))?;
+    channel
+        .shell()
+        .map_err(|e| format!("Failed to start SSH shell: {}", e))?;
     let _ = app.emit("terminal:ssh-status", (&id, "shell-started"));
     session.set_blocking(false);
 
@@ -411,9 +422,16 @@ pub fn terminal_write(app: AppHandle, id: String, data: String) -> Result<(), St
                 .write_all(data.as_bytes())
                 .map_err(|e| format!("Write error: {}", e))?,
             TerminalSession::Ssh(session) => {
-                let mut channel = session.channel.lock().map_err(|_| "SSH channel lock poisoned".to_string())?;
-                channel.write_all(data.as_bytes()).map_err(|e| format!("SSH write error: {}", e))?;
-                channel.flush().map_err(|e| format!("SSH flush error: {}", e))?;
+                let mut channel = session
+                    .channel
+                    .lock()
+                    .map_err(|_| "SSH channel lock poisoned".to_string())?;
+                channel
+                    .write_all(data.as_bytes())
+                    .map_err(|e| format!("SSH write error: {}", e))?;
+                channel
+                    .flush()
+                    .map_err(|e| format!("SSH flush error: {}", e))?;
             }
         }
     }
@@ -451,8 +469,12 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
                 if session.cols == cols && session.rows == rows {
                     return Ok(());
                 }
-                let mut channel = session.channel.lock().map_err(|_| "SSH channel lock poisoned".to_string())?;
-                channel.request_pty_size(cols as u32, rows as u32, None, None)
+                let mut channel = session
+                    .channel
+                    .lock()
+                    .map_err(|_| "SSH channel lock poisoned".to_string())?;
+                channel
+                    .request_pty_size(cols as u32, rows as u32, None, None)
                     .map_err(|e| format!("SSH resize error: {}", e))?;
                 session.cols = cols;
                 session.rows = rows;
@@ -467,11 +489,9 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
 pub fn terminal_close(app: AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<PtyManager>();
     let mut sessions = state.sessions.lock().unwrap();
-    if let Some(session) = sessions.remove(&id) {
-        if let TerminalSession::Ssh(session) = session {
-            if let Ok(mut channel) = session.channel.try_lock() {
-                let _ = channel.close();
-            }
+    if let Some(TerminalSession::Ssh(session)) = sessions.remove(&id) {
+        if let Ok(mut channel) = session.channel.try_lock() {
+            let _ = channel.close();
         }
     }
     Ok(())
@@ -500,5 +520,3 @@ fn default_shell() -> String {
         std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string())
     }
 }
-
-

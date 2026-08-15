@@ -1,8 +1,8 @@
 mod modules;
 
+use modules::discord::DiscordPresenceState;
 use modules::notification::NotificationState;
 use modules::pty::PtyManager;
-use modules::discord::DiscordPresenceState;
 use modules::remote::RemoteAccessState;
 use tauri::Manager;
 
@@ -21,9 +21,11 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .setup(|app| {
             // Initialize PTY manager state
             app.manage(PtyManager::new());
@@ -32,7 +34,7 @@ pub fn run() {
             app.manage(RemoteAccessState::new());
 
             // Start notification TCP server
-            modules::notification::start_notification_server(&app.handle());
+            modules::notification::start_notification_server(app.handle());
 
             // Set window icon from embedded high-res PNG for crisp taskbar display
             if let Some(window) = app.get_webview_window("main") {
@@ -149,9 +151,9 @@ pub fn run() {
             modules::notification::notification_get_providers,
             modules::notification::notification_install_hook,
             modules::notification::notification_uninstall_hook,
-            modules::notification::notification_upload_sound,
-            modules::notification::notification_remove_custom_sound,
-            modules::notification::notification_get_sound_path,
+            modules::notification_sound::notification_upload_sound,
+            modules::notification_sound::notification_remove_custom_sound,
+            modules::notification_sound::notification_get_sound_path,
             // Explorer
             modules::explorer::explorer_list_dir,
             modules::explorer::explorer_read_tree,

@@ -1,23 +1,22 @@
 import { useEffect, useState } from "react";
-import AppFooter from "./components/AppFooter";
-import CommandPalette from "./components/CommandPalette";
-import KeyboardShortcutsModal from "./components/KeyboardShortcutsModal";
-import NotificationToast from "./components/NotificationToast";
-import RemoteLoginGate from "./components/RemoteLoginGate";
-import RemoteMobileShell from "./components/RemoteMobileShell";
-import SettingsModal from "./components/SettingsModal";
-import Sidebar from "./components/Sidebar";
-import TitleBar from "./components/TitleBar";
-import UpdateNotification from "./components/UpdateNotification";
-import WelcomeScreen from "./components/WelcomeScreen";
-import Workspace from "./components/Workspace";
+import AppFooter from "./core/ui/AppFooter";
+import CommandPalette from "./core/ui/CommandPalette";
+import KeyboardShortcutsModal from "./core/ui/KeyboardShortcutsModal";
+import TitleBar from "./core/ui/TitleBar";
+import UpdateNotification from "./core/ui/UpdateNotification";
+import WelcomeScreen from "./core/ui/WelcomeScreen";
 
-import { useDiscordPresence } from "./hooks/useDiscordPresence";
-import { isRemoteMode } from "./lib/tauri-shim";
-import { useNotificationStore } from "./stores/notificationStore";
-import { useProjectStore } from "./stores/projectStore";
-import { useSettingsStore } from "./stores/settingsStore";
-import { useThemeStore } from "./stores/themeStore";
+import { useDiscordPresence } from "./core/hooks/useDiscordPresence";
+import { isRemoteMode } from "./core/tauri-shim";
+import { useNotificationStore } from "./core/stores/notificationStore";
+import { useSettingsStore } from "./core/stores/settingsStore";
+import { useThemeStore } from "./core/stores/themeStore";
+import { NotificationToast } from "./features/notifications";
+import { Sidebar, useProjectsStore } from "./features/projects";
+import { RemoteLoginGate, RemoteMobileShell } from "./features/remote";
+import { SettingsModal } from "./features/settings";
+import { useWorkspaceStore } from "./features/workspace";
+import Workspace from "./features/workspace/Workspace";
 
 const UI_FONT_SIZE_MAP = {
 	small: "11px",
@@ -30,12 +29,14 @@ function useIsRemoteMobile() {
 }
 
 export default function App() {
-	const { loadProjects, activeProjectId, restoreWorkspace } = useProjectStore();
+	const { loadProjects, activeProjectId } = useProjectsStore();
+	const { restoreWorkspace } = useWorkspaceStore();
 	const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 	const [showStartPage, setShowStartPage] = useState(false);
 	const { loadTheme, loadThemes } = useThemeStore();
-	const { isSettingsOpen, settings, loadSettings, loadShells, discordPresence } = useSettingsStore();
+	const { isSettingsOpen, settings, loadSettings, loadShells, discordPresence } =
+		useSettingsStore();
 	const {
 		loadNotifications,
 		loadSettings: loadNotifSettings,
@@ -68,7 +69,9 @@ export default function App() {
 			loadNotifSettings();
 		};
 		init();
-		return () => { mounted = false; };
+		return () => {
+			mounted = false;
+		};
 	}, []);
 
 	// Prevent default browser behavior for file drops (navigating away).
@@ -112,7 +115,7 @@ export default function App() {
 
 	useEffect(() => {
 		const unsubscribe = window.connexio.terminal.onExit((terminalId) => {
-			useProjectStore.getState().markTerminalExited(terminalId);
+			useWorkspaceStore.getState().markTerminalExited(terminalId);
 		});
 		return unsubscribe;
 	}, []);
@@ -131,7 +134,8 @@ export default function App() {
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const target = e.target as HTMLElement;
-			const isEditable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+			const isEditable =
+				target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 			const isTerminalTarget = Boolean(target.closest(".xterm, .terminal-container"));
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
 				if (isTerminalTarget) return;
@@ -161,20 +165,18 @@ export default function App() {
 
 	// Navigate when native OS notification is clicked
 	useEffect(() => {
-		const unsubscribe = window.connexio.notification.onNavigate(
-			navigateToNotification,
-		);
+		const unsubscribe = window.connexio.notification.onNavigate(navigateToNotification);
 		return unsubscribe;
 	}, [navigateToNotification]);
 
 	// Flush workspace state on app close so position is always saved
 	useEffect(() => {
 		const handleBeforeUnload = () => {
-			useProjectStore.getState().flushPersistWorkspace();
+			useWorkspaceStore.getState().flushPersistWorkspace();
 		};
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === "hidden") {
-				useProjectStore.getState().flushPersistWorkspace();
+				useWorkspaceStore.getState().flushPersistWorkspace();
 			}
 		};
 		window.addEventListener("beforeunload", handleBeforeUnload);
@@ -186,9 +188,10 @@ export default function App() {
 	}, []);
 
 	const remoteMobile = useIsRemoteMobile();
-	const mainContent = activeProjectId && !showStartPage
-		? <Workspace />
-		: (
+	const mainContent =
+		activeProjectId && !showStartPage ? (
+			<Workspace />
+		) : (
 			<WelcomeScreen
 				canClose={Boolean(activeProjectId && showStartPage)}
 				onClose={() => setShowStartPage(false)}
@@ -210,9 +213,7 @@ export default function App() {
 					{!isRemoteMode() && <TitleBar />}
 					<div className="relative flex flex-1 overflow-hidden">
 						<Sidebar />
-						<div className="flex flex-col flex-1 overflow-hidden">
-							{mainContent}
-						</div>
+						<div className="flex flex-col flex-1 overflow-hidden">{mainContent}</div>
 					</div>
 					<AppFooter />
 

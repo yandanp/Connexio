@@ -31,16 +31,9 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "ch", rename_all = "snake_case")]
 pub enum ClientMessage {
     /// Terminal input (keystrokes)
-    TermInput {
-        id: String,
-        data: String,
-    },
+    TermInput { id: String, data: String },
     /// Terminal resize
-    TermResize {
-        id: String,
-        cols: u16,
-        rows: u16,
-    },
+    TermResize { id: String, cols: u16, rows: u16 },
     /// Command: create terminal
     CmdCreateTerminal {
         #[serde(default)]
@@ -58,9 +51,7 @@ pub enum ClientMessage {
         context: Option<TerminalContextMsg>,
     },
     /// Command: close terminal
-    CmdCloseTerminal {
-        id: String,
-    },
+    CmdCloseTerminal { id: String },
     /// Command: request state refresh
     CmdRefresh,
     /// Detect project tasks
@@ -125,14 +116,9 @@ impl From<TerminalContextMsg> for crate::modules::pty::TerminalContext {
 #[serde(tag = "ch", rename_all = "snake_case")]
 pub enum ServerMessage {
     /// Terminal output (batched)
-    Term {
-        id: String,
-        data: String,
-    },
+    Term { id: String, data: String },
     /// Terminal exited
-    TermExit {
-        id: String,
-    },
+    TermExit { id: String },
     /// Terminal created (response to cmd)
     TermCreated {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -152,13 +138,9 @@ pub enum ServerMessage {
         error: String,
     },
     /// Full state push (sent on connect and on refresh)
-    State {
-        data: serde_json::Value,
-    },
+    State { data: serde_json::Value },
     /// Heartbeat pong from server
-    Pong {
-        ts: u64,
-    },
+    Pong { ts: u64 },
 }
 
 impl ServerMessage {

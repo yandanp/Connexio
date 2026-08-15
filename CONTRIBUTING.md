@@ -15,24 +15,27 @@ Thanks for your interest in contributing to Connexio! This guide will help you g
 
 ### Prerequisites
 
-| Tool | Version | Install |
-|------|---------|---------|
-| **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) |
-| **Rust** | Latest stable | [rustup.rs](https://rustup.rs/) |
-| **Tauri CLI** | 2.x | Included in devDependencies |
+| Tool          | Version       | Install                           |
+| ------------- | ------------- | --------------------------------- |
+| **Node.js**   | 18+           | [nodejs.org](https://nodejs.org/) |
+| **Rust**      | Latest stable | [rustup.rs](https://rustup.rs/)   |
+| **Tauri CLI** | 2.x           | Included in devDependencies       |
 
 ### Platform-specific Dependencies
 
 **Windows:**
+
 - [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (pre-installed on Windows 10/11)
 - Visual Studio C++ Build Tools
 
 **macOS:**
+
 ```bash
 xcode-select --install
 ```
 
 **Linux (Debian/Ubuntu):**
+
 ```bash
 sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
   libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -59,13 +62,13 @@ npm run dev
 
 ### Useful Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Tauri dev mode (hot-reload frontend + Rust backend) |
-| `npm run dev:renderer` | Start Vite dev server only (frontend) |
-| `npm run build` | Build frontend for production |
-| `npm run build:tauri` | Build full Tauri app (installer) |
-| `npm run typecheck` | Type-check all TypeScript |
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `npm run dev`          | Start Tauri dev mode (hot-reload frontend + Rust backend) |
+| `npm run dev:renderer` | Start Vite dev server only (frontend)                     |
+| `npm run build`        | Build frontend for production                             |
+| `npm run build:tauri`  | Build full Tauri app (installer)                          |
+| `npm run typecheck`    | Type-check all TypeScript                                 |
 
 ## 🏗️ Project Architecture
 
@@ -88,6 +91,7 @@ Connexio/
 ```
 
 **Key technologies:**
+
 - **Frontend:** React 18, TypeScript, Tailwind CSS, Zustand, xterm.js, CodeMirror 6
 - **Backend:** Rust, Tauri v2, portable-pty
 - **Build:** Vite, Tauri CLI
@@ -95,6 +99,7 @@ Connexio/
 ## 🔄 Workflow
 
 1. **Sync with upstream** before starting work:
+
    ```bash
    git fetch upstream
    git checkout main
@@ -102,6 +107,7 @@ Connexio/
    ```
 
 2. **Create a feature branch:**
+
    ```bash
    git checkout -b feat/your-feature-name
    # or
@@ -121,19 +127,20 @@ Connexio/
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-| Prefix | Usage |
-|--------|-------|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
+| Prefix      | Usage                                 |
+| ----------- | ------------------------------------- |
+| `feat:`     | New feature                           |
+| `fix:`      | Bug fix                               |
 | `refactor:` | Code refactoring (no behavior change) |
-| `docs:` | Documentation only |
-| `style:` | Formatting, missing semicolons, etc. |
-| `perf:` | Performance improvement |
-| `test:` | Adding or updating tests |
-| `ci:` | CI/CD changes |
-| `chore:` | Maintenance, dependency updates |
+| `docs:`     | Documentation only                    |
+| `style:`    | Formatting, missing semicolons, etc.  |
+| `perf:`     | Performance improvement               |
+| `test:`     | Adding or updating tests              |
+| `ci:`       | CI/CD changes                         |
+| `chore:`    | Maintenance, dependency updates       |
 
 **Examples:**
+
 ```
 feat: add split terminal support
 fix: terminal not resizing on window resize
@@ -184,6 +191,7 @@ docs: update contributing guide
 ## 🐛 Reporting Bugs
 
 Use the [Bug Report](https://github.com/yandanp/Connexio/issues/new?template=bug_report.md) issue template. Include:
+
 - Steps to reproduce
 - Expected vs actual behavior
 - Platform and version info
@@ -192,6 +200,7 @@ Use the [Bug Report](https://github.com/yandanp/Connexio/issues/new?template=bug
 ## 💡 Requesting Features
 
 Use the [Feature Request](https://github.com/yandanp/Connexio/issues/new?template=feature_request.md) issue template. Describe:
+
 - The problem you're trying to solve
 - Your proposed solution
 - Any alternatives you've considered

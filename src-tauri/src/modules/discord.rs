@@ -28,7 +28,9 @@ impl DiscordPresenceState {
 }
 
 #[tauri::command]
-pub fn discord_presence_connect(state: tauri::State<'_, DiscordPresenceState>) -> Result<bool, String> {
+pub fn discord_presence_connect(
+    state: tauri::State<'_, DiscordPresenceState>,
+) -> Result<bool, String> {
     let mut client_lock = state.client.lock().map_err(|e| e.to_string())?;
     let mut enabled_lock = state.enabled.lock().map_err(|e| e.to_string())?;
 
@@ -52,14 +54,17 @@ pub fn discord_presence_connect(state: tauri::State<'_, DiscordPresenceState>) -
             *enabled_lock = true;
             Ok(true)
         }
-        Err(e) => {
-            Err(format!("Failed to connect to Discord: {}. Is Discord running?", e))
-        }
+        Err(e) => Err(format!(
+            "Failed to connect to Discord: {}. Is Discord running?",
+            e
+        )),
     }
 }
 
 #[tauri::command]
-pub fn discord_presence_disconnect(state: tauri::State<'_, DiscordPresenceState>) -> Result<bool, String> {
+pub fn discord_presence_disconnect(
+    state: tauri::State<'_, DiscordPresenceState>,
+) -> Result<bool, String> {
     let mut client_lock = state.client.lock().map_err(|e| e.to_string())?;
     let mut enabled_lock = state.enabled.lock().map_err(|e| e.to_string())?;
 
@@ -118,7 +123,9 @@ pub fn discord_presence_update(
 }
 
 #[tauri::command]
-pub fn discord_presence_is_connected(state: tauri::State<'_, DiscordPresenceState>) -> Result<bool, String> {
+pub fn discord_presence_is_connected(
+    state: tauri::State<'_, DiscordPresenceState>,
+) -> Result<bool, String> {
     let enabled = *state.enabled.lock().map_err(|e| e.to_string())?;
     Ok(enabled)
 }

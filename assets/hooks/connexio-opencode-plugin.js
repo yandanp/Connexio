@@ -17,13 +17,9 @@ export const ConnexioNotificationPlugin = async ({ client }) => ({
 				query: { limit: 3 },
 			});
 			const messages = result.data || [];
-			const lastAssistant = [...messages]
-				.reverse()
-				.find((m) => m.info?.role === "assistant");
+			const lastAssistant = [...messages].reverse().find((m) => m.info?.role === "assistant");
 			if (lastAssistant) {
-				const textParts = (lastAssistant.parts || []).filter(
-					(p) => p.type === "text",
-				);
+				const textParts = (lastAssistant.parts || []).filter((p) => p.type === "text");
 				const text = textParts.map((p) => p.text || "").join("");
 				if (text) {
 					body = text.replace(/[\n\r|]+/g, " ").slice(0, 200);

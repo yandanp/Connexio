@@ -25,10 +25,12 @@
 ### Task 1: Startup metrics module + first-output global subscription
 
 **Files:**
+
 - Create: `src/renderer/core/instrumentation/startup-metrics.ts`
 - Create: `src/renderer/core/instrumentation/startup-metrics.test.ts`
 
 **Interfaces:**
+
 - Consumes: `onTerminalData` dari `core/api/terminal-event-bus` (sudah ada, global & buffered)
 - Produces (named exports):
   - `resetMetrics(): void`
@@ -38,12 +40,17 @@
   - `registerSpawnComplete(terminalId: string): number`
   - `getStartupMetrics(): StartupMetrics` dengan shape:
     ```ts
-    interface Stats { min: number; max: number; median: number; count: number }
+    interface Stats {
+    	min: number;
+    	max: number;
+    	median: number;
+    	count: number;
+    }
     interface StartupMetrics {
-      phases: Array<{ name: string; duration: number }>;
-      spawnStats: Stats;
-      outputStats: Stats;
-      firstTerminalReadyAt: number | null; // ms dari app-mount, null bila belum
+    	phases: Array<{ name: string; duration: number }>;
+    	spawnStats: Stats;
+    	outputStats: Stats;
+    	firstTerminalReadyAt: number | null; // ms dari app-mount, null bila belum
     }
     ```
   - `notifyTerminalMounted(terminalId: string): void` — Terminal.tsx panggil saat mount; modul mencatat `firstTerminalReadyAt` sekali (terminal pertama).
@@ -121,10 +128,12 @@ git commit -m "feat(instrumentation): startup metrics module with global first-o
 ### Task 2: Spawn pool limiter
 
 **Files:**
+
 - Create: `src/renderer/features/workspace/spawn-pool.ts`
 - Create: `src/renderer/features/workspace/spawn-pool.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `SPAWN_POOL_LIMIT = 6` (konstanta export)
   - `runWithSpawnLimit<T>(tasks: Array<() => Promise<T>>): Promise<T[]>` — menjalankan task dengan konkurensi global maksimum `SPAWN_POOL_LIMIT`; hasil berurut sesuai input; FIFO; error satu task TIDAK menghentikan lainnya (settled-all: hasil `T | undefined` untuk yang gagal, error ditelan — caller menangani per-pane).
@@ -197,11 +206,13 @@ git commit -m "feat(workspace): bounded spawn pool limiter (N=6) for terminal cr
 ### Task 3: Lazy restoreWorkspace — struktur tanpa spawn
 
 **Files:**
+
 - Modify: `src/renderer/features/workspace/workspace-store.ts` (`restoreWorkspace`, ~baris 850-959)
 - Modify: `src/renderer/features/workspace/workspace-persistence.ts` (hapus pemakaian `createTerminalsForTree` di restore path; fungsi `createTerminalsForTree` sendiri dimodifikasi di Task 5 — di task ini restore berhenti memanggilnya)
 - Test: `src/renderer/features/workspace/workspace-store-restore.test.ts` (baru)
 
 **Interfaces:**
+
 - Produces:
   - `restoreWorkspace()` baru: semua leaf terminal ter-restored dengan `terminalId = null` (termasuk tab single-pane yang hari ini menyimpan `terminalId` di level tab); TIDAK memanggil `window.connexio.terminal.create` sama sekali.
   - Runtime state tambahan di store:
@@ -276,10 +287,12 @@ git commit -m "feat(workspace): lazy restore - reconstruct structure without spa
 ### Task 4: ensureTerminalSpawned — idempotent, disposal, partial failure, retry
 
 **Files:**
+
 - Modify: `src/renderer/features/workspace/workspace-store.ts` (action baru + helper)
 - Test: `src/renderer/features/workspace/workspace-store-spawn.test.ts` (baru)
 
 **Interfaces:**
+
 - Consumes: `runWithSpawnLimit` (Task 2), `registerSpawnStart/registerSpawnComplete` (Task 1)
 - Produces (di store):
   - `ensureTerminalSpawned(projectId: string, tabId: string): Promise<void>`
@@ -322,7 +335,10 @@ it("does not spawn hidden tabs (only called for visible)", async () => {
 it("disposes late-created PTY when pane closed mid-spawn", async () => {
 	let resolveCreate: (id: string) => void;
 	terminalCreate.mockImplementation(
-		() => new Promise((res) => { resolveCreate = () => res("late-id"); }),
+		() =>
+			new Promise((res) => {
+				resolveCreate = () => res("late-id");
+			}),
 	);
 	const p = useWorkspaceStore.getState().ensureTerminalSpawned(pid, tid);
 	// tutup tab saat masih in-flight
@@ -372,10 +388,12 @@ git commit -m "feat(workspace): ensureTerminalSpawned with idempotency, PTY disp
 ### Task 5: createTerminalsForTree → pool paralel
 
 **Files:**
+
 - Modify: `src/renderer/features/workspace/workspace-persistence.ts`
 - Test: extend `src/renderer/features/workspace/workspace-persistence.test.ts`
 
 **Interfaces:**
+
 - Consumes: `runWithSpawnLimit` (Task 2)
 - Produces: `createTerminalsForTree(node, projectPath, projectId, projectName, tabLabel, shell?)` — signature TIDAK berubah; sekarang: kumpulkan leaf terminal → `runWithSpawnLimit(tasks)` → assign terminalId; leaf yang gagal dibiarkan `terminalId: null` (caller Task 4 menangani error mapping via context.paneId).
   - Context per leaf menambah `paneId: leaf.id` (dipakai Task 4 untuk mapping partial failure).
@@ -387,7 +405,8 @@ it("spawns leaves in parallel with bounded concurrency", async () => {
 	let active = 0;
 	let peak = 0;
 	terminalCreate.mockImplementation(async () => {
-		active++; peak = Math.max(peak, active);
+		active++;
+		peak = Math.max(peak, active);
 		await new Promise((r) => setTimeout(r, 5));
 		active--;
 		return "tid";
@@ -419,6 +438,7 @@ git commit -m "feat(workspace): parallelize createTerminalsForTree via spawn poo
 ### Task 6: TerminalLayer — render pane null, trigger aktivasi, PendingPane, PaneError
 
 **Files:**
+
 - Modify: `src/renderer/features/terminal/TerminalLayer.tsx`
 - Create: `src/renderer/features/workspace/PendingPane.tsx` (skeleton + "Menyiapkan shell…")
 - Create: `src/renderer/features/workspace/PaneError.tsx` (pesan error + Coba lagi + tutup pane)
@@ -426,6 +446,7 @@ git commit -m "feat(workspace): parallelize createTerminalsForTree via spawn poo
 Catatan boundary: PendingPane/PaneError dipakai TerminalLayer (feature terminal) — simpan di `core/ui/` BILA dipakai lintas feature; karena hanya dirender dalam pane workspace context oleh TerminalLayer, tempatkan di `features/terminal/` agar satu feature (keputusan: **`features/terminal/PendingPane.tsx` & `features/terminal/PaneError.tsx`**, TerminalLayer yang render). PaneError mengonsumsi action store workspace via public barrel `features/workspace/index.ts` (import feature-root DARI feature lain diperbolehkan checker — verifikasi `config/check-feature-imports.mjs`; bila ternyata dilarang, pindahkan komponen ke `features/workspace/` dan render via slot — jaga tetap satu feature).
 
 **Interfaces:**
+
 - Consumes: `ensureTerminalSpawned`, `retryPaneSpawn`, `paneErrors` (Task 4); `spawningTabs` (Task 3)
 - Produces:
   - Pane wrapper: **key = paneId** (stabil) untuk SEMUA pane (terminal, editor, pending, error)
@@ -447,7 +468,9 @@ it("triggers for visible tab with null leaves", () => {
 	expect(shouldTriggerSpawn(makeState({ visibleTabWithNullLeaf: true }), "p1", "t1")).toBe(true);
 });
 it("does not trigger when tab in-flight", () => {
-	expect(shouldTriggerSpawn(makeState({ visibleTabWithNullLeaf: true, inFlight: true }), "p1", "t1")).toBe(false);
+	expect(
+		shouldTriggerSpawn(makeState({ visibleTabWithNullLeaf: true, inFlight: true }), "p1", "t1"),
+	).toBe(false);
 });
 it("does not trigger for hidden tabs", () => {
 	expect(shouldTriggerSpawn(makeState({ hiddenTabWithNullLeaf: true }), "p1", "t1")).toBe(false);
@@ -479,11 +502,13 @@ git commit -m "feat(terminal): lazy pane activation with PendingPane and PaneErr
 ### Task 7: Phase marks (App.tsx) + Terminal onMounted
 
 **Files:**
+
 - Modify: `src/renderer/App.tsx` (mark `app-mount` saat mount, `projects-loaded` setelah loadProjects)
 - Modify: `src/renderer/features/workspace/workspace-store.ts` (mark `first-terminal-spawn-start` saat ensureTerminalSpawned pertama mulai)
 - Modify: `src/renderer/features/terminal/Terminal.tsx` (prop `onMounted?: () => void` → panggil `notifyTerminalMounted(terminalId)` dari core/instrumentation — atau TerminalLayer yang panggil via callback; pilih: Terminal.tsx import langsung `notifyTerminalMounted` dan panggil sekali di effect mount)
 
 **Interfaces:**
+
 - Consumes: Task 1 metrics API
 - Produces: metrik fase terisi penuh: app-mount → projects-loaded → workspace-structure-restored → first-terminal-spawn-start → first-terminal-ready (via notifyTerminalMounted pertama)
 
@@ -504,9 +529,11 @@ git commit -m "feat(instrumentation): wire startup phase marks and first-termina
 ### Task 8: About Settings — panel Performance
 
 **Files:**
+
 - Modify: `src/renderer/features/settings/AboutSettings.tsx` (bagian "Performance")
 
 **Interfaces:**
+
 - Consumes: `getStartupMetrics()` dari `core/instrumentation/startup-metrics` (core — legal untuk settings)
 - Produces: tabel fase startup (nama + durasi ms) + agregat spawn (min/median/max/count) + first-output (min/median/max/count) + first-terminal-ready total; refresh saat panel dibuka (baca ulang saat mount; tidak perlu live polling).
 
@@ -527,6 +554,7 @@ git commit -m "feat(settings): performance metrics panel in About"
 ### Task 9: Baseline & verifikasi akhir (measurement + smoke + gates penuh)
 
 **Files:**
+
 - Create: `docs/superpowers/plans/2026-08-15-perf-baseline-results.md` (hasil pengukuran, dicatat)
 
 **Langkah:**

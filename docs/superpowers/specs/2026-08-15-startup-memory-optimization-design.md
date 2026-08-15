@@ -31,16 +31,16 @@ Perpindahan tab/project dalam sesi tidak boleh berubah apa pun. Suspension
 
 ## 2. Keputusan yang Terkunci
 
-| # | Keputusan | Pilihan |
-|---|---|---|
-| 1 | Tab restored dibuka pertama kali | **Auto-spawn** shell, tanpa klik tambahan |
-| 2 | Tab aktif tersimpan saat startup | **Auto-spawn segera** setelah struktur workspace direstore (tetap hanya 1 tab yang menspawn — inilah yang membuat first-terminal tetap cepat) |
-| 3 | Suspension proses idle | **Dibuang** — terminal tidak pernah reset demi RAM (keputusan pengguna) |
-| 4 | Instrumentasi | Console (dev) + panel About (produksi), modul di `core/` (bukan feature) |
-| 5 | Target metrik | First-terminal-ready **< 2s dari app-mount** untuk tab aktif tersimpan, pada workspace 5+ project × 3 tab; proses shell hidup setelah startup = hanya pane tab aktif |
-| 6 | Format persistence | Field/format file saved state **tidak berubah**; restore SELALU mengabaikan `terminalId` tersimpan (selalu lazy) |
-| 7 | Konkurensi spawn | Limiter global **N = 6** (module-level pool) — bukan `Promise.all` tak berbatas |
-| 8 | Kegagalan partial split | **Non-atomic per pane**: pane sukses tetap hidup; pane gagal masuk state error dengan retry per-pane |
+| #   | Keputusan                        | Pilihan                                                                                                                                                              |
+| --- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Tab restored dibuka pertama kali | **Auto-spawn** shell, tanpa klik tambahan                                                                                                                            |
+| 2   | Tab aktif tersimpan saat startup | **Auto-spawn segera** setelah struktur workspace direstore (tetap hanya 1 tab yang menspawn — inilah yang membuat first-terminal tetap cepat)                        |
+| 3   | Suspension proses idle           | **Dibuang** — terminal tidak pernah reset demi RAM (keputusan pengguna)                                                                                              |
+| 4   | Instrumentasi                    | Console (dev) + panel About (produksi), modul di `core/` (bukan feature)                                                                                             |
+| 5   | Target metrik                    | First-terminal-ready **< 2s dari app-mount** untuk tab aktif tersimpan, pada workspace 5+ project × 3 tab; proses shell hidup setelah startup = hanya pane tab aktif |
+| 6   | Format persistence               | Field/format file saved state **tidak berubah**; restore SELALU mengabaikan `terminalId` tersimpan (selalu lazy)                                                     |
+| 7   | Konkurensi spawn                 | Limiter global **N = 6** (module-level pool) — bukan `Promise.all` tak berbatas                                                                                      |
+| 8   | Kegagalan partial split          | **Non-atomic per pane**: pane sukses tetap hidup; pane gagal masuk state error dengan retry per-pane                                                                 |
 
 ## 3. Desain
 
@@ -151,16 +151,16 @@ Trigger aktivasi (satu mekanisme untuk semua kasus):
 
 ## 4. Arsitektur perubahan (file-level)
 
-| File | Perubahan |
-|---|---|
-| `features/workspace/workspace-store.ts` | `restoreWorkspace` rekonstruksi struktur tanpa spawn; action `ensureTerminalSpawned` (kontrak §3.2); `spawnStatus`+error di leaf runtime state |
-| `features/workspace/workspace-persistence.ts` | `createTerminalsForTree` → kumpulkan-leaf + pool limiter (hapus loop serial) |
-| BARU `features/workspace/PendingPane.tsx`, `PaneError.tsx` | loading & error UI (≤80 baris each) |
-| `features/terminal/TerminalLayer.tsx` | render semua pane key=paneId; effect trigger aktivasi; anak kondisional (§3.3) |
-| `features/terminal/Terminal.tsx` | callback `onMounted` untuk mark ready |
-| BARU `core/instrumentation/startup-metrics.ts` | marks, agregat, subscribe first-output global, tampilan data |
-| `features/settings/AboutSettings.tsx` | bagian "Performance" (baca via core/instrumentation) |
-| `App.tsx` | marks `app-mount`, `projects-loaded` |
+| File                                                       | Perubahan                                                                                                                                      |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `features/workspace/workspace-store.ts`                    | `restoreWorkspace` rekonstruksi struktur tanpa spawn; action `ensureTerminalSpawned` (kontrak §3.2); `spawnStatus`+error di leaf runtime state |
+| `features/workspace/workspace-persistence.ts`              | `createTerminalsForTree` → kumpulkan-leaf + pool limiter (hapus loop serial)                                                                   |
+| BARU `features/workspace/PendingPane.tsx`, `PaneError.tsx` | loading & error UI (≤80 baris each)                                                                                                            |
+| `features/terminal/TerminalLayer.tsx`                      | render semua pane key=paneId; effect trigger aktivasi; anak kondisional (§3.3)                                                                 |
+| `features/terminal/Terminal.tsx`                           | callback `onMounted` untuk mark ready                                                                                                          |
+| BARU `core/instrumentation/startup-metrics.ts`             | marks, agregat, subscribe first-output global, tampilan data                                                                                   |
+| `features/settings/AboutSettings.tsx`                      | bagian "Performance" (baca via core/instrumentation)                                                                                           |
+| `App.tsx`                                                  | marks `app-mount`, `projects-loaded`                                                                                                           |
 
 Semua file baru ≤400 baris (ratchet); boundary: instrumentation di core
 (legal untuk semua); `@tauri-apps/*` tetap hanya di `core/api*`.
@@ -191,15 +191,15 @@ Semua file baru ≤400 baris (ratchet); boundary: instrumentation di core
 
 ## 6. Risiko & Guardrail
 
-| Risiko | Mitigasi |
-|---|---|
-| Race rapid tab-switching → double spawn | In-flight map per (projectId, tabId) + kondisi-state trigger (bukan event) + test dedupe |
-| PTY bocor saat close mid-spawn | Disposal late-create wajib (§3.2) + lifecycle test untuk 3 jalur close |
-| Partial failure split membingungkan | Non-atomic per pane + PaneError + retry per-pane (§3.6) |
-| Kontrak no-remunt rusak | Key pane = paneId stabil; Terminal child hanya mount saat id ada; smoke: terminal hidup tidak re-render saat tab lain di-spawn |
-| Saved state lama/baru | Format tidak berubah dua arah; restore selalu abaikan terminalId; roundtrip test |
-| Metrik first-output terlewat | Subscription global terminal-event-bus (buffered) sejak modul import |
-| Limiter global memperebutkan slot antar tab | N=6 cukup untuk pane per tab; antrian FIFO adil; observable via metrics |
+| Risiko                                      | Mitigasi                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Race rapid tab-switching → double spawn     | In-flight map per (projectId, tabId) + kondisi-state trigger (bukan event) + test dedupe                                       |
+| PTY bocor saat close mid-spawn              | Disposal late-create wajib (§3.2) + lifecycle test untuk 3 jalur close                                                         |
+| Partial failure split membingungkan         | Non-atomic per pane + PaneError + retry per-pane (§3.6)                                                                        |
+| Kontrak no-remunt rusak                     | Key pane = paneId stabil; Terminal child hanya mount saat id ada; smoke: terminal hidup tidak re-render saat tab lain di-spawn |
+| Saved state lama/baru                       | Format tidak berubah dua arah; restore selalu abaikan terminalId; roundtrip test                                               |
+| Metrik first-output terlewat                | Subscription global terminal-event-bus (buffered) sejak modul import                                                           |
+| Limiter global memperebutkan slot antar tab | N=6 cukup untuk pane per tab; antrian FIFO adil; observable via metrics                                                        |
 
 ## 7. Non-Goals
 

@@ -61,9 +61,18 @@ export async function waitForSpawn(projectId: string, tabId: string): Promise<vo
  */
 const collapsedSurvivors = new Map<string, string>();
 
-/** Record a collapse survivor (called by closeSplitPane on lazy collapse). */
-export function noteSplitCollapseSurvivor(projectId: string, tabId: string, paneId: string): void {
-	collapsedSurvivors.set(`${projectId}:${tabId}`, paneId);
+/**
+ * Record a split collapse whose surviving root is STILL LAZY (no terminal
+ * yet): its in-flight create, if any, must later adopt the tab instead of
+ * being disposed. No-op for editor survivors and non-leaf roots.
+ */
+export function noteLazyCollapse(
+	projectId: string,
+	tabId: string,
+	node: SplitNode | null,
+): void {
+	if (node?.type !== "leaf" || node.kind === "editor" || node.terminalId != null) return;
+	collapsedSurvivors.set(`${projectId}:${tabId}`, node.id);
 }
 
 /** Does the pane still exist in the CURRENT tree? Walks live store state. */

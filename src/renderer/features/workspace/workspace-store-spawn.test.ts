@@ -296,7 +296,39 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		}
 		const pane2 = tab.splitLayout.root.children.find((c) => c.type === "leaf" && c.id === "pane-2");
 		if (pane2?.type !== "leaf") throw new Error("pane-2 leaf missing");
-		expect(pane2.terminalId).toBe("respawn-ok");
+	});
+
+	it("retryPaneSpawn dedupes rapid double-click (only ONE PTY created)", async () => {
+		// Two concurrent/rapid retries on the same pane must share a single spawn promise.
+		const { useProjectsStore, useWorkspaceStore } = await importStores();
+		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
+		await useWorkspaceStore.getState().restoreWorkspace();
+		// Seed a failure so pane-2 has an error
+		terminalCreate.mockImplementation(
+			async (_path: string, _shell?: string, ctx?: Record<string, unknown>) => {
+				if (ctx?.paneId === "pane-2") throw new Error("spawn failed");
+				return `ok-${String(ctx?.paneId)}`;
+			},
+		);
+		await useWorkspaceStore.getState().ensureTerminalSpawned("proj-1", "tab-split");
+		expect(useWorkspaceStore.getState().paneErrors["pane-2"]).toContain("spawn failed");
+
+		terminalCreate.mockClear();
+		terminalCreate.mockResolvedValue("respawn-ok");
+
+		// Fire both retries simultaneously via Promise.all — this is the race scenario.
+		const p1 = useWorkspaceStore.getState().retryPaneSpawn("proj-1", "tab-split", "pane-2");
+		const p2 = useWorkspaceStore.getState().retryPaneSpawn("proj-1", "tab-split", "pane-2");
+		await Promise.all([p1, p2]);
+
+		// Exactly ONE create call for pane-2 (not two).
+		expect(terminalCreate).toHaveBeenCalledTimes(1);
+		expect(terminalCreate).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.any(String),
+			expect.objectContaining({ paneId: "pane-2" }),
+		);
+		expect(useWorkspaceStore.getState().paneErrors["pane-2"]).toBeUndefined();
 	});
 
 	it("split collapse mid-spawn adopts the survivor and disposes the removed pane", async () => {

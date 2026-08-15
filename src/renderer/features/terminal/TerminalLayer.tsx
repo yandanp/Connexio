@@ -117,7 +117,7 @@ export default function TerminalLayer() {
 						isVisible,
 					});
 				}
-			} else if (tab.type === "terminal") {
+			} else if (!tab.type || tab.type === "terminal") {
 				allPanes.push({
 					projectId,
 					tabId: tab.id,

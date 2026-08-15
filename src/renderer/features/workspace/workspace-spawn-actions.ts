@@ -66,11 +66,7 @@ const collapsedSurvivors = new Map<string, string>();
  * yet): its in-flight create, if any, must later adopt the tab instead of
  * being disposed. No-op for editor survivors and non-leaf roots.
  */
-export function noteLazyCollapse(
-	projectId: string,
-	tabId: string,
-	node: SplitNode | null,
-): void {
+export function noteLazyCollapse(projectId: string, tabId: string, node: SplitNode | null): void {
 	if (node?.type !== "leaf" || node.kind === "editor" || node.terminalId != null) return;
 	collapsedSurvivors.set(`${projectId}:${tabId}`, node.id);
 }
@@ -235,6 +231,40 @@ async function spawnTargets(
 	);
 }
 
+/** Spawns only a single pane after an explicit retry (pane was failed, user clicked "Coba lagi"). */
+async function runPaneRetrySpawn(
+	get: Get,
+	set: Set,
+	projectId: string,
+	tabId: string,
+	paneId: string,
+): Promise<void> {
+	const key = `${projectId}:${tabId}`;
+	// Atomic: clear the pane error AND mark the tab in-flight in ONE setState call.
+	// This gives TerminalLayer's effect NO window where it could see an error-free lazy
+	// terminal pane without also seeing spawningTabs[key]=true — so shouldTriggerSpawn
+	// returns false and no concurrent ensureTerminalSpawned runs.
+	set((state) => {
+		const paneErrors = { ...state.paneErrors };
+		delete paneErrors[paneId];
+		return {
+			paneErrors,
+			spawningTabs: { ...state.spawningTabs, [key]: true },
+		};
+	});
+	try {
+		const targets = collectSpawnTargets(get(), projectId, tabId, paneId);
+		if (targets.length > 0) await spawnTargets(get, set, projectId, tabId, key, targets);
+	} finally {
+		collapsedSurvivors.delete(key); // stale survivor markers after batch settles
+		set((state) => {
+			if (!(key in state.spawningTabs)) return {};
+			const next = { ...state.spawningTabs };
+			delete next[key];
+			return { spawningTabs: next };
+		});
+	}
+}
 /** ensureTerminalSpawned body — guarded by the in-flight map for idempotency. */
 async function runTabSpawn(get: Get, set: Set, projectId: string, tabId: string): Promise<void> {
 	const key = `${projectId}:${tabId}`;
@@ -270,20 +300,20 @@ export function createSpawnActions(set: Set, get: Get): SpawnActions {
 		},
 		retryPaneSpawn: async (projectId: string, tabId: string, paneId: string): Promise<void> => {
 			const key = `${projectId}:${tabId}`;
-			clearPaneError(set, paneId);
-			const targets = collectSpawnTargets(get(), projectId, tabId, paneId);
-			if (targets.length === 0) return;
-			try {
-				await spawnTargets(get, set, projectId, tabId, key, targets);
-			} finally {
-				collapsedSurvivors.delete(key);
-				set((state) => {
-					if (!(key in state.spawningTabs)) return {};
-					const next = { ...state.spawningTabs };
-					delete next[key];
-					return { spawningTabs: next };
-				});
+			// Serialize with any running batch (ensure/retry) via the shared in-flight map:
+			// A retry during an active spawn waits for it, then runs cleanly — concurrent
+			// callers share ONE promise, so rapid double-retry creates only ONE PTY.
+			const existing = inFlight.get(key);
+			if (existing) {
+				await existing.catch(() => {}); // settled-all semantics; errors swallowed defensively
 			}
+			const nowExisting = inFlight.get(key);
+			if (nowExisting) return nowExisting; // double-entrance dedupe
+			const promise = runPaneRetrySpawn(get, set, projectId, tabId, paneId).finally(() => {
+				inFlight.delete(key);
+			});
+			inFlight.set(key, promise);
+			return promise;
 		},
 	};
 }

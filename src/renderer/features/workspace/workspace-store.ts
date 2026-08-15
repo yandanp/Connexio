@@ -23,6 +23,7 @@ import type {
 } from "./split-layout";
 import { deserializeNode, serializeNode } from "./workspace-persistence";
 import type { PersistedNode } from "./workspace-persistence";
+import { createSpawnActions, waitForSpawn, type SpawnActions } from "./workspace-spawn-actions";
 import { registerPhaseComplete } from "../../core/instrumentation/startup-metrics";
 
 // === Tab Types ===
@@ -44,7 +45,7 @@ export interface TerminalTab {
 	splitLayout?: SplitLayout;
 }
 
-export interface WorkspaceStore {
+export interface WorkspaceStore extends SpawnActions {
 	isRestoring: boolean;
 
 	workspaceTabs: Record<string, TerminalTab[]>;
@@ -134,7 +135,17 @@ function transformLeaves(node: SplitNode, fn: (leaf: SplitLeaf) => void): void {
 	}
 }
 
+/** Emit the editor goto-line event after `delay` ms (waits for pane mount). */
+function gotoLineLater(filePath: string, lineNumber: number, delay: number): void {
+	setTimeout(() => {
+		window.dispatchEvent(
+			new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }),
+		);
+	}, delay);
+}
+
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
+	...createSpawnActions(set, get),
 	isRestoring: false,
 	workspaceTabs: {},
 	activeTabIds: {},
@@ -242,13 +253,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		const existing = existingTabs.find((t) => t.filePath === filePath);
 		if (existing) {
 			set({ activeTabIds: { ...activeTabIds, [projectId]: existing.id } });
-			if (lineNumber) {
-				setTimeout(() => {
-					window.dispatchEvent(
-						new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }),
-					);
-				}, 50);
-			}
+			if (lineNumber) gotoLineLater(filePath, lineNumber, 50);
 			return;
 		}
 
@@ -264,13 +269,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 			workspaceTabs: { ...workspaceTabs, [projectId]: [...existingTabs, newTab] },
 			activeTabIds: { ...activeTabIds, [projectId]: newTab.id },
 		});
-		if (lineNumber) {
-			setTimeout(() => {
-				window.dispatchEvent(
-					new CustomEvent("connexio:editor-goto-line", { detail: { filePath, lineNumber } }),
-				);
-			}, 300);
-		}
+		if (lineNumber) gotoLineLater(filePath, lineNumber, 300);
 	},
 
 	openRemoteEditorTab: (
@@ -490,6 +489,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		paneId: string,
 		direction: SplitDirection,
 	) => {
+		// Structural change on a tab with an in-flight spawn waits for it (Task 4).
+		await waitForSpawn(projectId, tabId);
 		const { workspaceTabs } = get();
 		const projects = useProjectsStore.getState().projects;
 		const tabs = workspaceTabs[projectId] || [];

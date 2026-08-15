@@ -23,12 +23,8 @@ import type {
 } from "./split-layout";
 import { deserializeNode, serializeNode } from "./workspace-persistence";
 import type { PersistedNode } from "./workspace-persistence";
-import {
-	createSpawnActions,
-	noteSplitCollapseSurvivor,
-	waitForSpawn,
-	type SpawnActions,
-} from "./workspace-spawn-actions";
+import { createSpawnActions, waitForSpawn, type SpawnActions } from "./workspace-spawn-actions";
+import { noteLazyCollapse } from "./workspace-spawn-actions";
 import { registerPhaseComplete } from "../../core/instrumentation/startup-metrics";
 
 // === Tab Types ===
@@ -140,7 +136,6 @@ function transformLeaves(node: SplitNode, fn: (leaf: SplitLeaf) => void): void {
 	}
 }
 
-/** Emit the editor goto-line event after `delay` ms (waits for pane mount). */
 function gotoLineLater(filePath: string, lineNumber: number, delay: number): void {
 	setTimeout(() => {
 		window.dispatchEvent(
@@ -730,8 +725,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 					splitLayout: undefined,
 				};
 			} else {
-				if (newRoot?.type === "leaf" && !newRoot.terminalId)
-					noteSplitCollapseSurvivor(projectId, tabId, newRoot.id);
+				noteLazyCollapse(projectId, tabId, newRoot);
 				updatedTab = {
 					...tab,
 					type: "terminal",

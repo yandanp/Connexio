@@ -20,7 +20,7 @@ vi.stubGlobal("localStorage", {
 	setItem: vi.fn(),
 	removeItem: vi.fn(),
 });
-it("connexioRemoteApi exposes exactly the 15 public domains", async () => {
+it("connexioRemoteApi exposes exactly the 16 public domains", async () => {
 	// Dynamic import: the globals above must be stubbed before module init.
 	const { connexioRemoteApi } = await import("./index");
 
@@ -34,6 +34,7 @@ it("connexioRemoteApi exposes exactly the 15 public domains", async () => {
 		"pinned",
 		"ssh",
 		"git",
+		"worktree",
 		"theme",
 		"app",
 		"updater",

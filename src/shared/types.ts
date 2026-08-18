@@ -14,6 +14,19 @@ export interface Project {
 	lastOpenedAt: number;
 }
 
+// ─── Worktree ───────────────────────────────────────────────────────────────
+
+/// A git worktree managed under a project's `.worktrees/` directory.
+export interface WorktreeEntry {
+	id: string;
+	name: string;
+	branch: string;
+	baseRef: string;
+	path: string;
+	createdAt: number;
+	isDirty: boolean;
+}
+
 export interface TabConfig {
 	id: string;
 	label: string;

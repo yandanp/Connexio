@@ -179,6 +179,10 @@ pub fn run() {
             modules::remote::remote_status,
             modules::remote::remote_regenerate_pin,
             modules::remote::remote_wol_send,
+            // Worktree
+            modules::worktree::worktree_create,
+            modules::worktree::worktree_list,
+            modules::worktree::worktree_delete,
         ])
         .on_window_event(|window, event| {
             match event {

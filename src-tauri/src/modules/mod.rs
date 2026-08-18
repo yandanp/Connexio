@@ -16,3 +16,4 @@ pub mod tasks;
 pub mod theme;
 pub mod updater;
 pub mod workspace;
+pub mod worktree;

@@ -210,6 +210,15 @@ interface ConnexioAPI {
 			index?: number,
 		) => Promise<import("../../shared/types").GitActionResult>;
 	};
+	worktree: {
+		create: (
+			projectPath: string,
+			name: string,
+			options?: { fromRef?: string; branchOverride?: string },
+		) => Promise<import("../../shared/types").WorktreeEntry>;
+		list: (projectPath: string) => Promise<import("../../shared/types").WorktreeEntry[]>;
+		delete: (projectPath: string, worktreePath: string, confirmBranch: string) => Promise<void>;
+	};
 	updater: {
 		check: () => Promise<string | null>;
 		download: () => Promise<boolean>;

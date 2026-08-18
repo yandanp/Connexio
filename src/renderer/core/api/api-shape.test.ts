@@ -5,7 +5,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) })
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 
-it("connexioApi exposes exactly the 17 public domains", async () => {
+it("connexioApi exposes exactly the 16 public domains", async () => {
 	const { connexioApi } = await import("./index");
 	expect(Object.keys(connexioApi)).toEqual([
 		"terminal",
@@ -17,7 +17,6 @@ it("connexioApi exposes exactly the 17 public domains", async () => {
 		"pinned",
 		"ssh",
 		"git",
-		"agents",
 		"worktree",
 		"theme",
 		"app",

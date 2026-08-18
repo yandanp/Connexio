@@ -217,11 +217,7 @@ interface ConnexioAPI {
 		create: (
 			projectPath: string,
 			name: string,
-			options?: {
-				fromRef?: string;
-				branchOverride?: string;
-				linkedIssueUrl?: string;
-			},
+			options?: { fromRef?: string; branchOverride?: string },
 		) => Promise<import("../../shared/types").WorktreeEntry>;
 		list: (projectPath: string) => Promise<import("../../shared/types").WorktreeEntry[]>;
 		previewDiff: (

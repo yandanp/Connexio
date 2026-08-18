@@ -25,8 +25,6 @@ export interface WorktreeEntry {
 	path: string;
 	createdAt: number;
 	isDirty: boolean;
-	/** Optional tracker URL (GitHub PR/issue) set at creation time. */
-	linkedIssueUrl?: string;
 }
 
 export interface TabConfig {

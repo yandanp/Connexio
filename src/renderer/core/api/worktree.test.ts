@@ -16,7 +16,6 @@ describe("worktree api adapter", () => {
 			name: "My Feature",
 			fromRef: "origin/main",
 			branchOverride: null,
-			linkedIssueUrl: null,
 		});
 	});
 

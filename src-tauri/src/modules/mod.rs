@@ -1,4 +1,3 @@
-pub mod agents;
 pub mod clipboard;
 pub mod discord;
 pub mod explorer;

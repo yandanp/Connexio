@@ -1,11 +1,9 @@
-import { GitBranch, Link2, Loader2, Smile, X } from "lucide-react";
+import { GitBranch, Loader2, Smile, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { GitBranchEntry } from "../../../shared/types";
-import { AGENT_OPTIONS } from "./agents";
-import AgentPicker from "./AgentPicker";
 import FromRefPicker from "./FromRefPicker";
-import { fetchGithubTitle, parseLinkedIssueUrl } from "./linked-issue";
 import { slugify } from "./slugify";
+
 interface Props {
 	projectPath: string;
 	onClose: () => void;
@@ -31,8 +29,6 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 	const [name, setName] = useState("");
 	const [fromRef, setFromRef] = useState("HEAD");
 	const [branchOverride, setBranchOverride] = useState("");
-	const [linkedIssueUrl, setLinkedIssueUrl] = useState("");
-	const [agentId, setAgentId] = useState("none");
 	const [creating, setCreating] = useState(false);
 	const [error, setError] = useState("");
 
@@ -42,49 +38,9 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 	// Emoji picker state
 	const [showEmoji, setShowEmoji] = useState(false);
 
-	// Agent install detection — only installed agents are selectable.
-	const [installedCommands, setInstalledCommands] = useState<Set<string> | null>(null);
-
-	// Linked issue state: parsed URL plus best-effort fetched title.
-	const parsedIssue = useMemo(() => parseLinkedIssueUrl(linkedIssueUrl), [linkedIssueUrl]);
-	const [issueTitle, setIssueTitle] = useState<string | null>(null);
-
-	// Fetch the title when a valid GitHub URL is pasted (best-effort).
-	useEffect(() => {
-		setIssueTitle(null);
-		if (!parsedIssue) return;
-		let cancelled = false;
-		void fetchGithubTitle(parsedIssue).then((t) => {
-			if (!cancelled) setIssueTitle(t);
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [parsedIssue]);
-
-	// Load branches and agent availability once when the dialog opens.
-	useEffect(() => {
-		window.connexio.git
-			.branches(projectPath)
-			.then(setBranches)
-			.catch(() => setBranches([]));
-		window.connexio.agents
-			.detectAll(AGENT_OPTIONS.map((a) => a.command))
-			.then((statuses) => {
-				setInstalledCommands(new Set(statuses.filter((s) => s.installed).map((s) => s.command)));
-			})
-			.catch(() => {
-				// Detection failed — enable everything rather than block the flow.
-				setInstalledCommands(new Set(AGENT_OPTIONS.map((a) => a.command)));
-			});
-	}, [projectPath]);
-
-	// The effective name prefills from the issue title once fetched, unless
-	// the user has typed something already.
-	const effectiveName = name || issueTitle || "";
 	const branchPreview = useMemo(
-		() => branchOverride.trim() || `connexio/${slugify(effectiveName)}`,
-		[branchOverride, effectiveName],
+		() => branchOverride.trim() || `connexio/${slugify(name)}`,
+		[branchOverride, name],
 	);
 
 	// Suggest shortcodes matching a partially typed `:word` fragment.
@@ -102,32 +58,25 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 		setShowEmoji(false);
 	};
 
-	const selectedAgent = AGENT_OPTIONS.find((a) => a.id === agentId);
+	// Load branches once for the start-from picker.
+	useEffect(() => {
+		window.connexio.git
+			.branches(projectPath)
+			.then(setBranches)
+			.catch(() => setBranches([]));
+	}, [projectPath]);
 
 	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
-		const trimmed = effectiveName.trim();
+		const trimmed = name.trim();
 		if (!trimmed || creating) return;
 		setCreating(true);
 		setError("");
 		try {
-			const entry = await window.connexio.worktree.create(projectPath, trimmed, {
+			await window.connexio.worktree.create(projectPath, trimmed, {
 				fromRef: fromRef.trim() || "HEAD",
 				branchOverride: branchOverride.trim() || undefined,
-				linkedIssueUrl: linkedIssueUrl.trim() || undefined,
 			});
-			// Orca-style: open the worktree immediately, launching the chosen
-			// agent in its terminal when one is selected.
-			if (selectedAgent && selectedAgent.command) {
-				const projectsMod = await import("../projects/projects-store");
-				const projectId = await projectsMod.useProjectsStore
-					.getState()
-					.addProject(entry.name, entry.path, "worktrees");
-				const wsMod = await import("../workspace/workspace-store");
-				await wsMod.useWorkspaceStore
-					.getState()
-					.openCommandTerminalTab(projectId, selectedAgent.label, [selectedAgent.command]);
-			}
 			onClose();
 		} catch (err) {
 			setError(String(err));
@@ -137,7 +86,7 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[460px] shadow-2xl max-h-[90vh] overflow-y-auto">
+			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[440px] shadow-2xl max-h-[90vh] overflow-y-auto">
 				{/* Header */}
 				<div className="flex items-center justify-between px-4 py-3 border-b border-connexio-border">
 					<h2 className="text-sm font-semibold text-connexio-text">Create Worktree</h2>
@@ -161,7 +110,7 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 								id="worktree-name"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
-								placeholder={issueTitle || ":rocket: login flow"}
+								placeholder=":rocket: login flow"
 								autoFocus
 								className="w-full bg-connexio-bg border border-connexio-border rounded-lg px-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
 							/>
@@ -217,44 +166,6 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						)}
 					</div>
 
-					{/* Linked issue — paste URL, auto-derive the name */}
-					<div>
-						<label
-							htmlFor="worktree-issue"
-							className="block text-xs font-medium text-connexio-text-secondary mb-1.5"
-						>
-							Linked Issue <span className="text-connexio-text-muted">(optional)</span>
-						</label>
-						<div className="relative">
-							<Link2
-								size={12}
-								className="absolute left-2.5 top-1/2 -translate-y-1/2 text-connexio-text-muted"
-							/>
-							<input
-								id="worktree-issue"
-								value={linkedIssueUrl}
-								onChange={(e) => setLinkedIssueUrl(e.target.value)}
-								placeholder="https://github.com/owner/repo/issues/123"
-								className="w-full bg-connexio-bg border border-connexio-border rounded-lg pl-7 pr-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
-							/>
-						</div>
-						{parsedIssue && (
-							<p className="mt-1 flex items-center gap-1 text-[10px] text-connexio-accent">
-								{issueTitle ? (
-									<span className="truncate">
-										#{parsedIssue.number} {issueTitle}
-										{name.trim() ? "" : " — will be used as the name"}
-									</span>
-								) : (
-									<span className="flex items-center gap-1">
-										<Loader2 size={9} className="animate-spin" />#{parsedIssue.number} — fetching
-										title…
-									</span>
-								)}
-							</p>
-						)}
-					</div>
-
 					{/* Start-from picker */}
 					<div>
 						<label
@@ -270,18 +181,6 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						/>
 					</div>
 
-					{/* Agent selector — installed agents only are selectable */}
-					<AgentPicker
-						agentId={agentId}
-						onSelect={setAgentId}
-						installedCommands={installedCommands}
-					/>
-					<p className="text-[10px] text-connexio-text-muted">
-						{selectedAgent?.command
-							? `Launches "${selectedAgent.command}" in the worktree terminal`
-							: "No agent — the worktree opens with a plain terminal"}
-					</p>
-
 					{/* Branch override */}
 					<div>
 						<label
@@ -294,18 +193,20 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 							id="worktree-branch"
 							value={branchOverride}
 							onChange={(e) => setBranchOverride(e.target.value)}
-							placeholder={branchPreview}
+							placeholder=" "
 							className="w-full bg-connexio-bg border border-connexio-border rounded-lg px-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
 						/>
 					</div>
 
 					{/* Branch preview */}
-					<div className="flex items-center gap-2 text-[11px] text-connexio-text-muted">
-						<GitBranch size={12} />
-						<span>
-							Branch: <span className="text-connexio-accent font-mono">{branchPreview}</span>
-						</span>
-					</div>
+					{branchOverride.trim() && (
+						<div className="flex items-center gap-2 text-[11px] text-connexio-text-muted">
+							<GitBranch size={12} />
+							<span>
+								Branch: <span className="text-connexio-accent font-mono">{branchPreview}</span>
+							</span>
+						</div>
+					)}
 
 					{error && (
 						<p className="text-[11px] text-red-400 break-words" role="alert">
@@ -324,7 +225,7 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						</button>
 						<button
 							type="submit"
-							disabled={!effectiveName.trim() || creating}
+							disabled={!name.trim() || creating}
 							className="flex items-center gap-2 px-4 py-1.5 text-xs font-medium text-white bg-connexio-accent rounded-lg hover:bg-connexio-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{creating && <Loader2 size={12} className="animate-spin" />}

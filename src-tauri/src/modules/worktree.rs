@@ -12,10 +12,6 @@ pub struct WorktreeEntry {
     pub path: String,
     pub created_at: u64,
     pub is_dirty: bool,
-    /// Optional tracker URL (GitHub PR/issue, Linear, Jira, GitLab) shown on
-    /// the worktree card; purely informational.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub linked_issue_url: Option<String>,
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -143,7 +139,6 @@ pub fn parse_worktree_list(porcelain: &str, base_ref: &str) -> Vec<WorktreeEntry
             path,
             created_at: 0,
             is_dirty: false,
-            linked_issue_url: None,
         });
     }
     entries
@@ -157,7 +152,6 @@ pub async fn worktree_create(
     name: String,
     from_ref: Option<String>,
     branch_override: Option<String>,
-    linked_issue_url: Option<String>,
 ) -> Result<WorktreeEntry, String> {
     let branch = branch_override.unwrap_or_else(|| format!("connexio/{}", slugify(&name)));
     let base = from_ref.unwrap_or_else(|| "HEAD".to_string());
@@ -192,7 +186,6 @@ pub async fn worktree_create(
         path: dir.to_string_lossy().into_owned(),
         created_at: now_secs(),
         is_dirty: false,
-        linked_issue_url,
     })
 }
 

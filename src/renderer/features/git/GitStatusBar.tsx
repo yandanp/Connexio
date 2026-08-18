@@ -2,6 +2,7 @@ import { AlertCircle, ArrowDown, ArrowUp, ChevronDown, GitBranch, GitCommit } fr
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitStatus } from "@shared/types";
 import BranchPicker from "./BranchPicker";
+import { detectWorktree } from "./worktree-context";
 
 interface Props {
 	projectPath: string;
@@ -94,6 +95,16 @@ export default function GitStatusBar({ projectPath, onMessage, onRefresh }: Prop
 				</span>
 				<ChevronDown size={8} className="text-connexio-text-muted" />
 			</button>
+
+			{/* Worktree badge — the project is a worktree checkout */}
+			{detectWorktree(projectPath).isWorktree && (
+				<span
+					className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-connexio-accent/10 text-[9px] font-semibold uppercase tracking-wide text-connexio-accent"
+					title={`Worktree: ${detectWorktree(projectPath).name}`}
+				>
+					WT
+				</span>
+			)}
 
 			{/* Branch Picker */}
 			{showBranchPicker && onMessage && (

@@ -308,13 +308,30 @@ pub async fn worktree_delete(
         .await
         {
             Ok(_) => break,
+            // The registration is already gone (a previous delete removed it
+            // but the folder survived a Windows lock). Prune and clean up the
+            // leftover directory manually, then proceed to the branch delete.
+            Err(e) if e.contains("is not a working tree") => {
+                let _ = run_git_async(
+                    project_path.clone(),
+                    vec!["worktree".into(), "prune".into()],
+                )
+                .await;
+                let path = worktree_path.clone();
+                tokio::task::spawn_blocking(move || {
+                    std::fs::remove_dir_all(&path).map_err(|e| e.to_string())
+                })
+                .await
+                .map_err(|e| format!("Cleanup task failed: {}", e))??;
+                break;
+            }
             Err(e) if e.contains("Directory not found") || e.contains("not a valid") => {
                 return Err(format!("Worktree path invalid: {}", e));
             }
             Err(ref err) if attempts < MAX_ATTEMPTS - 1 => {
                 attempts += 1;
-                tokio::time::sleep(tokio::time::Duration::from_millis(500 * (attempts as u64)))
-                    .await;
+                let wait = 500 * (attempts as u64);
+                tokio::time::sleep(tokio::time::Duration::from_millis(wait)).await;
                 continue;
             }
             Err(e) => return Err(format!("Failed to remove worktree: {}", e)),

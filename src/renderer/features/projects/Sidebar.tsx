@@ -11,12 +11,15 @@ import {
 	X,
 } from "lucide-react";
 import ContextMenu from "../../core/ui/ContextMenu";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { Project } from "../../../shared/types";
 import { useProjectsStore } from "./projects-store";
 import { useWorkspaceStore } from "../workspace";
 import AddProjectModal from "./AddProjectModal";
 import ConfirmDialog from "../../core/ui/ConfirmDialog";
+import { moveProjectDialog, renameGroupDialog, renameProjectDialog } from "./sidebar-dialogs";
+import { CreateWorktreeModal, ProjectWorktrees } from "../worktree";
+import { useProjectDrag } from "./use-project-drag";
 
 export default function Sidebar() {
 	const {
@@ -26,6 +29,7 @@ export default function Sidebar() {
 		sidebarCollapsed,
 		setSearchQuery,
 		setActiveProject,
+		addProject,
 		deleteProject,
 		renameProject,
 		toggleSidebar,
@@ -57,9 +61,21 @@ export default function Sidebar() {
 	const [editValue, setEditValue] = useState("");
 
 	// Drag state
-	const [dragProjectId, setDragProjectId] = useState<string | null>(null);
-	const [dragOverId, setDragOverId] = useState<string | null>(null);
-	const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
+
+	// Worktree creation dialog — opened via the connexio:create-worktree event
+	// dispatched from ProjectWorktrees (and future entry points).
+	const [createWorktreeFor, setCreateWorktreeFor] = useState<{ path: string; name: string } | null>(
+		null,
+	);
+	useEffect(() => {
+		const openCreate = (e: Event) => {
+			const path = (e as CustomEvent<string>).detail;
+			const project = projects.find((p) => p.path === path);
+			setCreateWorktreeFor({ path, name: project?.name || "" });
+		};
+		window.addEventListener("connexio:create-worktree", openCreate);
+		return () => window.removeEventListener("connexio:create-worktree", openCreate);
+	}, [projects]);
 
 	const toggleGroup = (group: string) => {
 		const next = new Set(expandedGroups);
@@ -100,28 +116,17 @@ export default function Sidebar() {
 		{} as Record<string, Project[]>,
 	);
 
-	// Drag handlers
-	const handleDragStart = (projectId: string) => {
-		setDragProjectId(projectId);
-	};
-
-	const handleDragOverProject = (e: React.DragEvent, targetId: string) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = "move";
-		if (dragProjectId && dragProjectId !== targetId) {
-			setDragOverId(targetId);
-			setDragOverGroup(null);
-		}
-	};
-
-	const handleDragOverGroup = (e: React.DragEvent, group: string) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = "move";
-		if (dragProjectId) {
-			setDragOverGroup(group);
-			setDragOverId(null);
-		}
-	};
+	// Drag handlers (extracted to use-project-drag to respect the ratchet)
+	const {
+		dragProjectId,
+		dragOverId,
+		dragOverGroup,
+		handleDragStart,
+		handleDragOverProject,
+		handleDragOverGroup,
+		clearDragOverGroup,
+		resetDrag,
+	} = useProjectDrag();
 
 	const handleDrop = (e: React.DragEvent) => {
 		e.preventDefault();
@@ -139,45 +144,16 @@ export default function Sidebar() {
 		resetDrag();
 	};
 
-	const resetDrag = () => {
-		setDragProjectId(null);
-		setDragOverId(null);
-		setDragOverGroup(null);
-	};
-
 	const renameProjectFromMenu = (project: Project) => {
-		setInputDialog({
-			title: "Rename Project",
-			message: "Update the display name shown in the sidebar.",
-			label: "Project name",
-			initialValue: project.name,
-			confirmLabel: "Rename",
-			onConfirm: (value) => renameProject(project.id, value),
-		});
+		setInputDialog(renameProjectDialog(project, renameProject));
 	};
-
 	const moveProjectFromMenu = (project: Project) => {
 		const groups = Array.from(new Set(projects.map((p) => p.group || "default"))).sort();
-		setInputDialog({
-			title: "Change Group",
-			message: `Move "${project.name}" to another sidebar group, or type a new one.`,
-			label: "Group name",
-			initialValue: project.group || "default",
-			confirmLabel: "Move",
-			options: groups,
-			onConfirm: (value) => moveProjectToGroup(project.id, value),
-		});
+		setInputDialog(moveProjectDialog(project, groups, moveProjectToGroup));
 	};
 
 	const renameGroupFromMenu = (group: string) => {
-		setInputDialog({
-			title: "Rename Group",
-			message: `Rename group "${group}" for all projects inside it.`,
-			label: "Group name",
-			initialValue: group,
-			confirmLabel: "Rename",
-			onConfirm: (value) => renameProjectGroup(group, value),
-		});
+		setInputDialog(renameGroupDialog(group, renameProjectGroup));
 	};
 
 	const startProjectInlineRename = (project: Project) => {
@@ -289,7 +265,7 @@ export default function Sidebar() {
 								type="button"
 								onDragOver={(e) => handleDragOverGroup(e, group)}
 								onDrop={handleDrop}
-								onDragLeave={() => setDragOverGroup(null)}
+								onDragLeave={clearDragOverGroup}
 							>
 								{expandedGroups.has(group) ? (
 									<ChevronDown size={12} className="text-connexio-text-muted" />
@@ -328,91 +304,102 @@ export default function Sidebar() {
 							{expandedGroups.has(group) && (
 								<div className="ml-2 mt-1 space-y-1">
 									{items.map((project) => (
-										<div
-											key={project.id}
-											role="button"
-											tabIndex={0}
-											draggable
-											className={`group interaction-lift flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition-all duration-150 select-none ${
-												dragOverId === project.id
-													? "bg-connexio-accent/15 border border-connexio-accent/40"
-													: activeProjectId === project.id
-														? "bg-connexio-accent/12 border border-transparent shadow-[inset_2px_0_0_var(--accent-color),0_8px_22px_rgba(56,189,248,0.05)]"
-														: "hover:bg-connexio-bg-tertiary border border-transparent"
-											} ${dragProjectId === project.id ? "opacity-40" : ""}`}
-											onClick={() => {
-												if (!editingProjectId) setActiveProject(project.id);
-											}}
-											onDoubleClick={() => startProjectInlineRename(project)}
-											onContextMenu={(e) => {
-												e.preventDefault();
-												setContextMenu({ type: "project", x: e.clientX, y: e.clientY, project });
-											}}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													setActiveProject(project.id);
-												}
-											}}
-											onDragStart={(e) => {
-												e.dataTransfer.effectAllowed = "move";
-												e.dataTransfer.setData("text/plain", project.id);
-												handleDragStart(project.id);
-											}}
-											onDragOver={(e) => handleDragOverProject(e, project.id)}
-											onDrop={handleDrop}
-											onDragEnd={resetDrag}
-										>
-											{/* Drag handle */}
-											<div className="flex-shrink-0 opacity-0 group-hover:opacity-40 hover:!opacity-80 cursor-grab active:cursor-grabbing transition-opacity">
-												<GripVertical size={10} className="text-connexio-text-muted" />
-											</div>
-											<FolderOpen
-												size={13}
-												className={
-													activeProjectId === project.id
-														? "text-connexio-accent flex-shrink-0"
-														: "text-connexio-text-muted flex-shrink-0"
-												}
-											/>
-											{editingProjectId === project.id ? (
-												<input
-													autoFocus
-													value={editValue}
-													onChange={(e) => setEditValue(e.target.value)}
-													onClick={(e) => e.stopPropagation()}
-													onBlur={commitInlineRename}
-													onKeyDown={(e) => {
-														e.stopPropagation();
-														if (e.key === "Enter") commitInlineRename();
-														if (e.key === "Escape") setEditingProjectId(null);
-													}}
-													className="min-w-0 flex-1 rounded border border-connexio-accent bg-connexio-bg px-1 py-0.5 text-[13px] text-connexio-text outline-none"
-												/>
-											) : (
-												<div className="min-w-0 flex-1">
-													<span className="block truncate text-[13px] font-medium text-connexio-text">
-														{project.name}
-													</span>
-													{activeProjectId === project.id && (
-														<span className="block truncate text-[9px] text-connexio-text-muted">
-															{getProjectTabCount(project.id)} tab
-															{getProjectTabCount(project.id) !== 1 ? "s" : ""}
-														</span>
-													)}
-												</div>
-											)}
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													setDeleteConfirmProject(project);
+										<Fragment key={project.id}>
+											<div
+												role="button"
+												tabIndex={0}
+												draggable
+												className={`group interaction-lift flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition-all duration-150 select-none ${
+													dragOverId === project.id
+														? "bg-connexio-accent/15 border border-connexio-accent/40"
+														: activeProjectId === project.id
+															? "bg-connexio-accent/12 border border-transparent shadow-[inset_2px_0_0_var(--accent-color),0_8px_22px_rgba(56,189,248,0.05)]"
+															: "hover:bg-connexio-bg-tertiary border border-transparent"
+												} ${dragProjectId === project.id ? "opacity-40" : ""}`}
+												onClick={() => {
+													if (!editingProjectId) setActiveProject(project.id);
 												}}
-												className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/20 transition-all flex-shrink-0"
-												type="button"
+												onDoubleClick={() => startProjectInlineRename(project)}
+												onContextMenu={(e) => {
+													e.preventDefault();
+													setContextMenu({ type: "project", x: e.clientX, y: e.clientY, project });
+												}}
+												onKeyDown={(e) => {
+													if (e.key === "Enter" || e.key === " ") {
+														e.preventDefault();
+														setActiveProject(project.id);
+													}
+												}}
+												onDragStart={(e) => {
+													e.dataTransfer.effectAllowed = "move";
+													e.dataTransfer.setData("text/plain", project.id);
+													handleDragStart(project.id);
+												}}
+												onDragOver={(e) => handleDragOverProject(e, project.id)}
+												onDrop={handleDrop}
+												onDragEnd={resetDrag}
 											>
-												<Trash2 size={11} className="text-red-400" />
-											</button>
-										</div>
+												{/* Drag handle */}
+												<div className="flex-shrink-0 opacity-0 group-hover:opacity-40 hover:!opacity-80 cursor-grab active:cursor-grabbing transition-opacity">
+													<GripVertical size={10} className="text-connexio-text-muted" />
+												</div>
+												<FolderOpen
+													size={13}
+													className={
+														activeProjectId === project.id
+															? "text-connexio-accent flex-shrink-0"
+															: "text-connexio-text-muted flex-shrink-0"
+													}
+												/>
+												{editingProjectId === project.id ? (
+													<input
+														autoFocus
+														value={editValue}
+														onChange={(e) => setEditValue(e.target.value)}
+														onClick={(e) => e.stopPropagation()}
+														onBlur={commitInlineRename}
+														onKeyDown={(e) => {
+															e.stopPropagation();
+															if (e.key === "Enter") commitInlineRename();
+															if (e.key === "Escape") setEditingProjectId(null);
+														}}
+														className="min-w-0 flex-1 rounded border border-connexio-accent bg-connexio-bg px-1 py-0.5 text-[13px] text-connexio-text outline-none"
+													/>
+												) : (
+													<div className="min-w-0 flex-1">
+														<span className="block truncate text-[13px] font-medium text-connexio-text">
+															{project.name}
+														</span>
+														{activeProjectId === project.id && (
+															<span className="block truncate text-[9px] text-connexio-text-muted">
+																{getProjectTabCount(project.id)} tab
+																{getProjectTabCount(project.id) !== 1 ? "s" : ""}
+															</span>
+														)}
+													</div>
+												)}
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														setDeleteConfirmProject(project);
+													}}
+													className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/20 transition-all flex-shrink-0"
+													type="button"
+												>
+													<Trash2 size={11} className="text-red-400" />
+												</button>
+											</div>
+
+											{activeProjectId === project.id && (
+												<ProjectWorktrees
+													projectPath={project.path}
+													projectName={project.name}
+													onOpenWorktree={(wtPath, wtName) => {
+														addProject(wtName, wtPath, project.group || "default");
+													}}
+												/>
+											)}
+										</Fragment>
 									))}
 								</div>
 							)}
@@ -459,6 +446,13 @@ export default function Sidebar() {
 			)}
 
 			{showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
+
+			{createWorktreeFor && (
+				<CreateWorktreeModal
+					projectPath={createWorktreeFor.path}
+					onClose={() => setCreateWorktreeFor(null)}
+				/>
+			)}
 
 			{inputDialog && (
 				<SidebarInputDialog

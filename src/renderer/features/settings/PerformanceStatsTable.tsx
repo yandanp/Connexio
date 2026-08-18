@@ -37,16 +37,16 @@ export default function PerformanceStatsTable({ metrics }: Props) {
 			<div className="soft-card overflow-hidden p-3">
 				<p className="mb-2 text-[11px] font-medium text-connexio-text-secondary">Startup phases</p>
 				{metrics.phases.length ? (
-					<div className="space-y-1">
+					<ul className="space-y-1" aria-label="Startup phase timings">
 						{metrics.phases.map((phase) => (
-							<div key={phase.name} className="flex items-center justify-between gap-3 text-[10px]">
+							<li key={phase.name} className="flex items-center justify-between gap-3 text-[10px]">
 								<span className="text-connexio-text-secondary">{phase.name}</span>
 								<span className="font-mono text-connexio-text">
 									{formatDuration(phase.duration)}
 								</span>
-							</div>
+							</li>
 						))}
-					</div>
+					</ul>
 				) : (
 					<p className="text-[10px] text-connexio-text-muted">No startup phases recorded yet.</p>
 				)}

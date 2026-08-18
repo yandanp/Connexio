@@ -18,11 +18,18 @@ describe("PerformanceStatsTable", () => {
 		const markup = renderToStaticMarkup(<PerformanceStatsTable metrics={metrics} />);
 
 		expect(markup).toContain("Startup phases");
+		expect(markup).toContain("<ul");
 		expect(markup).toContain("app-mount");
 		expect(markup).toContain("12.4 ms");
 		expect(markup).toContain("Spawn");
+		expect(markup).toContain("4.2 ms");
+		expect(markup).toContain("8.8 ms");
+		expect(markup).toContain("14.1 ms");
 		expect(markup).toContain("First output");
-		expect(markup).toContain("Median");
+		expect(markup).toContain("1.6 ms");
+		expect(markup).toContain("3.2 ms");
+		expect(markup).toContain("6.4 ms");
+		expect(markup).toContain("3 samples");
 		expect(markup).toContain("95.7 ms");
 	});
 

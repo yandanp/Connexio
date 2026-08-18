@@ -1,6 +1,9 @@
 import { CheckCircle2, Download, Loader2, Rocket, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import SettingsCard from "../../core/ui/SettingsCard";
+import { getStartupMetrics } from "../../core/instrumentation/startup-metrics";
+import type { StartupMetrics } from "../../core/instrumentation/startup-metrics";
+import PerformanceStatsTable from "./PerformanceStatsTable";
 
 type UpdateCheckState =
 	| "idle"
@@ -17,8 +20,10 @@ export default function AboutSettings() {
 	const [updateVersion, setUpdateVersion] = useState("");
 	const [downloadPercent, setDownloadPercent] = useState(0);
 	const [errorMsg, setErrorMsg] = useState("");
+	const [startupMetrics, setStartupMetrics] = useState<StartupMetrics>(() => getStartupMetrics());
 
 	useEffect(() => {
+		setStartupMetrics(getStartupMetrics());
 		window.connexio.app
 			.getVersion()
 			.then(setVersion)
@@ -198,6 +203,8 @@ export default function AboutSettings() {
 					</div>
 				)}
 			</div>
+
+			<PerformanceStatsTable metrics={startupMetrics} />
 
 			{/* Links */}
 			<div className="soft-separator-top space-y-1.5 pt-3">

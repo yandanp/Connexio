@@ -21,6 +21,14 @@ describe("worktree slugify (mirror of backend branch derivation)", () => {
 	it("falls back to worktree for separator-only names", () => {
 		expect(slugify("!!!")).toBe("worktree");
 	});
+
+	it("rewrites known emoji shortcodes to readable slug fragments", () => {
+		expect(slugify(":rocket: login")).toBe("rocket-login");
+	});
+
+	it("keeps literal emoji out of the slug but preserves the word form", () => {
+		expect(slugify("🚀 launch pad")).toBe("launch-pad");
+	});
 });
 
 describe("CreateWorktreeModal behavior contract", () => {

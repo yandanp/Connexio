@@ -75,6 +75,8 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 	const confirmDelete = async () => {
 		if (!pendingDelete) return;
 		const { entry } = pendingDelete;
+		setPendingDelete(null); // close the dialog immediately (Enter can re-fire)
+
 		try {
 			const ws = await import("../workspace/workspace-store");
 			const state = ws.useWorkspaceStore.getState();

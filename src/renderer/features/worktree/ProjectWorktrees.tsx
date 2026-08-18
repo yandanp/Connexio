@@ -45,15 +45,35 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 	};
 
 	const handleDelete = async (entry: WorktreeEntry) => {
+		// Fetch divergence first so the user sees what would be lost.
+		let summaryText = "";
+		try {
+			const summary = await window.connexio.worktree.previewDiff(
+				projectPath,
+				entry.path,
+				entry.baseRef,
+			);
+			summaryText = `\n\n${summary.changedFiles} changed file(s), ${summary.ahead} commit(s) ahead of ${entry.baseRef}.`;
+		} catch {
+			// Preview is best-effort; deletion still requires branch confirmation.
+		}
+
 		// Confirmation includes the branch name — the backend rejects a
 		// mismatched confirmation, which guards against stale UI state.
 		const confirmed = window.confirm(
-			`Delete worktree "${entry.name}"?\n\nBranch ${entry.branch} and all files at:\n${entry.path}\n\nThis cannot be undone.`,
+			`Delete worktree "${entry.name}"?${summaryText}\n\nBranch ${entry.branch} and all files at:\n${entry.path}\n\nUnmerged work keeps the branch in the repo.`,
 		);
 		if (!confirmed) return;
 		try {
-			await window.connexio.worktree.delete(projectPath, entry.path, entry.branch);
-			notify(`${entry.name} deleted`, "Worktree and branch removed.");
+			const result = await window.connexio.worktree.delete(projectPath, entry.path, entry.branch);
+			if (result?.preservedBranch) {
+				notify(
+					`${entry.name} removed — branch kept`,
+					`Branch ${result.preservedBranch} has unmerged commits and was preserved.`,
+				);
+			} else {
+				notify(`${entry.name} deleted`, "Worktree and branch removed.");
+			}
 			void refresh();
 		} catch (e) {
 			notify("Worktree delete failed", String(e));

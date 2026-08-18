@@ -182,6 +182,7 @@ pub fn run() {
             // Worktree
             modules::worktree::worktree_create,
             modules::worktree::worktree_list,
+            modules::worktree::worktree_preview_diff,
             modules::worktree::worktree_delete,
         ])
         .on_window_event(|window, event| {

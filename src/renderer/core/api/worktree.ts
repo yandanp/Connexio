@@ -23,14 +23,26 @@ export const worktree = {
 	},
 
 	/**
-	 * Delete a worktree and its branch. Requires explicit confirmation of the
-	 * current HEAD branch to prevent accidental deletion.
+	 * Preview how a worktree's branch diverges from a base ref:
+	 * changed file count plus ahead/behind commit counts.
+	 */
+	previewDiff: async (
+		projectPath: string,
+		worktreePath: string,
+		baseRef: string,
+	): Promise<{ changedFiles: number; ahead: number; behind: number }> => {
+		return invoke("worktree_preview_diff", { projectPath, worktreePath, baseRef });
+	},
+
+	/**
+	 * Delete a worktree's directory and its branch (Orca-style: the branch is
+	 * preserved when it holds unmerged commits — check preservedBranch).
 	 */
 	delete: async (
 		projectPath: string,
 		worktreePath: string,
 		confirmBranch: string,
-	): Promise<void> => {
+	): Promise<{ preservedBranch: string | null }> => {
 		return invoke("worktree_delete", { projectPath, worktreePath, confirmBranch });
 	},
 };

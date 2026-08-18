@@ -217,7 +217,16 @@ interface ConnexioAPI {
 			options?: { fromRef?: string; branchOverride?: string },
 		) => Promise<import("../../shared/types").WorktreeEntry>;
 		list: (projectPath: string) => Promise<import("../../shared/types").WorktreeEntry[]>;
-		delete: (projectPath: string, worktreePath: string, confirmBranch: string) => Promise<void>;
+		previewDiff: (
+			projectPath: string,
+			worktreePath: string,
+			baseRef: string,
+		) => Promise<{ changedFiles: number; ahead: number; behind: number }>;
+		delete: (
+			projectPath: string,
+			worktreePath: string,
+			confirmBranch: string,
+		) => Promise<{ preservedBranch: string | null }>;
 	};
 	updater: {
 		check: () => Promise<string | null>;

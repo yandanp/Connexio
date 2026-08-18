@@ -15,8 +15,7 @@ pub struct WorktreeEntry {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
+pub(crate) fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
     let output = std::process::Command::new("git")
         .args(args)
         .current_dir(cwd)
@@ -27,6 +26,23 @@ fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
     } else {
         Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
     }
+}
+
+/// Summary of a worktree's divergence from its base ref.
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeDiffSummary {
+    pub changed_files: u32,
+    pub ahead: u32,
+    pub behind: u32,
+}
+
+/// Result of a worktree deletion: the directory is always removed; the
+/// branch is preserved when it holds unmerged commits.
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeDeleteResult {
+    pub preserved_branch: Option<String>,
 }
 
 /// Run git on a blocking thread; heavy worktree operations must never run on
@@ -177,12 +193,7 @@ pub async fn worktree_create(
 pub async fn worktree_list(project_path: String) -> Result<Vec<WorktreeEntry>, String> {
     let porcelain = run_git_async(
         project_path,
-        vec![
-            "worktree".into(),
-            "list".into(),
-            "--porcelain".into(),
-            "--".into(),
-        ],
+        vec!["worktree".into(), "list".into(), "--porcelain".into()],
     )
     .await?;
     Ok(parse_worktree_list(&porcelain, "origin/main"))
@@ -193,7 +204,7 @@ pub async fn worktree_delete(
     project_path: String,
     worktree_path: String,
     confirm_branch: String,
-) -> Result<(), String> {
+) -> Result<WorktreeDeleteResult, String> {
     // Resolve the branch currently checked out in the worktree to guard
     // against deleting the wrong tree.
     let checked = run_git_async(
@@ -210,145 +221,84 @@ pub async fn worktree_delete(
     }
 
     run_git_async(
-        project_path,
+        project_path.clone(),
         vec![
             "worktree".into(),
             "remove".into(),
             "--force".into(),
-            worktree_path,
+            worktree_path.clone(),
         ],
     )
     .await?;
-    Ok(())
+
+    // Orca-style semantics: always remove the directory; keep the branch
+    // when git refuses a safe delete (it holds unmerged commits).
+    let preserved = if run_git_async(
+        project_path,
+        vec!["branch".into(), "-d".into(), checked.clone()],
+    )
+    .await
+    .is_err()
+    {
+        Some(checked)
+    } else {
+        None
+    };
+
+    Ok(WorktreeDeleteResult {
+        preserved_branch: preserved,
+    })
+}
+
+/// Preview how a worktree's branch diverges from a base ref: changed file
+/// count plus ahead/behind commit counts.
+#[tauri::command]
+pub async fn worktree_preview_diff(
+    project_path: String,
+    worktree_path: String,
+    base_ref: String,
+) -> Result<WorktreeDiffSummary, String> {
+    let branch = run_git_async(
+        worktree_path.clone(),
+        vec!["rev-parse".into(), "--abbrev-ref".into(), "HEAD".into()],
+    )
+    .await?;
+
+    let diff_output = run_git_async(
+        project_path.clone(),
+        vec![
+            "diff".into(),
+            "--name-only".into(),
+            base_ref.clone(),
+            branch.clone(),
+        ],
+    )
+    .await
+    .unwrap_or_default();
+    let changed_files = diff_output.lines().filter(|l| !l.is_empty()).count() as u32;
+
+    let counts = run_git_async(
+        project_path,
+        vec![
+            "rev-list".into(),
+            "--left-right".into(),
+            "--count".into(),
+            format!("{base_ref}...{branch}"),
+        ],
+    )
+    .await
+    .unwrap_or_else(|_| "0\t0".to_string());
+    let mut parts = counts.split_whitespace();
+    let behind = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+    let ahead = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+
+    Ok(WorktreeDiffSummary {
+        changed_files,
+        ahead,
+        behind,
+    })
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn setup_repo(label: &str) -> std::path::PathBuf {
-        let root =
-            std::env::temp_dir().join(format!("connexio-wt-{}-{}", label, std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).unwrap();
-        run_git(root.to_str().unwrap(), &["init", "-b", "main"]).unwrap();
-        run_git(root.to_str().unwrap(), &["config", "user.email", "t@t"]).unwrap();
-        run_git(root.to_str().unwrap(), &["config", "user.name", "t"]).unwrap();
-        std::fs::write(root.join("readme.md"), "hello\n").unwrap();
-        run_git(root.to_str().unwrap(), &["add", "."]).unwrap();
-        run_git(root.to_str().unwrap(), &["commit", "-m", "init"]).unwrap();
-        root
-    }
-
-    #[test]
-    fn parse_worktree_list_skips_main_checkout_and_reads_branches() {
-        // git prints forward slashes on every platform; parse normalizes them.
-        let porcelain = "worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /repo/.worktrees/w1\nHEAD def\nbranch refs/heads/connexio/w1\n\n";
-        let entries = parse_worktree_list(porcelain, "origin/main");
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].branch, "connexio/w1");
-        assert_eq!(entries[0].name, "w1");
-        assert_eq!(
-            entries[0].path,
-            format!(
-                "{}repo{}.worktrees{}w1",
-                std::path::MAIN_SEPARATOR,
-                std::path::MAIN_SEPARATOR,
-                std::path::MAIN_SEPARATOR
-            )
-        );
-    }
-
-    #[test]
-    fn parse_worktree_list_handles_detached_head_without_branch_line() {
-        // Detached HEAD worktrees have no branch line — they are skipped from
-        // entries because they carry no branch to manage.
-        let porcelain = "worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /repo/.worktrees/det\nHEAD def\ndetached\n\n";
-        let entries = parse_worktree_list(porcelain, "origin/main");
-        assert!(entries.is_empty());
-    }
-
-    #[tokio::test]
-    async fn worktree_create_adds_and_lists_and_deletes() {
-        let root = setup_repo("cycle");
-        let created = worktree_create(
-            root.to_str().unwrap().to_string(),
-            "My Feature".to_string(),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-        assert!(created.path.contains(".worktrees"));
-        assert_eq!(created.branch, "connexio/my-feature");
-
-        let listed = worktree_list(root.to_str().unwrap().to_string())
-            .await
-            .unwrap();
-        assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].branch, "connexio/my-feature");
-        assert_eq!(listed[0].path, created.path);
-
-        worktree_delete(
-            root.to_str().unwrap().to_string(),
-            created.path.clone(),
-            "connexio/my-feature".to_string(),
-        )
-        .await
-        .unwrap();
-        assert!(!Path::new(&created.path).exists());
-
-        let after = worktree_list(root.to_str().unwrap().to_string())
-            .await
-            .unwrap();
-        assert!(after.is_empty());
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[tokio::test]
-    async fn worktree_create_rejects_existing_directory() {
-        let root = setup_repo("dup");
-        let first = worktree_create(
-            root.to_str().unwrap().to_string(),
-            "Same Name".to_string(),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-        let err = worktree_create(
-            root.to_str().unwrap().to_string(),
-            "Same Name".to_string(),
-            None,
-            None,
-        )
-        .await
-        .unwrap_err();
-        assert!(err.contains("already exists"), "got: {err}");
-        let _ = std::fs::remove_dir_all(&first.path);
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[tokio::test]
-    async fn worktree_delete_rejects_wrong_branch_confirmation() {
-        let root = setup_repo("guard");
-        let created = worktree_create(
-            root.to_str().unwrap().to_string(),
-            "Guarded".to_string(),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-        let err = worktree_delete(
-            root.to_str().unwrap().to_string(),
-            created.path.clone(),
-            "wrong-branch".to_string(),
-        )
-        .await
-        .unwrap_err();
-        assert!(err.contains("Branch mismatch"), "got: {err}");
-        assert!(Path::new(&created.path).exists());
-        let _ = std::fs::remove_dir_all(&root);
-    }
-}
+#[path = "worktree_tests.rs"]
+mod worktree_tests;

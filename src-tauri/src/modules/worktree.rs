@@ -170,7 +170,7 @@ fn default_if_empty(dir: &str) -> String {
     }
 }
 
- // ─── Commands ────────────────────────────────────────────────────────────────
+// ─── Commands ────────────────────────────────────────────────────────────────
 #[tauri::command]
 pub async fn worktree_create(
     app: tauri::AppHandle,
@@ -291,16 +291,35 @@ pub async fn worktree_delete(
         ));
     }
 
-    run_git_async(
-        project_path.clone(),
-        vec![
-            "worktree".into(),
-            "remove".into(),
-            "--force".into(),
-            worktree_path.clone(),
-        ],
-    )
-    .await?;
+    // Retry removing the worktree directory with exponential backoff to handle
+    // Windows file locks from lingering PTY terminals.
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: u8 = 3;
+    loop {
+        match run_git_async(
+            project_path.clone(),
+            vec![
+                "worktree".into(),
+                "remove".into(),
+                "--force".into(),
+                worktree_path.clone(),
+            ],
+        )
+        .await
+        {
+            Ok(_) => break,
+            Err(e) if e.contains("Directory not found") || e.contains("not a valid") => {
+                return Err(format!("Worktree path invalid: {}", e));
+            }
+            Err(ref err) if attempts < MAX_ATTEMPTS - 1 => {
+                attempts += 1;
+                tokio::time::sleep(tokio::time::Duration::from_millis(500 * (attempts as u64)))
+                    .await;
+                continue;
+            }
+            Err(e) => return Err(format!("Failed to remove worktree: {}", e)),
+        }
+    }
 
     // Orca-style semantics: always remove the directory; keep the branch
     // when git refuses a safe delete (it holds unmerged commits).

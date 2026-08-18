@@ -54,7 +54,12 @@ pub fn default_worktree_dir() -> String {
     if home.is_empty() {
         ".connexio/worktrees".to_string()
     } else {
-        format!("{}{}.connexio{}worktrees", home, std::path::MAIN_SEPARATOR, std::path::MAIN_SEPARATOR)
+        format!(
+            "{}{}.connexio{}worktrees",
+            home,
+            std::path::MAIN_SEPARATOR,
+            std::path::MAIN_SEPARATOR
+        )
     }
 }
 

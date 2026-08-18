@@ -83,7 +83,7 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 					if (tab.label === entry.name) {
 						await ws.useWorkspaceStore.getState().closeTerminalTab(pid, tab.id);
 						// Wait for OS to release the directory lock on Windows.
-						await new Promise<void>((resolve) => setTimeout(resolve, 200));
+						await new Promise<void>((resolve) => setTimeout(resolve, 500));
 					}
 				}
 			}

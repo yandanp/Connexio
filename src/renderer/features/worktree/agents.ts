@@ -1,22 +1,25 @@
 /**
  * CLI agents offered when creating a worktree (Orca-style agent selector).
  *
- * The chosen agent is launched in the worktree's terminal right after the
- * worktree opens — one click from name to running agent.
+ * The list marks which binaries are installed on this machine (detected via
+ * the backend agent_detect_all command) so the picker only enables agents
+ * that can actually launch.
  */
 
 export interface AgentOption {
 	id: string;
 	label: string;
-	/** Command run in the worktree terminal; must exist on the user's PATH. */
+	/** Binary that must exist on the user's PATH. */
 	command: string;
 	hint: string;
 }
 
 export const AGENT_OPTIONS: AgentOption[] = [
-	{ id: "none", label: "None (terminal only)", command: "", hint: "Just a shell" },
 	{ id: "claude", label: "Claude Code", command: "claude", hint: "Anthropic CLI" },
 	{ id: "codex", label: "Codex CLI", command: "codex", hint: "OpenAI CLI" },
 	{ id: "gemini", label: "Gemini CLI", command: "gemini", hint: "Google CLI" },
 	{ id: "aider", label: "Aider", command: "aider", hint: "Pair programming in the terminal" },
+	{ id: "cursor-agent", label: "Cursor Agent", command: "cursor-agent", hint: "Cursor CLI" },
+	{ id: "opencode", label: "OpenCode", command: "opencode", hint: "Open-source agent CLI" },
+	{ id: "gh", label: "GitHub CLI", command: "gh", hint: "Issues and PRs from the terminal" },
 ];

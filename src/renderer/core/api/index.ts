@@ -7,6 +7,7 @@ import { tasks } from "./tasks";
 import { pinned } from "./pinned";
 import { ssh } from "./ssh";
 import { git } from "./git";
+import { agents } from "./agents";
 import { worktree } from "./worktree";
 import { theme } from "./theme";
 import { app } from "./app";
@@ -25,6 +26,7 @@ export const connexioApi = {
 	pinned,
 	ssh,
 	git,
+	agents,
 	worktree,
 	theme,
 	app,

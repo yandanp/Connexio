@@ -210,6 +210,9 @@ interface ConnexioAPI {
 			index?: number,
 		) => Promise<import("../../shared/types").GitActionResult>;
 	};
+	agents: {
+		detectAll: (commands: string[]) => Promise<{ command: string; installed: boolean }[]>;
+	};
 	worktree: {
 		create: (
 			projectPath: string,

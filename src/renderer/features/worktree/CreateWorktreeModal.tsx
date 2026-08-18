@@ -1,11 +1,11 @@
-import { Bot, Check, GitBranch, Link2, Loader2, Smile, X } from "lucide-react";
+import { GitBranch, Link2, Loader2, Smile, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { GitBranchEntry } from "../../../shared/types";
 import { AGENT_OPTIONS } from "./agents";
+import AgentPicker from "./AgentPicker";
 import FromRefPicker from "./FromRefPicker";
 import { fetchGithubTitle, parseLinkedIssueUrl } from "./linked-issue";
 import { slugify } from "./slugify";
-
 interface Props {
 	projectPath: string;
 	onClose: () => void;
@@ -35,11 +35,15 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 	const [agentId, setAgentId] = useState("none");
 	const [creating, setCreating] = useState(false);
 	const [error, setError] = useState("");
+
 	// Start-from picker branches (loaded once, passed to FromRefPicker)
 	const [branches, setBranches] = useState<GitBranchEntry[] | null>(null);
 
 	// Emoji picker state
 	const [showEmoji, setShowEmoji] = useState(false);
+
+	// Agent install detection — only installed agents are selectable.
+	const [installedCommands, setInstalledCommands] = useState<Set<string> | null>(null);
 
 	// Linked issue state: parsed URL plus best-effort fetched title.
 	const parsedIssue = useMemo(() => parseLinkedIssueUrl(linkedIssueUrl), [linkedIssueUrl]);
@@ -58,12 +62,21 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 		};
 	}, [parsedIssue]);
 
-	// Load branches once for the start-from picker.
+	// Load branches and agent availability once when the dialog opens.
 	useEffect(() => {
 		window.connexio.git
 			.branches(projectPath)
 			.then(setBranches)
 			.catch(() => setBranches([]));
+		window.connexio.agents
+			.detectAll(AGENT_OPTIONS.map((a) => a.command))
+			.then((statuses) => {
+				setInstalledCommands(new Set(statuses.filter((s) => s.installed).map((s) => s.command)));
+			})
+			.catch(() => {
+				// Detection failed — enable everything rather than block the flow.
+				setInstalledCommands(new Set(AGENT_OPTIONS.map((a) => a.command)));
+			});
 	}, [projectPath]);
 
 	// The effective name prefills from the issue title once fetched, unless
@@ -84,10 +97,12 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 			.slice(0, 6);
 	}, [name]);
 
-	const insertEmoji = (_shortcode: string, emoji: string) => {
+	const insertEmoji = (shortcode: string, emoji: string) => {
 		setName((n) => n.replace(/:[a-z_]*$/i, `${emoji} `));
 		setShowEmoji(false);
 	};
+
+	const selectedAgent = AGENT_OPTIONS.find((a) => a.id === agentId);
 
 	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -103,11 +118,15 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 			});
 			// Orca-style: open the worktree immediately, launching the chosen
 			// agent in its terminal when one is selected.
-			const agent = AGENT_OPTIONS.find((a) => a.id === agentId);
-			if (agent && agent.command) {
-				const projectId = await useProjectsStoreAddProject(entry.name, entry.path);
-				const ws = await import("../workspace/workspace-store").then((m) => m.useWorkspaceStore);
-				await ws.getState().openCommandTerminalTab(projectId, agent.label, [agent.command]);
+			if (selectedAgent && selectedAgent.command) {
+				const projectsMod = await import("../projects/projects-store");
+				const projectId = await projectsMod.useProjectsStore
+					.getState()
+					.addProject(entry.name, entry.path, "worktrees");
+				const wsMod = await import("../workspace/workspace-store");
+				await wsMod.useWorkspaceStore
+					.getState()
+					.openCommandTerminalTab(projectId, selectedAgent.label, [selectedAgent.command]);
 			}
 			onClose();
 		} catch (err) {
@@ -118,7 +137,7 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[440px] shadow-2xl max-h-[90vh] overflow-y-auto">
+			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[460px] shadow-2xl max-h-[90vh] overflow-y-auto">
 				{/* Header */}
 				<div className="flex items-center justify-between px-4 py-3 border-b border-connexio-border">
 					<h2 className="text-sm font-semibold text-connexio-text">Create Worktree</h2>
@@ -129,56 +148,13 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 
 				{/* Form */}
 				<form onSubmit={handleCreate} className="p-4 space-y-4">
-					{/* Linked issue — paste URL, auto-derive the name */}
-					<div>
-						<label
-							htmlFor="worktree-issue"
-							className="block text-xs font-medium text-connexio-text-secondary mb-1.5"
-						>
-							Linked Issue <span className="text-connexio-text-muted">(optional)</span>
-						</label>
-						<div className="relative">
-							<Link2
-								size={12}
-								className="absolute left-2.5 top-1/2 -translate-y-1/2 text-connexio-text-muted"
-							/>
-							<input
-								id="worktree-issue"
-								value={linkedIssueUrl}
-								onChange={(e) => setLinkedIssueUrl(e.target.value)}
-								placeholder="https://github.com/owner/repo/issues/123"
-								className="w-full bg-connexio-bg border border-connexio-border rounded-lg pl-7 pr-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
-							/>
-						</div>
-						{linkedIssueUrl.trim() && !parsedIssue && (
-							<p className="mt-1 text-[10px] text-connexio-text-muted">
-								GitHub PR/issue URL — or leave empty
-							</p>
-						)}
-						{parsedIssue && (
-							<p className="mt-1 flex items-center gap-1 text-[10px] text-connexio-accent">
-								{issueTitle ? (
-									<span className="truncate">
-										#{parsedIssue.number} {issueTitle}
-										{name.trim() ? "" : " — will be used as the name"}
-									</span>
-								) : (
-									<span className="flex items-center gap-1">
-										<Loader2 size={9} className="animate-spin" />#{parsedIssue.number} — fetching
-										title…
-									</span>
-								)}
-							</p>
-						)}
-					</div>
-
-					{/* Name with emoji picker */}
+					{/* Name — first field, Orca asks this as the primary question */}
 					<div>
 						<label
 							htmlFor="worktree-name"
 							className="block text-xs font-medium text-connexio-text-secondary mb-1.5"
 						>
-							Name
+							What are you working on?
 						</label>
 						<div className="relative flex gap-1.5">
 							<input
@@ -241,6 +217,44 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						)}
 					</div>
 
+					{/* Linked issue — paste URL, auto-derive the name */}
+					<div>
+						<label
+							htmlFor="worktree-issue"
+							className="block text-xs font-medium text-connexio-text-secondary mb-1.5"
+						>
+							Linked Issue <span className="text-connexio-text-muted">(optional)</span>
+						</label>
+						<div className="relative">
+							<Link2
+								size={12}
+								className="absolute left-2.5 top-1/2 -translate-y-1/2 text-connexio-text-muted"
+							/>
+							<input
+								id="worktree-issue"
+								value={linkedIssueUrl}
+								onChange={(e) => setLinkedIssueUrl(e.target.value)}
+								placeholder="https://github.com/owner/repo/issues/123"
+								className="w-full bg-connexio-bg border border-connexio-border rounded-lg pl-7 pr-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
+							/>
+						</div>
+						{parsedIssue && (
+							<p className="mt-1 flex items-center gap-1 text-[10px] text-connexio-accent">
+								{issueTitle ? (
+									<span className="truncate">
+										#{parsedIssue.number} {issueTitle}
+										{name.trim() ? "" : " — will be used as the name"}
+									</span>
+								) : (
+									<span className="flex items-center gap-1">
+										<Loader2 size={9} className="animate-spin" />#{parsedIssue.number} — fetching
+										title…
+									</span>
+								)}
+							</p>
+						)}
+					</div>
+
 					{/* Start-from picker */}
 					<div>
 						<label
@@ -256,56 +270,17 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						/>
 					</div>
 
-					{/* Agent selector — launched in the worktree terminal */}
-					<div>
-						<span className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
-							Agent <span className="text-connexio-text-muted">(optional)</span>
-						</span>
-						<div className="grid grid-cols-2 gap-1.5">
-							{AGENT_OPTIONS.map((agent) => {
-								const selected = agentId === agent.id;
-								return (
-									<button
-										key={agent.id}
-										type="button"
-										onClick={() => setAgentId(agent.id)}
-										className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
-											selected
-												? "border-connexio-accent bg-connexio-accent/10"
-												: "border-connexio-border hover:border-connexio-accent/40"
-										}`}
-									>
-										{agent.id === "none" ? (
-											<span className="text-xs">💤</span>
-										) : (
-											<Bot
-												size={13}
-												className={selected ? "text-connexio-accent" : "text-connexio-text-muted"}
-											/>
-										)}
-										<span className="min-w-0 flex-1">
-											<span
-												className={`block truncate text-[11px] font-medium ${
-													selected ? "text-connexio-accent" : "text-connexio-text-secondary"
-												}`}
-											>
-												{agent.label}
-											</span>
-											<span className="block truncate text-[9px] text-connexio-text-muted">
-												{agent.hint}
-											</span>
-										</span>
-										{selected && <Check size={12} className="flex-shrink-0 text-connexio-accent" />}
-									</button>
-								);
-							})}
-						</div>
-						<p className="mt-1 text-[10px] text-connexio-text-muted">
-							{AGENT_OPTIONS.find((a) => a.id === agentId)?.command
-								? `Launches "${AGENT_OPTIONS.find((a) => a.id === agentId)?.command}" in the worktree terminal — must be installed on your PATH`
-								: "No agent — the worktree opens with a plain terminal"}
-						</p>
-					</div>
+					{/* Agent selector — installed agents only are selectable */}
+					<AgentPicker
+						agentId={agentId}
+						onSelect={setAgentId}
+						installedCommands={installedCommands}
+					/>
+					<p className="text-[10px] text-connexio-text-muted">
+						{selectedAgent?.command
+							? `Launches "${selectedAgent.command}" in the worktree terminal`
+							: "No agent — the worktree opens with a plain terminal"}
+					</p>
 
 					{/* Branch override */}
 					<div>
@@ -360,10 +335,4 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 			</div>
 		</div>
 	);
-}
-
-/** Late-imported to avoid a store import cycle at module load. */
-async function useProjectsStoreAddProject(name: string, path: string): Promise<string> {
-	const m = await import("../projects/projects-store");
-	return m.useProjectsStore.getState().addProject(name, path, "worktrees");
 }

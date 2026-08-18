@@ -180,6 +180,7 @@ pub fn run() {
             modules::remote::remote_regenerate_pin,
             modules::remote::remote_wol_send,
             // Worktree
+            modules::agents::agent_detect_all,
             modules::worktree::worktree_create,
             modules::worktree::worktree_list,
             modules::worktree::worktree_preview_diff,

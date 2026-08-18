@@ -62,10 +62,10 @@ export async function createTerminalsForTree(
 	projectPath: string,
 	projectId: string,
 	projectName: string,
+	tabId: string,
 	tabLabel: string,
 	shell?: string,
 ): Promise<SplitNode> {
-	// Editor leaves never spawn; nothing to do when no terminal leaves remain.
 	const leaves = collectLeaves(node).filter((leaf) => leaf.kind !== "editor");
 	if (leaves.length === 0) return node;
 
@@ -80,7 +80,7 @@ export async function createTerminalsForTree(
 					window.connexio.terminal.create(projectPath, shell, {
 						projectId,
 						projectName,
-						tabId: leaf.id,
+						tabId,
 						paneId: leaf.id,
 						tabLabel: `${tabLabel} (split)`,
 					}),

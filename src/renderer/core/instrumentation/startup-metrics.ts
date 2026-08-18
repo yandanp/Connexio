@@ -1,4 +1,4 @@
-import { observeTerminalData } from "../api/terminal-event-bus";
+import { observeTerminalData, onTerminalExit } from "../api/terminal-event-bus";
 
 // ─── Instrumentation ─────────────────────────────────────────────────────────
 
@@ -84,6 +84,13 @@ function processPrematureOutput(terminalId: string, startedAtMs: number): void {
 // Global first-output observer — registered once at module import without
 // consuming buffered terminal output before its renderer mounts.
 observeTerminalData((terminalId) => recordFirstOutput(terminalId));
+
+onTerminalExit((terminalId) => {
+	spawnStarts.delete(terminalId);
+	spawnCompleted.delete(terminalId);
+	prematureOutputs.delete(terminalId);
+	recordedFirstOutput.delete(terminalId);
+});
 
 export function resetMetrics(): void {
 	phaseStarts.clear();

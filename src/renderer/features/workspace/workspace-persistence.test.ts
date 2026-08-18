@@ -84,7 +84,7 @@ describe("createTerminalsForTree", () => {
 			},
 		);
 		const tree = makeTreeWithLeaves(8);
-		const result = await createTerminalsForTree(tree, "/p", "pid", "pn", "tab");
+		const result = await createTerminalsForTree(tree, "/p", "pid", "pn", "tab-id", "tab");
 		expect(peak).toBeGreaterThan(1); // genuinely parallel, not serial
 		expect(peak).toBeLessThanOrEqual(SPAWN_POOL_LIMIT);
 		expect(terminalCreate).toHaveBeenCalledTimes(8);
@@ -102,7 +102,7 @@ describe("createTerminalsForTree", () => {
 			},
 		);
 		const tree = makeTreeWithLeaves(5);
-		const result = await createTerminalsForTree(tree, "/p", "pid", "pn", "tab");
+		const result = await createTerminalsForTree(tree, "/p", "pid", "pn", "tab-id", "tab");
 		expect(terminalCreate).toHaveBeenCalledTimes(5); // failed one still ran
 		const leaves = collectLeaves(result);
 		expect(leaves.find((l) => l.id === "l3")?.terminalId).toBeNull();
@@ -121,12 +121,12 @@ describe("createTerminalsForTree", () => {
 				{ type: "leaf", id: "ed-1", kind: "editor", terminalId: null, filePath: "/a/b.ts" },
 			],
 		};
-		const result = await createTerminalsForTree(tree, "/p", "pid", "pn", "tab");
+		const result = await createTerminalsForTree(tree, "/p", "pid", "pn", "tab-id", "tab");
 		expect(terminalCreate).toHaveBeenCalledTimes(1); // editor never spawns
 		expect(terminalCreate).toHaveBeenCalledWith("/p", undefined, {
 			projectId: "pid",
 			projectName: "pn",
-			tabId: "term-1",
+			tabId: "tab-id",
 			paneId: "term-1",
 			tabLabel: "tab (split)",
 		});

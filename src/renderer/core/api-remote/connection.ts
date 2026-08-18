@@ -66,7 +66,7 @@ export interface InitState {
 // Terminal data listeners
 type TerminalDataCallback = (id: string, data: string) => void;
 export const terminalDataListeners = new Set<TerminalDataCallback>();
-const terminalExitListeners = new Set<(id: string) => void>();
+export const terminalExitListeners = new Set<(id: string) => void>();
 
 // Pending command responses
 type PendingResolve = (value: any) => void;

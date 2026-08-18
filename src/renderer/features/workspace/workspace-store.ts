@@ -491,17 +491,12 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		const tabs = workspaceTabs[projectId] || [];
 		const tab = tabs.find((t) => t.id === tabId);
 		if (!tab) return;
-
 		const project = projects.find((p) => p.id === projectId);
 		if (!project) return;
-
-		// Validate target exists if already split
 		if (tab.splitLayout) {
 			const target = findNode(tab.splitLayout.root, paneId);
 			if (!target) return;
 		}
-
-		// Create new terminal
 		const newPaneId = uuid();
 		let newTerminalId: string;
 		try {
@@ -509,7 +504,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 				window.connexio.terminal.create(project.path, tab.shell, {
 					projectId,
 					projectName: project.name,
-					tabId: newPaneId,
+					tabId,
+					paneId: newPaneId,
 					tabLabel: `${tab.label} (split)`,
 				}),
 			);
@@ -541,7 +537,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 			// First split — wrap existing terminal + new leaf
 			const existingLeaf: SplitLeaf = {
 				type: "leaf",
-				id: uuid(),
+				id: tabId,
 				kind: "terminal",
 				terminalId: tab.terminalId,
 			};
@@ -589,7 +585,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 				window.connexio.terminal.create(project.path, undefined, {
 					projectId,
 					projectName: project.name,
-					tabId: newPaneId,
+					tabId,
+					paneId: newPaneId,
 					tabLabel: `${tab.label} (terminal)`,
 				}),
 			);
@@ -954,7 +951,9 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 			registerPhaseComplete("workspace-structure-restored");
 		} catch (error) {
 			console.error("Failed to restore workspace:", error);
+			_workspaceRestored = false;
 			set({ isRestoring: false });
+			registerPhaseComplete("workspace-structure-restored");
 		}
 	},
 

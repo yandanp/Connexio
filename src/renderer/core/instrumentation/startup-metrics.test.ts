@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../api/terminal-event-bus", () => ({
-	observeTerminalData: vi.fn(() => () => {}),
+const { observeTerminalData, onTerminalExit } = vi.hoisted(() => ({
+	observeTerminalData: vi.fn<(callback: (terminalId: string, data: string) => void) => () => void>(
+		() => () => {},
+	),
+	onTerminalExit: vi.fn<(callback: (terminalId: string) => void) => () => void>(() => () => {}),
 }));
-
-import { observeTerminalData } from "../api/terminal-event-bus";
+vi.mock("../api/terminal-event-bus", () => ({ observeTerminalData, onTerminalExit }));
 import {
 	getStartupMetrics,
 	notifyTerminalMounted,
@@ -16,10 +18,13 @@ import {
 	setSpawnStart,
 } from "./startup-metrics";
 
-// The module observes live terminal data once at module scope; retrieve that
-// callback so tests can simulate output without importing Tauri APIs.
 const emitTerminalData = () => {
-	const calls = vi.mocked(observeTerminalData).mock.calls;
+	const calls = observeTerminalData.mock.calls;
+	return calls[calls.length - 1][0];
+};
+
+const emitTerminalExit = () => {
+	const calls = onTerminalExit.mock.calls;
 	return calls[calls.length - 1][0];
 };
 
@@ -235,5 +240,21 @@ describe("startup-metrics", () => {
 		const metrics = getStartupMetrics();
 		expect(metrics.outputStats.count).toBe(1);
 		expect(metrics.outputStats.min).toBeGreaterThan(0);
+	});
+
+	it("releases terminal bookkeeping after exit so a reused id can be measured again", () => {
+		registerSpawnStart("reused-id");
+		registerSpawnComplete("reused-id");
+		emitTerminalData()("reused-id", "first output");
+		const onExit = emitTerminalExit();
+		if (!onExit) throw new Error("expected terminal exit subscription");
+		onExit("reused-id");
+
+		registerSpawnStart("reused-id");
+		registerSpawnComplete("reused-id");
+		emitTerminalData()("reused-id", "second output");
+
+		expect(getStartupMetrics().spawnStats.count).toBe(2);
+		expect(getStartupMetrics().outputStats.count).toBe(2);
 	});
 });

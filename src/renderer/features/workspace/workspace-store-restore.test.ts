@@ -233,4 +233,27 @@ describe("restoreWorkspace (lazy)", () => {
 		expect(useWorkspaceStore.getState().isRestoring).toBe(false);
 		expect(useWorkspaceStore.getState().workspaceTabs).toEqual({});
 	});
+
+	it("retries restoration after a transient workspace-state failure", async () => {
+		const getState = vi
+			.fn<() => Promise<WorkspaceState | null>>()
+			.mockRejectedValueOnce(new Error("temporary workspace read failure"))
+			.mockResolvedValueOnce(makeSavedState());
+		Reflect.set(globalThis, "window", {
+			connexio: {
+				terminal: { create: terminalCreate, close: vi.fn(async () => {}) },
+				workspace: { getState, saveState: async () => {} },
+			},
+		} as unknown as Window);
+		const { useProjectsStore, useWorkspaceStore } = await importStores();
+		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
+
+		await useWorkspaceStore.getState().restoreWorkspace();
+		expect(registerPhaseComplete).toHaveBeenCalledWith("workspace-structure-restored");
+		expect(useWorkspaceStore.getState().isRestoring).toBe(false);
+
+		await useWorkspaceStore.getState().restoreWorkspace();
+		expect(getState).toHaveBeenCalledTimes(2);
+		expect(useWorkspaceStore.getState().workspaceTabs["proj-1"]).toHaveLength(3);
+	});
 });

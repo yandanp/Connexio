@@ -67,7 +67,10 @@ pub(super) fn listen_terminal_events(app: &AppHandle, state: Arc<StdMutex<Remote
     let _exit_listener = app.listen("terminal:exit", move |event| {
         let payload = event.payload();
         if let Ok(term_id) = serde_json::from_str::<String>(payload) {
-            let s = exit_state.lock().unwrap();
+            let mut s = exit_state.lock().unwrap();
+            // Retire any buffered output so a reused terminal id never
+            // receives stale data from its previous incarnation.
+            s.output_buffers.remove(&term_id);
             let msg = ServerMessage::TermExit { id: term_id };
             s.broadcast(&msg.to_json());
         }

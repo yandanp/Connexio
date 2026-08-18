@@ -1,5 +1,5 @@
 import type { SSHConnection } from "@shared/types";
-import { send, sendCommand, terminalDataListeners } from "./connection";
+import { send, sendCommand, terminalDataListeners, terminalExitListeners } from "./connection";
 
 // ─── Terminal API ────────────────────────────────────────────────────────────
 
@@ -69,5 +69,13 @@ export const terminal = {
 		};
 		terminalDataListeners.add(listener);
 		return () => terminalDataListeners.delete(listener);
+	},
+
+	onExit: (callback: (id: string) => void): (() => void) => {
+		const listener = (id: string) => {
+			callback(id);
+		};
+		terminalExitListeners.add(listener);
+		return () => terminalExitListeners.delete(listener);
 	},
 };

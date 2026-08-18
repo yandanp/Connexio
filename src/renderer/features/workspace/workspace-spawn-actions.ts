@@ -23,7 +23,10 @@ import type { StoreApi } from "zustand";
 import type { WorkspaceStore } from "./workspace-store";
 import { useProjectsStore } from "../projects";
 import { useSettingsStore } from "../../core/stores/settingsStore";
-import { registerPhaseStart } from "../../core/instrumentation/startup-metrics";
+import {
+	registerPhaseComplete,
+	registerPhaseStart,
+} from "../../core/instrumentation/startup-metrics";
 import { createTerminalWithTiming } from "./terminal-spawn";
 import { collectLeaves, findNode } from "./split-layout";
 import type { SplitLeaf, SplitNode } from "./split-layout";
@@ -267,9 +270,9 @@ let firstSpawnStartMarked = false;
 /** ensureTerminalSpawned body — guarded by the in-flight map for idempotency. */
 async function runTabSpawn(get: Get, set: Set, projectId: string, tabId: string): Promise<void> {
 	const key = `${projectId}:${tabId}`;
-	// No pending leaves (or project gone) → resolve immediately, no state churn.
 	if (collectSpawnTargets(get(), projectId, tabId).length === 0) return;
-	if (!firstSpawnStartMarked) {
+	const completesFirstSpawnPhase = !firstSpawnStartMarked;
+	if (completesFirstSpawnPhase) {
 		firstSpawnStartMarked = true;
 		registerPhaseStart("first-terminal-spawn-start");
 	}
@@ -278,6 +281,7 @@ async function runTabSpawn(get: Get, set: Set, projectId: string, tabId: string)
 		const targets = collectSpawnTargets(get(), projectId, tabId);
 		if (targets.length > 0) await spawnTargets(get, set, projectId, tabId, key, targets);
 	} finally {
+		if (completesFirstSpawnPhase) registerPhaseComplete("first-terminal-spawn-start");
 		collapsedSurvivors.delete(key); // stale survivor markers after batch settles
 		set((state) => {
 			if (!(key in state.spawningTabs)) return {};

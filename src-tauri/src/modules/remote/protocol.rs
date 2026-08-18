@@ -90,6 +90,8 @@ pub struct TerminalContextMsg {
     pub project_name: String,
     pub tab_id: String,
     pub tab_label: String,
+    #[serde(default)]
+    pub pane_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
@@ -106,6 +108,7 @@ impl From<TerminalContextMsg> for crate::modules::pty::TerminalContext {
             project_name: msg.project_name,
             tab_id: msg.tab_id,
             tab_label: msg.tab_label,
+            pane_id: msg.pane_id,
         }
     }
 }
@@ -146,5 +149,39 @@ pub enum ServerMessage {
 impl ServerMessage {
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ClientMessage, TerminalContextMsg};
+
+    #[test]
+    fn preserves_pane_id_when_deserializing_terminal_context() {
+        let message: ClientMessage = serde_json::from_str(
+			r#"{"ch":"cmd_create_terminal","project_path":"/repo","shell":null,"context":{"projectId":"project-1","projectName":"Project 1","tabId":"tab-1","tabLabel":"Split","paneId":"pane-2"}}"#,
+		)
+		.expect("terminal create message should deserialize");
+        let ClientMessage::CmdCreateTerminal {
+            context: Some(context),
+            ..
+        } = message
+        else {
+            panic!("expected a terminal create context");
+        };
+
+        assert_eq!(context.pane_id.as_deref(), Some("pane-2"));
+        let pty_context: crate::modules::pty::TerminalContext = context.into();
+        assert_eq!(pty_context.pane_id.as_deref(), Some("pane-2"));
+    }
+
+    #[test]
+    fn accepts_legacy_terminal_context_without_pane_id() {
+        let context: TerminalContextMsg = serde_json::from_str(
+			r#"{"projectId":"project-1","projectName":"Project 1","tabId":"tab-1","tabLabel":"Terminal"}"#,
+		)
+		.expect("legacy context should deserialize");
+
+        assert_eq!(context.pane_id, None);
     }
 }

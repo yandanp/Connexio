@@ -124,10 +124,11 @@ fn handle_client_message(
             shell,
             context,
         } => {
-            // Remote resume: if a terminal already exists for this project/tab,
-            // return the existing terminal ID instead of spawning a duplicate.
+            // Remote resume identifies every terminal leaf, not just its parent tab.
             if let Some(ref ctx) = context {
-                if let Some(existing_id) = pty.find_by_context(&ctx.project_id, &ctx.tab_id) {
+                if let Some(existing_id) =
+                    pty.find_by_context(&ctx.project_id, &ctx.tab_id, ctx.pane_id.as_deref())
+                {
                     let msg = ServerMessage::TermCreated {
                         req_id,
                         id: existing_id,
@@ -155,7 +156,9 @@ fn handle_client_message(
             context,
         } => {
             if let Some(ref ctx) = context {
-                if let Some(existing_id) = pty.find_by_context(&ctx.project_id, &ctx.tab_id) {
+                if let Some(existing_id) =
+                    pty.find_by_context(&ctx.project_id, &ctx.tab_id, ctx.pane_id.as_deref())
+                {
                     let msg = ServerMessage::TermCreated {
                         req_id,
                         id: existing_id,

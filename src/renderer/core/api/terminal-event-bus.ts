@@ -40,8 +40,10 @@ listen<[string, string]>("terminal:data", (event) => {
 });
 
 listen<string>("terminal:exit", (event) => {
-	for (const cb of terminalExitListeners) {
-		cb(event.payload);
+	terminalDataBuffer.delete(event.payload);
+	scheduledBufferFlushes.delete(event.payload);
+	for (const callback of terminalExitListeners) {
+		callback(event.payload);
 	}
 });
 

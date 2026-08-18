@@ -95,4 +95,18 @@ describe("terminal event bus", () => {
 
 		expect(rendered).toEqual(["early prompt"]);
 	});
+
+	it("discards buffered output when its terminal exits before mounting", async () => {
+		const bus = await importBus();
+		listeners.get("terminal:data")?.({ payload: ["terminal-1", "abandoned output"] });
+		listeners.get("terminal:exit")?.({ payload: "terminal-1" });
+
+		expect(bus.terminalDataBuffer.has("terminal-1")).toBe(false);
+
+		const rendered: string[] = [];
+		bus.onTerminalData("terminal-1", (_terminalId, data) => rendered.push(data));
+		await vi.advanceTimersByTimeAsync(500);
+
+		expect(rendered).toEqual([]);
+	});
 });

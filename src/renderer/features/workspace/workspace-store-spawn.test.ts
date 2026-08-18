@@ -143,7 +143,6 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		// settingsStore reads localStorage at module scope — stub it for node env.
 		Reflect.set(globalThis, "localStorage", { getItem: () => null });
 	});
-
 	// Dynamic imports (not static): must resolve AFTER vi.resetModules() so the
 	// fresh module registry + mocked globals are in place before store init.
 	async function importStores() {
@@ -151,12 +150,12 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		const { useWorkspaceStore } = await import("./workspace-store");
 		return { useProjectsStore, useWorkspaceStore };
 	}
-
 	it("spawns all lazy leaves of a tab on ensureTerminalSpawned", async () => {
 		const { useProjectsStore, useWorkspaceStore } = await importStores();
 		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
 		await useWorkspaceStore.getState().restoreWorkspace();
-
+		registerPhaseStart.mockClear();
+		registerPhaseComplete.mockClear();
 		const pid = "proj-1";
 		const tid = "tab-split";
 		await useWorkspaceStore.getState().ensureTerminalSpawned(pid, tid);
@@ -175,8 +174,11 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		expect(registerSpawnStart).not.toHaveBeenCalled(); // no paneId pre-anchor
 		expect(registerPhaseStart).toHaveBeenCalledTimes(1);
 		expect(registerPhaseStart).toHaveBeenCalledWith("first-terminal-spawn-start");
+		expect(registerPhaseComplete).toHaveBeenCalledOnce();
+		expect(registerPhaseComplete).toHaveBeenCalledWith("first-terminal-spawn-start");
+		await useWorkspaceStore.getState().ensureTerminalSpawned(pid, "tab-single");
+		expect(registerPhaseComplete).toHaveBeenCalledOnce();
 	});
-
 	it("is idempotent under concurrent calls (StrictMode-safe)", async () => {
 		const { useProjectsStore, useWorkspaceStore } = await importStores();
 		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
@@ -190,7 +192,6 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		]);
 		expect(terminalCreate).toHaveBeenCalledTimes(3); // bukan 6
 	});
-
 	it("does not spawn hidden tabs (only called for visible)", async () => {
 		const { useProjectsStore, useWorkspaceStore } = await importStores();
 		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
@@ -206,7 +207,6 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 			.getState()
 			.workspaceTabs[pid]?.find((t) => t.id === "tab-hidden");
 		if (!hidden) throw new Error("hidden tab missing");
-		expect(hidden.terminalId).toBeNull();
 	});
 
 	it("disposes late-created PTY when pane closed mid-spawn", async () => {

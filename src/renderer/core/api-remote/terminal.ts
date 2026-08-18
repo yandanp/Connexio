@@ -8,6 +8,7 @@ interface TerminalContext {
 	projectName: string;
 	tabId: string;
 	tabLabel: string;
+	paneId?: string;
 }
 
 export const terminal = {

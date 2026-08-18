@@ -6,8 +6,6 @@ use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
-
-/// Terminal session entry
 pub(crate) struct PtySession {
     pub(crate) writer: Box<dyn Write + Send>,
     pub(crate) master: Box<dyn MasterPty + Send>,
@@ -20,15 +18,12 @@ pub(crate) enum TerminalSession {
     Local(PtySession),
     Ssh(SshTerminalSession),
 }
-
 pub(crate) struct SshTerminalSession {
     pub(crate) channel: Arc<Mutex<Channel>>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
     pub(crate) context: Option<TerminalContext>,
 }
-
-/// Global PTY manager state
 pub struct PtyManager {
     pub(crate) sessions: Mutex<HashMap<String, TerminalSession>>,
     counter: Mutex<u32>,
@@ -41,27 +36,34 @@ impl PtyManager {
             counter: Mutex::new(0),
         }
     }
-
-    pub(crate) fn find_by_context(&self, project_id: &str, tab_id: &str) -> Option<String> {
+    pub(crate) fn find_by_context(
+        &self,
+        project_id: &str,
+        tab_id: &str,
+        pane_id: Option<&str>,
+    ) -> Option<String> {
         let sessions = self.sessions.lock().unwrap();
+        let requested_pane_id = pane_id.unwrap_or(tab_id);
         sessions.iter().find_map(|(id, session)| {
             let context = match session {
                 TerminalSession::Local(s) => s.context.as_ref(),
                 TerminalSession::Ssh(s) => s.context.as_ref(),
             }?;
-            if context.project_id == project_id && context.tab_id == tab_id {
+            let existing_pane_id = context.pane_id.as_deref().unwrap_or(&context.tab_id);
+            if context.project_id == project_id
+                && context.tab_id == tab_id
+                && existing_pane_id == requested_pane_id
+            {
                 Some(id.clone())
             } else {
                 None
             }
         })
     }
-
     pub(crate) fn session_ids(&self) -> Vec<String> {
         self.sessions.lock().unwrap().keys().cloned().collect()
     }
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalContext {
@@ -69,9 +71,8 @@ pub struct TerminalContext {
     pub project_name: String,
     pub tab_id: String,
     pub tab_label: String,
+    pub pane_id: Option<String>,
 }
-
-/// Create a new terminal session
 #[tauri::command]
 pub fn terminal_create(
     app: AppHandle,
@@ -483,8 +484,6 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
     }
     Ok(())
 }
-
-/// Close/kill a terminal
 #[tauri::command]
 pub fn terminal_close(app: AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<PtyManager>();
@@ -496,15 +495,11 @@ pub fn terminal_close(app: AppHandle, id: String) -> Result<(), String> {
     }
     Ok(())
 }
-
-/// Kill all terminals (called on app exit)
 pub fn kill_all(app: &AppHandle) {
     let state = app.state::<PtyManager>();
     let mut sessions = state.sessions.lock().unwrap();
     sessions.clear();
 }
-
-/// Get default shell for the current platform
 fn default_shell() -> String {
     #[cfg(target_os = "windows")]
     {

@@ -1,33 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@shared/types";
-
 // ─── Test-local spies (cross-task contract pattern from the task brief) ────────
-
 const terminalCreate = vi.fn(
 	async (_path: string, _shell?: string, ctx?: Record<string, unknown>) =>
 		`term-${String(ctx?.paneId ?? Math.random())}`,
 );
 const terminalClose = vi.fn(async () => {});
-
 // The store reads the runtime global `window.connexio.*`; mocking the barrel
 // keeps the module graph free of @tauri-apps imports in the node test env.
 vi.mock("../../core/api", () => ({
 	terminal: { create: terminalCreate, close: terminalClose },
 }));
-
 // startup-metrics transitively imports @tauri-apps — mock it and spy on the
 // spawn metric registration this task must emit.
+const registerPhaseStart = vi.fn();
 const registerPhaseComplete = vi.fn();
 const registerSpawnStart = vi.fn();
 const registerSpawnComplete = vi.fn();
 const setSpawnStart = vi.fn();
 vi.mock("../../core/instrumentation/startup-metrics", () => ({
+	registerPhaseStart,
 	registerPhaseComplete,
 	registerSpawnStart,
 	registerSpawnComplete,
 	setSpawnStart,
 }));
-
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
 
 function makeProject(id: string): Project {
@@ -126,6 +123,7 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		terminalCreate.mockClear();
 		terminalClose.mockClear();
 		registerPhaseComplete.mockClear();
+		registerPhaseStart.mockClear();
 		registerSpawnStart.mockClear();
 		registerSpawnComplete.mockClear();
 		setSpawnStart.mockClear();
@@ -175,6 +173,8 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		expect(setSpawnStart).toHaveBeenCalledWith("term-pane-1", expect.any(Number));
 		expect(registerSpawnComplete).toHaveBeenCalledWith("term-pane-1");
 		expect(registerSpawnStart).not.toHaveBeenCalled(); // no paneId pre-anchor
+		expect(registerPhaseStart).toHaveBeenCalledTimes(1);
+		expect(registerPhaseStart).toHaveBeenCalledWith("first-terminal-spawn-start");
 	});
 
 	it("is idempotent under concurrent calls (StrictMode-safe)", async () => {

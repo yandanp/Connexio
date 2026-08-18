@@ -23,7 +23,11 @@ import type { StoreApi } from "zustand";
 import type { WorkspaceStore } from "./workspace-store";
 import { useProjectsStore } from "../projects";
 import { useSettingsStore } from "../../core/stores/settingsStore";
-import { registerSpawnComplete, setSpawnStart } from "../../core/instrumentation/startup-metrics";
+import {
+	registerPhaseStart,
+	registerSpawnComplete,
+	setSpawnStart,
+} from "../../core/instrumentation/startup-metrics";
 import { collectLeaves, findNode } from "./split-layout";
 import type { SplitLeaf, SplitNode } from "./split-layout";
 import { runWithSpawnLimit } from "./spawn-pool";
@@ -265,11 +269,17 @@ async function runPaneRetrySpawn(
 		});
 	}
 }
+/** Marks the startup phase once: the first real spawn batch of the session. */
+let firstSpawnStartMarked = false;
 /** ensureTerminalSpawned body — guarded by the in-flight map for idempotency. */
 async function runTabSpawn(get: Get, set: Set, projectId: string, tabId: string): Promise<void> {
 	const key = `${projectId}:${tabId}`;
 	// No pending leaves (or project gone) → resolve immediately, no state churn.
 	if (collectSpawnTargets(get(), projectId, tabId).length === 0) return;
+	if (!firstSpawnStartMarked) {
+		firstSpawnStartMarked = true;
+		registerPhaseStart("first-terminal-spawn-start");
+	}
 	set((state) => ({ spawningTabs: { ...state.spawningTabs, [key]: true } }));
 	try {
 		const targets = collectSpawnTargets(get(), projectId, tabId);
@@ -290,6 +300,7 @@ export function createSpawnActions(set: Set, get: Get): SpawnActions {
 	return {
 		ensureTerminalSpawned: (projectId: string, tabId: string): Promise<void> => {
 			const key = `${projectId}:${tabId}`;
+
 			const pending = inFlight.get(key);
 			if (pending) return pending; // idempotent: share the same promise
 			const promise = runTabSpawn(get, set, projectId, tabId).finally(() => {

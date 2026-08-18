@@ -11,6 +11,7 @@ import { isRemoteMode } from "./core/tauri-shim";
 import { useNotificationStore } from "./core/stores/notificationStore";
 import { useSettingsStore } from "./core/stores/settingsStore";
 import { useThemeStore } from "./core/stores/themeStore";
+import { registerPhaseComplete, registerPhaseStart } from "./core/instrumentation/startup-metrics";
 import { NotificationToast } from "./features/notifications";
 import { Sidebar, useProjectsStore } from "./features/projects";
 import { RemoteLoginGate, RemoteMobileShell } from "./features/remote";
@@ -27,6 +28,9 @@ const UI_FONT_SIZE_MAP = {
 function useIsRemoteMobile() {
 	return isRemoteMode() && window.matchMedia("(max-width: 768px)").matches;
 }
+
+let startupPhasesStarted = false;
+let projectsLoadedPhaseCompleted = false;
 
 export default function App() {
 	const { loadProjects, activeProjectId } = useProjectsStore();
@@ -57,9 +61,18 @@ export default function App() {
 	useEffect(() => {
 		let mounted = true;
 		const init = async () => {
+			if (!startupPhasesStarted) {
+				startupPhasesStarted = true;
+				registerPhaseStart("app-mount");
+				registerPhaseStart("projects-loaded");
+			}
 			if (!mounted) return;
 			await loadProjects();
 			if (!mounted) return;
+			if (!projectsLoadedPhaseCompleted) {
+				projectsLoadedPhaseCompleted = true;
+				registerPhaseComplete("projects-loaded");
+			}
 			await restoreWorkspace();
 			loadTheme();
 			loadThemes();

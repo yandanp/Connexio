@@ -11,8 +11,8 @@ import { useTerminalResizeV2 } from "../../core/hooks/use-terminal-resize-v2";
 import { useSettingsStore } from "../../core/stores/settingsStore";
 import { useThemeStore } from "../../core/stores/themeStore";
 import TerminalContextMenu from "../../core/ui/TerminalContextMenu";
+import { notifyTerminalMounted } from "../../core/instrumentation/startup-metrics";
 import "@xterm/xterm/css/xterm.css";
-
 interface Props {
 	terminalId: string;
 	isVisible?: boolean;
@@ -174,7 +174,7 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 		xterm.loadAddon(new WebLinksAddon());
 
 		xterm.open(containerRef.current);
-
+		notifyTerminalMounted(terminalId);
 		// --- Paste handling: bypass xterm.js entirely, use Rust backend ---
 		// WebView2 has a bug where clipboard image data is not available in
 		// paste events. We block ALL xterm paste handling and do it ourselves.

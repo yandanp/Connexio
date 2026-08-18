@@ -1,5 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface Props {
 	title: string;
@@ -47,7 +48,10 @@ export default function ConfirmDialog({
 				? "bg-orange-600 hover:bg-orange-700 text-white"
 				: "bg-connexio-accent hover:bg-connexio-accent-hover text-white";
 
-	return (
+	// Portalled to document.body: callers render this inside sidebars whose
+	// transform/backdrop-filter create a containing block that would otherwise
+	// pin the dialog off-center.
+	return createPortal(
 		<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
 			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[360px] shadow-2xl overflow-hidden">
 				{/* Header */}
@@ -62,33 +66,36 @@ export default function ConfirmDialog({
 									: "text-connexio-accent"
 						}
 					/>
-					<h3 className="text-sm font-semibold text-connexio-text">{title}</h3>
+					<h3 className="text-sm font-semibold text-connexio-text flex-1">{title}</h3>
 				</div>
 
 				{/* Body */}
 				<div className="px-4 py-3">
-					<p className="text-xs text-connexio-text-secondary leading-relaxed">{message}</p>
+					<p className="text-xs text-connexio-text-secondary whitespace-pre-line leading-relaxed">
+						{message}
+					</p>
 				</div>
 
-				{/* Footer */}
-				<div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-connexio-border bg-connexio-bg-tertiary/50">
+				{/* Actions */}
+				<div className="flex justify-end gap-2 px-4 py-3 border-t border-connexio-border bg-connexio-bg">
 					<button
-						onClick={onCancel}
-						className="px-3 py-1.5 text-xs font-medium text-connexio-text-secondary bg-connexio-bg-tertiary border border-connexio-border rounded hover:bg-connexio-bg hover:text-connexio-text transition-colors"
 						type="button"
+						onClick={onCancel}
+						className="px-3 py-1.5 text-xs font-medium text-connexio-text-secondary rounded-lg hover:bg-white/[0.04] transition-colors"
 					>
 						{cancelLabel}
 					</button>
 					<button
 						ref={confirmBtnRef}
-						onClick={onConfirm}
-						className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${confirmBtnClass}`}
 						type="button"
+						onClick={onConfirm}
+						className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${confirmBtnClass}`}
 					>
 						{confirmLabel}
 					</button>
 				</div>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }

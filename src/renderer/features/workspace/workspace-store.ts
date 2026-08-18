@@ -53,7 +53,12 @@ export interface WorkspaceStore extends SpawnActions {
 	paneErrors: Record<string, string>;
 
 	// Actions
-	openTerminalTab: (projectId: string, label?: string, shell?: string) => Promise<void>;
+	openTerminalTab: (
+		projectId: string,
+		label?: string,
+		shell?: string,
+		options?: { cwd?: string },
+	) => Promise<void>;
 	openCommandTerminalTab: (projectId: string, label: string, command: string[]) => Promise<void>;
 	openSshTerminalTab: (
 		projectId: string,
@@ -148,8 +153,12 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 	activeTabIds: {},
 	spawningTabs: {},
 	paneErrors: {},
-	// === Tab Actions ===
-	openTerminalTab: async (projectId: string, label?: string, shell?: string) => {
+	openTerminalTab: async (
+		projectId: string,
+		label?: string,
+		shell?: string,
+		options?: { cwd?: string },
+	) => {
 		const { projects } = useProjectsStore.getState();
 		const { workspaceTabs, activeTabIds } = get();
 		const project = projects.find((p) => p.id === projectId);
@@ -157,10 +166,12 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		const existingTabs = workspaceTabs[projectId] || [];
 		const tabLabel = label || `Terminal ${existingTabs.length + 1}`;
 		const newTabId = uuid();
+		// Worktree terminals open with cwd inside the worktree checkout.
+		const terminalPath = options?.cwd || project.path;
 		let terminalId: string;
 		try {
 			terminalId = await createTerminalWithLimit(() =>
-				window.connexio.terminal.create(project.path, shell, {
+				window.connexio.terminal.create(terminalPath, shell, {
 					projectId,
 					projectName: project.name,
 					tabId: newTabId,

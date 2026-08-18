@@ -6,9 +6,10 @@ import { slugify } from "./slugify";
 
 interface Props {
 	projectPath: string;
+	/** Parent project id — the worktree terminal opens as its tab. */
+	projectId: string;
 	onClose: () => void;
 }
-
 /** Orca-style shortcode map — typing `:ro` suggests :rocket:. */
 const EMOJI_SHORTCODES: Record<string, string> = {
 	":rocket:": "🚀",
@@ -24,8 +25,7 @@ const EMOJI_SHORTCODES: Record<string, string> = {
 	":tada:": "🎉",
 	":star:": "⭐",
 };
-
-export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
+export default function CreateWorktreeModal({ projectPath, projectId, onClose }: Props) {
 	const [name, setName] = useState("");
 	const [fromRef, setFromRef] = useState("HEAD");
 	const [branchOverride, setBranchOverride] = useState("");
@@ -73,10 +73,16 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 		setCreating(true);
 		setError("");
 		try {
-			await window.connexio.worktree.create(projectPath, trimmed, {
+			const entry = await window.connexio.worktree.create(projectPath, trimmed, {
 				fromRef: fromRef.trim() || "HEAD",
 				branchOverride: branchOverride.trim() || undefined,
 			});
+			// Open a terminal scoped to the new worktree right away — as a tab
+			// of the parent project, matching Orca's instant-open flow.
+			const wsMod = await import("../workspace/workspace-store");
+			await wsMod.useWorkspaceStore
+				.getState()
+				.openTerminalTab(projectId, entry.name, undefined, { cwd: entry.path });
 			onClose();
 		} catch (err) {
 			setError(String(err));

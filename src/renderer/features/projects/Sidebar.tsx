@@ -29,7 +29,6 @@ export default function Sidebar() {
 		sidebarCollapsed,
 		setSearchQuery,
 		setActiveProject,
-		addProject,
 		deleteProject,
 		renameProject,
 		toggleSidebar,
@@ -64,14 +63,17 @@ export default function Sidebar() {
 
 	// Worktree creation dialog — opened via the connexio:create-worktree event
 	// dispatched from ProjectWorktrees (and future entry points).
-	const [createWorktreeFor, setCreateWorktreeFor] = useState<{ path: string; name: string } | null>(
-		null,
-	);
+	const [createWorktreeFor, setCreateWorktreeFor] = useState<{
+		id: string;
+		path: string;
+		name: string;
+	} | null>(null);
 	useEffect(() => {
 		const openCreate = (e: Event) => {
 			const path = (e as CustomEvent<string>).detail;
 			const project = projects.find((p) => p.path === path);
-			setCreateWorktreeFor({ path, name: project?.name || "" });
+			if (!project) return;
+			setCreateWorktreeFor({ id: project.id, path, name: project.name });
 		};
 		window.addEventListener("connexio:create-worktree", openCreate);
 		return () => window.removeEventListener("connexio:create-worktree", openCreate);
@@ -394,9 +396,12 @@ export default function Sidebar() {
 												<ProjectWorktrees
 													projectPath={project.path}
 													projectName={project.name}
-													onOpenWorktree={(wtPath, wtName) => {
-														addProject(wtName, wtPath, project.group || "default");
-													}}
+													onOpenWorktree={(wtPath, wtName) =>
+														// Terminal scoped to the worktree, as a parent-project tab.
+														useWorkspaceStore
+															.getState()
+															.openTerminalTab(project.id, wtName, undefined, { cwd: wtPath })
+													}
 												/>
 											)}
 										</Fragment>
@@ -450,6 +455,7 @@ export default function Sidebar() {
 			{createWorktreeFor && (
 				<CreateWorktreeModal
 					projectPath={createWorktreeFor.path}
+					projectId={createWorktreeFor.id}
 					onClose={() => setCreateWorktreeFor(null)}
 				/>
 			)}

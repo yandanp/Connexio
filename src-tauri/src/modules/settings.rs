@@ -42,12 +42,20 @@ fn default_base_ref() -> String {
     "HEAD".to_string()
 }
 
-fn default_worktree_dir() -> String {
-    String::new() // empty = `<project>/.worktrees`
-}
-
 fn default_ui_font_size() -> String {
     "default".to_string()
+}
+
+pub fn default_worktree_dir() -> String {
+    // Default central workspace under the user home: <home>/.connexio/worktrees
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_default();
+    if home.is_empty() {
+        ".connexio/worktrees".to_string()
+    } else {
+        format!("{}{}.connexio{}worktrees", home, std::path::MAIN_SEPARATOR, std::path::MAIN_SEPARATOR)
+    }
 }
 
 impl Default for AppSettings {
@@ -62,7 +70,7 @@ impl Default for AppSettings {
             copy_on_select: false,
             webgl_renderer: true,
             ui_font_size: "default".to_string(),
-            worktree_dir: String::new(),
+            worktree_dir: default_worktree_dir(),
             branch_prefix: "connexio".to_string(),
             default_base_ref: "HEAD".to_string(),
         }

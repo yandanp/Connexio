@@ -52,7 +52,6 @@ export interface WorkspaceStore extends SpawnActions {
 	spawningTabs: Record<string, true>;
 	paneErrors: Record<string, string>;
 
-	// Actions
 	openTerminalTab: (
 		projectId: string,
 		label?: string,

@@ -161,8 +161,16 @@ pub fn parse_worktree_list(porcelain: &str, base_ref: &str) -> Vec<WorktreeEntry
     entries
 }
 
-// ─── Commands ────────────────────────────────────────────────────────────────
+/// A trimmed worktree dir that falls back to the default home workspace.
+fn default_if_empty(dir: &str) -> String {
+    if dir.is_empty() {
+        super::settings::default_worktree_dir()
+    } else {
+        dir.to_string()
+    }
+}
 
+ // ─── Commands ────────────────────────────────────────────────────────────────
 #[tauri::command]
 pub async fn worktree_create(
     app: tauri::AppHandle,
@@ -174,9 +182,9 @@ pub async fn worktree_create(
     // Read workflow settings on a blocking thread.
     let (central, prefix, base_default) = tokio::task::spawn_blocking(move || {
         let s = super::settings::settings_get(app);
-        let dir = s.worktree_dir.trim().to_string();
+        let dir = default_if_empty(s.worktree_dir.trim());
         (
-            if dir.is_empty() { None } else { Some(dir) },
+            Some(dir),
             if s.branch_prefix.trim().is_empty() {
                 "connexio".to_string()
             } else {

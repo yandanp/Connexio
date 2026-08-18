@@ -25,7 +25,7 @@ export default function WorkflowSettings({
 					<input
 						value={settings.worktreeDir}
 						onChange={(e) => onChange("worktreeDir", e.target.value)}
-						placeholder="Default: <project>/.worktrees"
+						placeholder="Default: <user home>/.connexio/worktrees"
 						className="field-soft flex-1 px-3 py-2 text-sm transition-colors"
 					/>
 					<button
@@ -40,10 +40,9 @@ export default function WorkflowSettings({
 					</button>
 				</div>
 				<p className="text-[10px] text-connexio-text-muted mt-1">
-					Where new worktrees are created. Empty keeps them inside each project (
-					<span className="font-mono">.worktrees</span>); setting a folder stores them centrally
-					under <span className="font-mono">&lt;folder&gt;/&lt;project-name&gt;</span> so the
-					original repo stays untouched.
+					Central workspace for all worktrees. Default is{" "}
+					<span className="font-mono">&lt;user home&gt;/ .connexio/worktrees</span>. Leave empty to
+					auto-create in the default location; set a folder path to override.
 				</p>
 			</div>
 

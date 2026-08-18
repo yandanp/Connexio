@@ -75,7 +75,22 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 	const confirmDelete = async () => {
 		if (!pendingDelete) return;
 		const { entry } = pendingDelete;
-		setPendingDelete(null);
+		try {
+			const ws = await import("../workspace/workspace-store");
+			const state = ws.useWorkspaceStore.getState();
+			for (const [pid, tabs] of Object.entries(state.workspaceTabs)) {
+				for (const tab of tabs) {
+					if (tab.label === entry.name) {
+						await ws.useWorkspaceStore.getState().closeTerminalTab(pid, tab.id);
+						// Wait for OS to release the directory lock on Windows.
+						await new Promise<void>((resolve) => setTimeout(resolve, 200));
+					}
+				}
+			}
+		} catch {
+			/* ignore close errors */
+		}
+
 		try {
 			const result = await window.connexio.worktree.delete(projectPath, entry.path, entry.branch);
 			if (result?.preservedBranch) {

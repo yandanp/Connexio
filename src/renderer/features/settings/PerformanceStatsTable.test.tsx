@@ -21,16 +21,12 @@ describe("PerformanceStatsTable", () => {
 		expect(markup).toContain("<ul");
 		expect(markup).toContain("app-mount");
 		expect(markup).toContain("12.4 ms");
+		const cellsFor = (row: string) =>
+			[...row.matchAll(/<td[^>]*>(.*?)<\/td>/g)].map((cell) => cell[1]);
 		const spawnRow = markup.match(/<tr[^>]*><th[^>]*>Spawn<\/th>(.*?)<\/tr>/)?.[1] ?? "";
 		const outputRow = markup.match(/<tr[^>]*><th[^>]*>First output<\/th>(.*?)<\/tr>/)?.[1] ?? "";
-		expect(spawnRow).toContain("4.2 ms");
-		expect(spawnRow).toContain("8.8 ms");
-		expect(spawnRow).toContain("14.1 ms");
-		expect(spawnRow).toContain("3 samples");
-		expect(outputRow).toContain("1.6 ms");
-		expect(outputRow).toContain("3.2 ms");
-		expect(outputRow).toContain("6.4 ms");
-		expect(outputRow).toContain("2 samples");
+		expect(cellsFor(spawnRow)).toEqual(["4.2 ms", "8.8 ms", "14.1 ms", "3 samples"]);
+		expect(cellsFor(outputRow)).toEqual(["1.6 ms", "3.2 ms", "6.4 ms", "2 samples"]);
 		expect(markup).toContain("95.7 ms");
 	});
 

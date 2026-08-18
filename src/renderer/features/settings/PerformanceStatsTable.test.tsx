@@ -9,7 +9,7 @@ const metrics: StartupMetrics = {
 		{ name: "projects-loaded", duration: 42.6 },
 	],
 	spawnStats: { min: 4.2, median: 8.8, max: 14.1, count: 3 },
-	outputStats: { min: 1.6, median: 3.2, max: 6.4, count: 3 },
+	outputStats: { min: 1.6, median: 3.2, max: 6.4, count: 2 },
 	firstTerminalReadyAt: 95.7,
 };
 
@@ -21,15 +21,16 @@ describe("PerformanceStatsTable", () => {
 		expect(markup).toContain("<ul");
 		expect(markup).toContain("app-mount");
 		expect(markup).toContain("12.4 ms");
-		expect(markup).toContain("Spawn");
-		expect(markup).toContain("4.2 ms");
-		expect(markup).toContain("8.8 ms");
-		expect(markup).toContain("14.1 ms");
-		expect(markup).toContain("First output");
-		expect(markup).toContain("1.6 ms");
-		expect(markup).toContain("3.2 ms");
-		expect(markup).toContain("6.4 ms");
-		expect(markup).toContain("3 samples");
+		const spawnRow = markup.match(/<tr[^>]*><th[^>]*>Spawn<\/th>(.*?)<\/tr>/)?.[1] ?? "";
+		const outputRow = markup.match(/<tr[^>]*><th[^>]*>First output<\/th>(.*?)<\/tr>/)?.[1] ?? "";
+		expect(spawnRow).toContain("4.2 ms");
+		expect(spawnRow).toContain("8.8 ms");
+		expect(spawnRow).toContain("14.1 ms");
+		expect(spawnRow).toContain("3 samples");
+		expect(outputRow).toContain("1.6 ms");
+		expect(outputRow).toContain("3.2 ms");
+		expect(outputRow).toContain("6.4 ms");
+		expect(outputRow).toContain("2 samples");
 		expect(markup).toContain("95.7 ms");
 	});
 

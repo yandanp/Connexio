@@ -102,6 +102,10 @@ export interface AppSettings {
 	copyOnSelect: boolean;
 	/** Central directory for worktrees; empty = `<project>/.worktrees`. */
 	worktreeDir: string;
+	/** Branch prefix for new worktree branches; default "connexio". */
+	branchPrefix: string;
+	/** Ref new worktrees start from by default; default "HEAD". */
+	defaultBaseRef: string;
 	webglRenderer: boolean;
 	uiFontSize: "small" | "default" | "large";
 }

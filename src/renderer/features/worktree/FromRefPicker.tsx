@@ -4,10 +4,9 @@ import type { GitBranchEntry } from "../../../shared/types";
 
 interface Props {
 	branches: GitBranchEntry[] | null;
-	fromRef: string;
+	fromRef: string | null;
 	onSelect: (ref: string) => void;
 }
-
 /**
  * Orca-style "Start From" picker: searchable branch list with a HEAD fast
  * path, current/remote markers, and free-form ref entry for SHAs.
@@ -31,7 +30,7 @@ export default function FromRefPicker({ branches, fromRef, onSelect }: Props) {
 				className="flex w-full items-center gap-2 rounded-lg border border-connexio-border bg-connexio-bg px-3 py-2 text-left text-xs text-connexio-text hover:border-connexio-accent/50 transition-colors"
 			>
 				<GitBranch size={12} className="flex-shrink-0 text-connexio-text-muted" />
-				<span className="flex-1 truncate font-mono">{fromRef}</span>
+				<span className="flex-1 truncate font-mono">{fromRef ?? "default (settings)"}</span>
 				<ChevronDown size={12} className="flex-shrink-0 text-connexio-text-muted" />
 			</button>
 
@@ -48,6 +47,18 @@ export default function FromRefPicker({ branches, fromRef, onSelect }: Props) {
 						/>
 					</div>
 					<div className="max-h-44 overflow-y-auto p-1">
+						{fromRef !== null && (
+							<button
+								type="button"
+								onClick={() => {
+									onSelect("");
+									setOpen(false);
+								}}
+								className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-connexio-bg-tertiary/60"
+							>
+								<span className="text-connexio-text-muted">Use workflow default</span>
+							</button>
+						)}
 						<button
 							type="button"
 							onClick={() => {

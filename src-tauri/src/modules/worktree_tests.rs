@@ -50,6 +50,8 @@ async fn worktree_create_adds_and_lists_and_deletes() {
         None,
         None,
         None,
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap();
@@ -88,6 +90,8 @@ async fn worktree_create_rejects_existing_directory() {
         None,
         None,
         None,
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap();
@@ -97,6 +101,8 @@ async fn worktree_create_rejects_existing_directory() {
         None,
         None,
         None,
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap_err();
@@ -114,6 +120,8 @@ async fn worktree_delete_rejects_wrong_branch_confirmation() {
         None,
         None,
         None,
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap();
@@ -138,6 +146,8 @@ async fn worktree_preview_diff_reports_changed_files() {
         None,
         None,
         None,
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap();
@@ -168,6 +178,8 @@ async fn worktree_delete_reports_preserved_branch_with_unmerged_commits() {
         None,
         None,
         None,
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap();
@@ -223,6 +235,8 @@ async fn worktree_create_in_honors_central_dir() {
         None,
         None,
         Some(central.to_str().unwrap().to_string()),
+        "connexio".to_string(),
+        "HEAD".to_string(),
     )
     .await
     .unwrap();

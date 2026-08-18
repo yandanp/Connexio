@@ -171,32 +171,49 @@ pub async fn worktree_create(
     from_ref: Option<String>,
     branch_override: Option<String>,
 ) -> Result<WorktreeEntry, String> {
-    // Read the central worktree dir setting on a blocking thread.
-    let central: Option<String> = tokio::task::spawn_blocking(move || {
-        let settings = super::settings::settings_get(app);
-        let dir = settings.worktree_dir.trim().to_string();
-        if dir.is_empty() {
-            None
-        } else {
-            Some(dir)
-        }
+    // Read workflow settings on a blocking thread.
+    let (central, prefix, base_default) = tokio::task::spawn_blocking(move || {
+        let s = super::settings::settings_get(app);
+        let dir = s.worktree_dir.trim().to_string();
+        (
+            if dir.is_empty() { None } else { Some(dir) },
+            if s.branch_prefix.trim().is_empty() {
+                "connexio".to_string()
+            } else {
+                s.branch_prefix.trim().to_string()
+            },
+            if s.default_base_ref.trim().is_empty() {
+                "HEAD".to_string()
+            } else {
+                s.default_base_ref.trim().to_string()
+            },
+        )
     })
     .await
     .map_err(|e| format!("Settings task failed: {}", e))?;
-    worktree_create_in(project_path, name, from_ref, branch_override, central).await
+    worktree_create_in(
+        project_path,
+        name,
+        from_ref,
+        branch_override,
+        central,
+        prefix,
+        base_default,
+    )
+    .await
 }
 
-/// Core create logic, testable without an AppHandle. `central_dir` mirrors
-/// the `worktreeDir` setting: `None` keeps worktrees in `<project>/.worktrees`.
 pub async fn worktree_create_in(
     project_path: String,
     name: String,
     from_ref: Option<String>,
     branch_override: Option<String>,
     central_dir: Option<String>,
+    branch_prefix: String,
+    default_base_ref: String,
 ) -> Result<WorktreeEntry, String> {
-    let branch = branch_override.unwrap_or_else(|| format!("connexio/{}", slugify(&name)));
-    let base = from_ref.unwrap_or_else(|| "HEAD".to_string());
+    let branch = branch_override.unwrap_or_else(|| format!("{}/{}", branch_prefix, slugify(&name)));
+    let base = from_ref.unwrap_or(default_base_ref);
     let parent = resolve_worktree_dir(&project_path, central_dir.as_deref());
     if central_dir.is_some() {
         // The central workspace dir may not exist yet — create it up front.

@@ -28,6 +28,18 @@ pub struct AppSettings {
     pub ui_font_size: String,
     #[serde(default = "default_worktree_dir")]
     pub worktree_dir: String,
+    #[serde(default = "default_branch_prefix")]
+    pub branch_prefix: String,
+    #[serde(default = "default_base_ref")]
+    pub default_base_ref: String,
+}
+
+fn default_branch_prefix() -> String {
+    "connexio".to_string()
+}
+
+fn default_base_ref() -> String {
+    "HEAD".to_string()
 }
 
 fn default_worktree_dir() -> String {
@@ -51,6 +63,8 @@ impl Default for AppSettings {
             webgl_renderer: true,
             ui_font_size: "default".to_string(),
             worktree_dir: String::new(),
+            branch_prefix: "connexio".to_string(),
+            default_base_ref: "HEAD".to_string(),
         }
     }
 }

@@ -27,7 +27,9 @@ const EMOJI_SHORTCODES: Record<string, string> = {
 };
 export default function CreateWorktreeModal({ projectPath, projectId, onClose }: Props) {
 	const [name, setName] = useState("");
-	const [fromRef, setFromRef] = useState("HEAD");
+	// fromRef starts null and adopts the workflow default once settings load.
+	const [fromRef, setFromRef] = useState<string | null>(null);
+	const [branchPrefix, setBranchPrefix] = useState("connexio");
 	const [branchOverride, setBranchOverride] = useState("");
 	const [creating, setCreating] = useState(false);
 	const [error, setError] = useState("");
@@ -39,8 +41,8 @@ export default function CreateWorktreeModal({ projectPath, projectId, onClose }:
 	const [showEmoji, setShowEmoji] = useState(false);
 
 	const branchPreview = useMemo(
-		() => branchOverride.trim() || `connexio/${slugify(name)}`,
-		[branchOverride, name],
+		() => branchOverride.trim() || `${branchPrefix}/${slugify(name)}`,
+		[branchOverride, branchPrefix, name],
 	);
 
 	// Suggest shortcodes matching a partially typed `:word` fragment.
@@ -66,15 +68,26 @@ export default function CreateWorktreeModal({ projectPath, projectId, onClose }:
 			.catch(() => setBranches([]));
 	}, [projectPath]);
 
+	// Load workflow settings (branch prefix, default base ref) for previews.
+	useEffect(() => {
+		window.connexio.settings
+			.get()
+			.then((s) => {
+				setBranchPrefix(s.branchPrefix?.trim() || "connexio");
+				if (!fromRef) setFromRef(s.defaultBaseRef?.trim() || "HEAD");
+			})
+			.catch(() => {});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
 		const trimmed = name.trim();
 		if (!trimmed || creating) return;
 		setCreating(true);
-		setError("");
 		try {
 			const entry = await window.connexio.worktree.create(projectPath, trimmed, {
-				fromRef: fromRef.trim() || "HEAD",
+				fromRef: fromRef?.trim() || undefined,
 				branchOverride: branchOverride.trim() || undefined,
 			});
 			// Open a terminal scoped to the new worktree right away — as a tab
@@ -109,7 +122,7 @@ export default function CreateWorktreeModal({ projectPath, projectId, onClose }:
 							htmlFor="worktree-name"
 							className="block text-xs font-medium text-connexio-text-secondary mb-1.5"
 						>
-							What are you working on?
+							Task Name
 						</label>
 						<div className="relative flex gap-1.5">
 							<input
@@ -183,7 +196,7 @@ export default function CreateWorktreeModal({ projectPath, projectId, onClose }:
 						<FromRefPicker
 							branches={branches}
 							fromRef={fromRef}
-							onSelect={(ref) => setFromRef(ref)}
+							onSelect={(ref) => setFromRef(ref === "" ? null : ref)}
 						/>
 					</div>
 

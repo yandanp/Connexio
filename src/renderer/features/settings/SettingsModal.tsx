@@ -1,4 +1,14 @@
-import { Activity, Bell, Globe, Monitor, Palette, Rocket, Terminal, X } from "lucide-react";
+import {
+	Activity,
+	Bell,
+	FolderGit2,
+	Globe,
+	Monitor,
+	Palette,
+	Rocket,
+	Terminal,
+	X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AppSettings } from "../../../shared/types";
 import { useSettingsStore } from "../../core/stores/settingsStore";
@@ -10,9 +20,10 @@ import GeneralSettings from "./GeneralSettings";
 import NotificationsSettings from "./NotificationsSettings";
 import PerformanceSettings from "./PerformanceSettings";
 import TerminalSettings from "./TerminalSettings";
-
+import WorkflowSettings from "./WorkflowSettings";
 type SettingsTab =
 	| "general"
+	| "workflow"
 	| "terminal"
 	| "appearance"
 	| "notifications"
@@ -29,6 +40,8 @@ const DEFAULT_SETTINGS: AppSettings = {
 	scrollback: 1000,
 	copyOnSelect: false,
 	worktreeDir: "",
+	branchPrefix: "connexio",
+	defaultBaseRef: "HEAD",
 	webglRenderer: true,
 	uiFontSize: "default",
 };
@@ -82,6 +95,7 @@ export default function SettingsModal() {
 		icon: React.ReactNode;
 	}> = [
 		{ id: "general", label: "General", icon: <Monitor size={14} /> },
+		{ id: "workflow", label: "Workflow", icon: <FolderGit2 size={14} /> },
 		{ id: "terminal", label: "Terminal", icon: <Terminal size={14} /> },
 		{ id: "appearance", label: "Appearance", icon: <Palette size={14} /> },
 		{ id: "notifications", label: "Notifications", icon: <Bell size={14} /> },
@@ -121,7 +135,6 @@ export default function SettingsModal() {
 						))}
 					</div>
 
-					{/* Content */}
 					<div className="flex-1 space-y-4 overflow-y-auto p-5">
 						{activeTab === "general" && (
 							<GeneralSettings
@@ -129,6 +142,9 @@ export default function SettingsModal() {
 								shells={shells}
 								onChange={handleChange}
 							/>
+						)}
+						{activeTab === "workflow" && (
+							<WorkflowSettings settings={effectiveSettings} onChange={handleChange} />
 						)}
 						{activeTab === "terminal" && (
 							<TerminalSettings settings={effectiveSettings} onChange={handleChange} />

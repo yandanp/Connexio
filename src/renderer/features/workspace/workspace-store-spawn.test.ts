@@ -331,6 +331,30 @@ describe("ensureTerminalSpawned / retryPaneSpawn", () => {
 		expect(useWorkspaceStore.getState().paneErrors["pane-2"]).toBeUndefined();
 	});
 
+	it("failed retry + rapid second click does not create a second PTY", async () => {
+		const { useProjectsStore, useWorkspaceStore } = await importStores();
+		useProjectsStore.setState({ projects: [makeProject("proj-1")] });
+		await useWorkspaceStore.getState().restoreWorkspace();
+		terminalCreate.mockImplementation(
+			async (_path: string, _shell?: string, ctx?: Record<string, unknown>) => {
+				if (ctx?.paneId === "pane-2") throw new Error("spawn failed");
+				return `ok-${String(ctx?.paneId)}`;
+			},
+		);
+		await useWorkspaceStore.getState().ensureTerminalSpawned("proj-1", "tab-split");
+		expect(useWorkspaceStore.getState().paneErrors["pane-2"]).toContain("spawn failed");
+
+		terminalCreate.mockClear();
+		terminalCreate.mockRejectedValueOnce(new Error("retry failed"));
+
+		const p1 = useWorkspaceStore.getState().retryPaneSpawn("proj-1", "tab-split", "pane-2");
+		const p2 = useWorkspaceStore.getState().retryPaneSpawn("proj-1", "tab-split", "pane-2");
+		await Promise.all([p1, p2]);
+
+		expect(terminalCreate).toHaveBeenCalledTimes(1);
+		expect(useWorkspaceStore.getState().paneErrors["pane-2"]).toContain("retry failed");
+	});
+
 	it("split collapse mid-spawn adopts the survivor and disposes the removed pane", async () => {
 		savedState = makeSavedStateForCollapse();
 		const { useProjectsStore, useWorkspaceStore } = await importStores();

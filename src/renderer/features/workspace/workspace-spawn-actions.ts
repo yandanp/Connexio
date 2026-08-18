@@ -301,14 +301,14 @@ export function createSpawnActions(set: Set, get: Get): SpawnActions {
 		retryPaneSpawn: async (projectId: string, tabId: string, paneId: string): Promise<void> => {
 			const key = `${projectId}:${tabId}`;
 			// Serialize with any running batch (ensure/retry) via the shared in-flight map:
-			// A retry during an active spawn waits for it, then runs cleanly — concurrent
-			// callers share ONE promise, so rapid double-retry creates only ONE PTY.
+			// a retry during an active spawn waits for it, then RETURNS — one attempt per
+			// click, so rapid double-retry creates only ONE PTY. If that attempt failed,
+			// the pane error stays visible and the user clicks again for a new attempt.
 			const existing = inFlight.get(key);
 			if (existing) {
 				await existing.catch(() => {}); // settled-all semantics; errors swallowed defensively
+				return; // satu attempt per klik; jika gagal, user klik lagi
 			}
-			const nowExisting = inFlight.get(key);
-			if (nowExisting) return nowExisting; // double-entrance dedupe
 			const promise = runPaneRetrySpawn(get, set, projectId, tabId, paneId).finally(() => {
 				inFlight.delete(key);
 			});

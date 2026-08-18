@@ -31,6 +31,7 @@ function useIsRemoteMobile() {
 
 let startupPhasesStarted = false;
 let projectsLoadedPhaseCompleted = false;
+let workspaceRestorePhaseStarted = false;
 
 export default function App() {
 	const { loadProjects, activeProjectId } = useProjectsStore();
@@ -72,6 +73,10 @@ export default function App() {
 			if (!projectsLoadedPhaseCompleted) {
 				projectsLoadedPhaseCompleted = true;
 				registerPhaseComplete("projects-loaded");
+			}
+			if (!workspaceRestorePhaseStarted) {
+				workspaceRestorePhaseStarted = true;
+				registerPhaseStart("workspace-structure-restored");
 			}
 			await restoreWorkspace();
 			loadTheme();

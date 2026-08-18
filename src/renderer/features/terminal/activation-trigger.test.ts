@@ -1,6 +1,7 @@
 // Mock event bus to avoid @tauri-apps listen() crashes when running tests in Node.
 vi.mock("../../core/api/terminal-event-bus", () => ({
 	onTerminalData: vi.fn(() => () => {}),
+	observeTerminalData: vi.fn(() => () => {}),
 	onTerminalExit: vi.fn(() => {}),
 }));
 

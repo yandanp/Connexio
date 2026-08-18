@@ -62,10 +62,11 @@ export const terminal = {
 		return Promise.resolve();
 	},
 
-	onData: (callback: (id: string, data: string) => void): (() => void) => {
-		terminalDataListeners.add(callback);
-		return () => {
-			terminalDataListeners.delete(callback);
+	onData: (terminalId: string, callback: (id: string, data: string) => void): (() => void) => {
+		const listener = (id: string, data: string) => {
+			if (id === terminalId) callback(id, data);
 		};
+		terminalDataListeners.add(listener);
+		return () => terminalDataListeners.delete(listener);
 	},
 };

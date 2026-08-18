@@ -56,7 +56,8 @@ export const terminal = {
 
 	close: (id: string): Promise<void> => invoke("terminal_close", { id }),
 
-	onData: (callback: (id: string, data: string) => void): (() => void) => onTerminalData(callback),
+	onData: (terminalId: string, callback: (id: string, data: string) => void): (() => void) =>
+		onTerminalData(terminalId, callback),
 
 	onExit: (callback: (id: string) => void): (() => void) => onTerminalExit(callback),
 };

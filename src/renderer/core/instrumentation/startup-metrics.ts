@@ -1,4 +1,4 @@
-import { onTerminalData } from "../api/terminal-event-bus";
+import { observeTerminalData } from "../api/terminal-event-bus";
 
 // ─── Instrumentation ─────────────────────────────────────────────────────────
 
@@ -81,9 +81,9 @@ function processPrematureOutput(terminalId: string, startedAtMs: number): void {
 	firstOutputDurations.push(outputAt - startedAtMs);
 }
 
-// Global first-output subscription — registered once at module import and kept
-// for the module's lifetime; independent of any Terminal component mounting.
-onTerminalData((terminalId) => recordFirstOutput(terminalId));
+// Global first-output observer — registered once at module import without
+// consuming buffered terminal output before its renderer mounts.
+observeTerminalData((terminalId) => recordFirstOutput(terminalId));
 
 export function resetMetrics(): void {
 	phaseStarts.clear();

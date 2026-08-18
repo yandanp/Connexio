@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/terminal-event-bus", () => ({
-	onTerminalData: vi.fn(() => () => {}),
+	observeTerminalData: vi.fn(() => () => {}),
 }));
 
-import { onTerminalData } from "../api/terminal-event-bus";
+import { observeTerminalData } from "../api/terminal-event-bus";
 import {
 	getStartupMetrics,
 	notifyTerminalMounted,
@@ -16,10 +16,10 @@ import {
 	setSpawnStart,
 } from "./startup-metrics";
 
-// The module subscribes once at module scope — grab that callback so tests can
-// simulate terminal output without importing @tauri-apps.
+// The module observes live terminal data once at module scope; retrieve that
+// callback so tests can simulate output without importing Tauri APIs.
 const emitTerminalData = () => {
-	const calls = vi.mocked(onTerminalData).mock.calls;
+	const calls = vi.mocked(observeTerminalData).mock.calls;
 	return calls[calls.length - 1][0];
 };
 
@@ -52,8 +52,8 @@ describe("startup-metrics", () => {
 		expect(getStartupMetrics().firstTerminalReadyAt).not.toBeNull();
 	});
 
-	it("subscribes to onTerminalData exactly once at module scope", () => {
-		expect(onTerminalData).toHaveBeenCalledTimes(1);
+	it("subscribes to observe terminal data exactly once at module scope", () => {
+		expect(observeTerminalData).toHaveBeenCalledTimes(1);
 	});
 
 	it("records only the first output per terminal as spawn→output latency", () => {

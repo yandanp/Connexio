@@ -307,10 +307,8 @@ export default function Terminal({ terminalId, isVisible }: Props) {
 			window.connexio.terminal.write(terminalId, data);
 		});
 
-		const unsubscribe = window.connexio.terminal.onData((id: string, data: string) => {
-			if (id === terminalId) {
-				batchWrite(data);
-			}
+		const unsubscribe = window.connexio.terminal.onData(terminalId, (_id: string, data: string) => {
+			batchWrite(data);
 		});
 
 		// ResizeObserver is handled by useTerminalResizeV2; keep delayed initial fits

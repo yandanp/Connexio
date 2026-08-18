@@ -46,6 +46,13 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 		if (expanded) void refresh();
 	}, [expanded, refresh]);
 
+	// Refresh when any worktree is created or deleted elsewhere in the app.
+	useEffect(() => {
+		const onChanged = () => void refresh();
+		window.addEventListener("connexio:worktree-changed", onChanged);
+		return () => window.removeEventListener("connexio:worktree-changed", onChanged);
+	}, [refresh]);
+
 	const notify = (title: string) => {
 		// Lightweight status line inside the section — avoids pulling the
 		// notification store (and its Tauri event listeners) into this tree.
@@ -77,6 +84,7 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 				notify(`${entry.name} deleted`);
 			}
 			void refresh();
+			window.dispatchEvent(new CustomEvent("connexio:worktree-changed"));
 		} catch (e) {
 			notify(`Delete failed: ${String(e)}`);
 		}

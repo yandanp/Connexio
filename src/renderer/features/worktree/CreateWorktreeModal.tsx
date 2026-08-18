@@ -96,6 +96,8 @@ export default function CreateWorktreeModal({ projectPath, projectId, onClose }:
 			await wsMod.useWorkspaceStore
 				.getState()
 				.openTerminalTab(projectId, entry.name, undefined, { cwd: entry.path });
+			// Let sidebar lists (this project's and any others) refresh.
+			window.dispatchEvent(new CustomEvent("connexio:worktree-changed"));
 			onClose();
 		} catch (err) {
 			setError(String(err));

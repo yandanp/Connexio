@@ -49,6 +49,7 @@ async fn worktree_create_adds_and_lists_and_deletes() {
         "My Feature".to_string(),
         None,
         None,
+        None,
     )
     .await
     .unwrap();
@@ -86,12 +87,14 @@ async fn worktree_create_rejects_existing_directory() {
         "Same Name".to_string(),
         None,
         None,
+        None,
     )
     .await
     .unwrap();
     let err = worktree_create(
         root.to_str().unwrap().to_string(),
         "Same Name".to_string(),
+        None,
         None,
         None,
     )
@@ -108,6 +111,7 @@ async fn worktree_delete_rejects_wrong_branch_confirmation() {
     let created = worktree_create(
         root.to_str().unwrap().to_string(),
         "Guarded".to_string(),
+        None,
         None,
         None,
     )
@@ -131,6 +135,7 @@ async fn worktree_preview_diff_reports_changed_files() {
     let created = worktree_create(
         root.to_str().unwrap().to_string(),
         "Diffed".to_string(),
+        None,
         None,
         None,
     )
@@ -160,6 +165,7 @@ async fn worktree_delete_reports_preserved_branch_with_unmerged_commits() {
     let created = worktree_create(
         root.to_str().unwrap().to_string(),
         "Unmerged".to_string(),
+        None,
         None,
         None,
     )

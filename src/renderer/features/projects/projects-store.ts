@@ -12,7 +12,7 @@ export interface ProjectsStore {
 
 	// Actions
 	loadProjects: () => Promise<void>;
-	addProject: (name: string, path: string, group: string) => Promise<void>;
+	addProject: (name: string, path: string, group: string) => Promise<string>;
 	deleteProject: (id: string) => Promise<void>;
 	renameProject: (id: string, name: string) => Promise<void>;
 	setActiveProject: (id: string) => void;
@@ -50,6 +50,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
 		const projects = await window.connexio.project.list();
 		set({ projects });
 		get().setActiveProject(project.id);
+		return project.id;
 	},
 
 	deleteProject: async (id: string) => {

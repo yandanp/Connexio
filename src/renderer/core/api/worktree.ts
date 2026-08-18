@@ -7,13 +7,18 @@ export const worktree = {
 	create: async (
 		projectPath: string,
 		name: string,
-		options?: { fromRef?: string; branchOverride?: string },
+		options?: {
+			fromRef?: string;
+			branchOverride?: string;
+			linkedIssueUrl?: string;
+		},
 	): Promise<WorktreeEntry> => {
 		return invoke("worktree_create", {
 			projectPath,
 			name,
 			fromRef: options?.fromRef || null,
 			branchOverride: options?.branchOverride || null,
+			linkedIssueUrl: options?.linkedIssueUrl || null,
 		});
 	},
 

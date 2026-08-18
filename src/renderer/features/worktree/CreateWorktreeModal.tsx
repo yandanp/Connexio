@@ -1,6 +1,9 @@
-import { ChevronDown, GitBranch, Loader2, Search, Smile, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Bot, Check, GitBranch, Link2, Loader2, Smile, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { GitBranchEntry } from "../../../shared/types";
+import { AGENT_OPTIONS } from "./agents";
+import FromRefPicker from "./FromRefPicker";
+import { fetchGithubTitle, parseLinkedIssueUrl } from "./linked-issue";
 import { slugify } from "./slugify";
 
 interface Props {
@@ -28,17 +31,32 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 	const [name, setName] = useState("");
 	const [fromRef, setFromRef] = useState("HEAD");
 	const [branchOverride, setBranchOverride] = useState("");
+	const [linkedIssueUrl, setLinkedIssueUrl] = useState("");
+	const [agentId, setAgentId] = useState("none");
 	const [creating, setCreating] = useState(false);
 	const [error, setError] = useState("");
-
-	// Start-from picker state
+	// Start-from picker branches (loaded once, passed to FromRefPicker)
 	const [branches, setBranches] = useState<GitBranchEntry[] | null>(null);
-	const [showFromPicker, setShowFromPicker] = useState(false);
-	const [fromQuery, setFromQuery] = useState("");
-	const fromRefInput = useRef<HTMLInputElement>(null);
 
 	// Emoji picker state
 	const [showEmoji, setShowEmoji] = useState(false);
+
+	// Linked issue state: parsed URL plus best-effort fetched title.
+	const parsedIssue = useMemo(() => parseLinkedIssueUrl(linkedIssueUrl), [linkedIssueUrl]);
+	const [issueTitle, setIssueTitle] = useState<string | null>(null);
+
+	// Fetch the title when a valid GitHub URL is pasted (best-effort).
+	useEffect(() => {
+		setIssueTitle(null);
+		if (!parsedIssue) return;
+		let cancelled = false;
+		void fetchGithubTitle(parsedIssue).then((t) => {
+			if (!cancelled) setIssueTitle(t);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [parsedIssue]);
 
 	// Load branches once for the start-from picker.
 	useEffect(() => {
@@ -48,9 +66,12 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 			.catch(() => setBranches([]));
 	}, [projectPath]);
 
+	// The effective name prefills from the issue title once fetched, unless
+	// the user has typed something already.
+	const effectiveName = name || issueTitle || "";
 	const branchPreview = useMemo(
-		() => branchOverride.trim() || `connexio/${slugify(name)}`,
-		[branchOverride, name],
+		() => branchOverride.trim() || `connexio/${slugify(effectiveName)}`,
+		[branchOverride, effectiveName],
 	);
 
 	// Suggest shortcodes matching a partially typed `:word` fragment.
@@ -63,22 +84,31 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 			.slice(0, 6);
 	}, [name]);
 
-	const insertEmoji = (shortcode: string, emoji: string) => {
+	const insertEmoji = (_shortcode: string, emoji: string) => {
 		setName((n) => n.replace(/:[a-z_]*$/i, `${emoji} `));
 		setShowEmoji(false);
 	};
 
 	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
-		const trimmed = name.trim();
+		const trimmed = effectiveName.trim();
 		if (!trimmed || creating) return;
 		setCreating(true);
 		setError("");
 		try {
-			await window.connexio.worktree.create(projectPath, trimmed, {
+			const entry = await window.connexio.worktree.create(projectPath, trimmed, {
 				fromRef: fromRef.trim() || "HEAD",
 				branchOverride: branchOverride.trim() || undefined,
+				linkedIssueUrl: linkedIssueUrl.trim() || undefined,
 			});
+			// Orca-style: open the worktree immediately, launching the chosen
+			// agent in its terminal when one is selected.
+			const agent = AGENT_OPTIONS.find((a) => a.id === agentId);
+			if (agent && agent.command) {
+				const projectId = await useProjectsStoreAddProject(entry.name, entry.path);
+				const ws = await import("../workspace/workspace-store").then((m) => m.useWorkspaceStore);
+				await ws.getState().openCommandTerminalTab(projectId, agent.label, [agent.command]);
+			}
 			onClose();
 		} catch (err) {
 			setError(String(err));
@@ -86,15 +116,9 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 		}
 	};
 
-	const filteredBranches = useMemo(() => {
-		if (!branches) return [];
-		const q = fromQuery.trim().toLowerCase();
-		return q ? branches.filter((b) => b.name.toLowerCase().includes(q)) : branches;
-	}, [branches, fromQuery]);
-
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[420px] shadow-2xl">
+			<div className="bg-connexio-bg-secondary border border-connexio-border rounded-lg w-[440px] shadow-2xl max-h-[90vh] overflow-y-auto">
 				{/* Header */}
 				<div className="flex items-center justify-between px-4 py-3 border-b border-connexio-border">
 					<h2 className="text-sm font-semibold text-connexio-text">Create Worktree</h2>
@@ -105,6 +129,49 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 
 				{/* Form */}
 				<form onSubmit={handleCreate} className="p-4 space-y-4">
+					{/* Linked issue — paste URL, auto-derive the name */}
+					<div>
+						<label
+							htmlFor="worktree-issue"
+							className="block text-xs font-medium text-connexio-text-secondary mb-1.5"
+						>
+							Linked Issue <span className="text-connexio-text-muted">(optional)</span>
+						</label>
+						<div className="relative">
+							<Link2
+								size={12}
+								className="absolute left-2.5 top-1/2 -translate-y-1/2 text-connexio-text-muted"
+							/>
+							<input
+								id="worktree-issue"
+								value={linkedIssueUrl}
+								onChange={(e) => setLinkedIssueUrl(e.target.value)}
+								placeholder="https://github.com/owner/repo/issues/123"
+								className="w-full bg-connexio-bg border border-connexio-border rounded-lg pl-7 pr-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
+							/>
+						</div>
+						{linkedIssueUrl.trim() && !parsedIssue && (
+							<p className="mt-1 text-[10px] text-connexio-text-muted">
+								GitHub PR/issue URL — or leave empty
+							</p>
+						)}
+						{parsedIssue && (
+							<p className="mt-1 flex items-center gap-1 text-[10px] text-connexio-accent">
+								{issueTitle ? (
+									<span className="truncate">
+										#{parsedIssue.number} {issueTitle}
+										{name.trim() ? "" : " — will be used as the name"}
+									</span>
+								) : (
+									<span className="flex items-center gap-1">
+										<Loader2 size={9} className="animate-spin" />#{parsedIssue.number} — fetching
+										title…
+									</span>
+								)}
+							</p>
+						)}
+					</div>
+
 					{/* Name with emoji picker */}
 					<div>
 						<label
@@ -118,7 +185,7 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 								id="worktree-name"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
-								placeholder=":rocket: login flow"
+								placeholder={issueTitle || ":rocket: login flow"}
 								autoFocus
 								className="w-full bg-connexio-bg border border-connexio-border rounded-lg px-3 py-2 text-xs text-connexio-text focus:outline-none focus:border-connexio-accent"
 							/>
@@ -182,92 +249,62 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						>
 							Start From
 						</label>
-						<div className="relative">
-							<button
-								type="button"
-								id="worktree-from"
-								onClick={() => setShowFromPicker((v) => !v)}
-								className="flex w-full items-center gap-2 rounded-lg border border-connexio-border bg-connexio-bg px-3 py-2 text-left text-xs text-connexio-text hover:border-connexio-accent/50 transition-colors"
-							>
-								<GitBranch size={12} className="flex-shrink-0 text-connexio-text-muted" />
-								<span className="flex-1 truncate font-mono">{fromRef}</span>
-								<ChevronDown size={12} className="flex-shrink-0 text-connexio-text-muted" />
-							</button>
+						<FromRefPicker
+							branches={branches}
+							fromRef={fromRef}
+							onSelect={(ref) => setFromRef(ref)}
+						/>
+					</div>
 
-							{showFromPicker && (
-								<div className="absolute top-9 left-0 z-10 w-full rounded-lg border border-connexio-border bg-connexio-bg-secondary shadow-2xl">
-									<div className="flex items-center gap-1.5 border-b border-connexio-border px-2.5 py-1.5">
-										<Search size={11} className="text-connexio-text-muted" />
-										<input
-											ref={fromRefInput}
-											value={fromQuery}
-											onChange={(e) => setFromQuery(e.target.value)}
-											placeholder="Filter branches or type a ref…"
-											className="w-full bg-transparent text-[11px] text-connexio-text outline-none placeholder:text-connexio-text-muted"
-										/>
-									</div>
-									<div className="max-h-44 overflow-y-auto p-1">
-										<button
-											type="button"
-											onClick={() => {
-												setFromRef("HEAD");
-												setShowFromPicker(false);
-											}}
-											className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-connexio-bg-tertiary/60"
-										>
-											<span className="font-mono text-connexio-accent">HEAD</span>
-											<span className="text-connexio-text-muted">(current checkout)</span>
-										</button>
-										{branches === null && (
-											<div className="flex items-center gap-1.5 px-2 py-1.5 text-[11px] text-connexio-text-muted">
-												<Loader2 size={10} className="animate-spin" /> Loading…
-											</div>
+					{/* Agent selector — launched in the worktree terminal */}
+					<div>
+						<span className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
+							Agent <span className="text-connexio-text-muted">(optional)</span>
+						</span>
+						<div className="grid grid-cols-2 gap-1.5">
+							{AGENT_OPTIONS.map((agent) => {
+								const selected = agentId === agent.id;
+								return (
+									<button
+										key={agent.id}
+										type="button"
+										onClick={() => setAgentId(agent.id)}
+										className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+											selected
+												? "border-connexio-accent bg-connexio-accent/10"
+												: "border-connexio-border hover:border-connexio-accent/40"
+										}`}
+									>
+										{agent.id === "none" ? (
+											<span className="text-xs">💤</span>
+										) : (
+											<Bot
+												size={13}
+												className={selected ? "text-connexio-accent" : "text-connexio-text-muted"}
+											/>
 										)}
-										{filteredBranches.map((b) => (
-											<button
-												key={b.name}
-												type="button"
-												onClick={() => {
-													setFromRef(b.name);
-													setShowFromPicker(false);
-												}}
-												className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-connexio-bg-tertiary/60"
+										<span className="min-w-0 flex-1">
+											<span
+												className={`block truncate text-[11px] font-medium ${
+													selected ? "text-connexio-accent" : "text-connexio-text-secondary"
+												}`}
 											>
-												<span className="truncate font-mono text-connexio-text-secondary">
-													{b.name}
-												</span>
-												{b.current && (
-													<span className="ml-auto flex-shrink-0 text-[9px] uppercase tracking-wide text-connexio-accent">
-														current
-													</span>
-												)}
-												{b.remote && (
-													<span className="ml-auto flex-shrink-0 text-[9px] uppercase tracking-wide text-connexio-text-muted">
-														remote
-													</span>
-												)}
-											</button>
-										))}
-										{/* Custom ref entry — free-form SHA/ref */}
-										{fromQuery.trim() && (
-											<button
-												type="button"
-												onClick={() => {
-													setFromRef(fromQuery.trim());
-													setShowFromPicker(false);
-												}}
-												className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] hover:bg-connexio-bg-tertiary/60"
-											>
-												<span className="text-connexio-text-muted">Use ref:</span>
-												<span className="truncate font-mono text-connexio-accent">
-													{fromQuery.trim()}
-												</span>
-											</button>
-										)}
-									</div>
-								</div>
-							)}
+												{agent.label}
+											</span>
+											<span className="block truncate text-[9px] text-connexio-text-muted">
+												{agent.hint}
+											</span>
+										</span>
+										{selected && <Check size={12} className="flex-shrink-0 text-connexio-accent" />}
+									</button>
+								);
+							})}
 						</div>
+						<p className="mt-1 text-[10px] text-connexio-text-muted">
+							{AGENT_OPTIONS.find((a) => a.id === agentId)?.command
+								? `Launches "${AGENT_OPTIONS.find((a) => a.id === agentId)?.command}" in the worktree terminal — must be installed on your PATH`
+								: "No agent — the worktree opens with a plain terminal"}
+						</p>
 					</div>
 
 					{/* Branch override */}
@@ -312,7 +349,7 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 						</button>
 						<button
 							type="submit"
-							disabled={!name.trim() || creating}
+							disabled={!effectiveName.trim() || creating}
 							className="flex items-center gap-2 px-4 py-1.5 text-xs font-medium text-white bg-connexio-accent rounded-lg hover:bg-connexio-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{creating && <Loader2 size={12} className="animate-spin" />}
@@ -323,4 +360,10 @@ export default function CreateWorktreeModal({ projectPath, onClose }: Props) {
 			</div>
 		</div>
 	);
+}
+
+/** Late-imported to avoid a store import cycle at module load. */
+async function useProjectsStoreAddProject(name: string, path: string): Promise<string> {
+	const m = await import("../projects/projects-store");
+	return m.useProjectsStore.getState().addProject(name, path, "worktrees");
 }

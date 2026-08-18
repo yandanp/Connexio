@@ -1,4 +1,4 @@
-import { Bell, Globe, Monitor, Palette, Rocket, Terminal, X } from "lucide-react";
+import { Activity, Bell, Globe, Monitor, Palette, Rocket, Terminal, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AppSettings } from "../../../shared/types";
 import { useSettingsStore } from "../../core/stores/settingsStore";
@@ -8,9 +8,17 @@ import AboutSettings from "./AboutSettings";
 import AppearanceSettings from "./AppearanceSettings";
 import GeneralSettings from "./GeneralSettings";
 import NotificationsSettings from "./NotificationsSettings";
+import PerformanceSettings from "./PerformanceSettings";
 import TerminalSettings from "./TerminalSettings";
 
-type SettingsTab = "general" | "terminal" | "appearance" | "notifications" | "remote" | "about";
+type SettingsTab =
+	| "general"
+	| "terminal"
+	| "appearance"
+	| "notifications"
+	| "remote"
+	| "performance"
+	| "about";
 
 const DEFAULT_SETTINGS: AppSettings = {
 	defaultShell: "",
@@ -77,6 +85,7 @@ export default function SettingsModal() {
 		{ id: "appearance", label: "Appearance", icon: <Palette size={14} /> },
 		{ id: "notifications", label: "Notifications", icon: <Bell size={14} /> },
 		{ id: "remote", label: "Remote Access", icon: <Globe size={14} /> },
+		{ id: "performance", label: "Performance", icon: <Activity size={14} /> },
 		{ id: "about", label: "About", icon: <Rocket size={14} /> },
 	];
 
@@ -134,6 +143,7 @@ export default function SettingsModal() {
 						)}
 						{activeTab === "notifications" && <NotificationsSettings />}
 						{activeTab === "remote" && <RemoteAccessSettings />}
+						{activeTab === "performance" && <PerformanceSettings />}
 						{activeTab === "about" && <AboutSettings />}
 					</div>
 				</div>

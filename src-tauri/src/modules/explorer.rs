@@ -34,6 +34,10 @@ const IGNORED: &[&str] = &[
     ".vscode",
 ];
 
+/// Files larger than this are not searched — prevents multi-second reads of
+/// minified bundles and logs that make the scan appear to hang.
+const MAX_SEARCH_FILE_SIZE: u64 = 1024 * 1024;
+
 fn should_ignore(name: &str) -> bool {
     IGNORED.contains(&name)
 }
@@ -253,8 +257,7 @@ pub struct SearchResult {
 }
 
 #[tauri::command]
-pub fn explorer_search_in_files(
-    _app: AppHandle,
+pub async fn explorer_search_in_files(
     project_path: String,
     query: String,
     case_sensitive: Option<bool>,
@@ -262,23 +265,27 @@ pub fn explorer_search_in_files(
 ) -> Result<Vec<SearchResult>, String> {
     let case_sensitive = case_sensitive.unwrap_or(false);
     let max_results = max_results.unwrap_or(200);
-    let mut results = Vec::new();
-    let query_lower = if !case_sensitive {
-        query.to_lowercase()
-    } else {
-        String::new()
-    };
-
-    search_dir(
-        Path::new(&project_path),
-        &query,
-        &query_lower,
-        case_sensitive,
-        max_results,
-        &mut results,
-    );
-
-    Ok(results)
+    // Searching can walk large project trees; run it off the main thread so
+    // the UI stays responsive while the scan runs.
+    tokio::task::spawn_blocking(move || {
+        let query_lower = if !case_sensitive {
+            query.to_lowercase()
+        } else {
+            String::new()
+        };
+        let mut results = Vec::new();
+        search_dir(
+            Path::new(&project_path),
+            &query,
+            &query_lower,
+            case_sensitive,
+            max_results,
+            &mut results,
+        );
+        results
+    })
+    .await
+    .map_err(|e| format!("Search task failed: {}", e))
 }
 
 /// Binary file extensions to skip
@@ -325,7 +332,14 @@ fn search_dir(
             continue;
         }
 
-        if path.is_dir() {
+        // file_type() does not follow symlinks: is_dir() is false for
+        // symlinks-to-dirs, which protects the walk from symlink loops.
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        if file_type.is_dir() {
             search_dir(
                 &path,
                 query,
@@ -334,7 +348,10 @@ fn search_dir(
                 max_results,
                 results,
             );
-        } else if path.is_file() && !is_binary_file(&name) {
+        } else if file_type.is_file() && !is_binary_file(&name) {
+            if entry.metadata().map(|m| m.len()).unwrap_or(0) > MAX_SEARCH_FILE_SIZE {
+                continue; // oversized file — skip rather than stall the scan
+            }
             // Read file and search line by line
             if let Ok(content) = fs::read_to_string(&path) {
                 for (idx, line) in content.lines().enumerate() {
@@ -356,5 +373,85 @@ fn search_dir(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup_dir(label: &str) -> std::path::PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("connexio-search-{}-{}", label, std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn run(root: &Path, query: &str) -> Vec<SearchResult> {
+        let mut results = Vec::new();
+        let query_lower = query.to_lowercase();
+        search_dir(root, query, &query_lower, false, 200, &mut results);
+        results
+    }
+
+    #[test]
+    fn finds_matching_lines_with_line_numbers() {
+        let root = setup_dir("match");
+        fs::write(root.join("a.txt"), "alpha\nbeta\nneedle here\n").unwrap();
+        let results = run(&root, "needle");
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].line_number, 3);
+        assert!(results[0].line_content.contains("needle"));
+    }
+
+    #[test]
+    fn ignores_node_modules_and_hidden_entries() {
+        let root = setup_dir("ignore");
+        fs::create_dir_all(root.join("node_modules")).unwrap();
+        fs::write(root.join("node_modules/x.js"), "needle").unwrap();
+        fs::write(root.join("src.txt"), "needle").unwrap();
+        let results = run(&root, "needle");
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].file_path.ends_with("src.txt"));
+    }
+
+    #[test]
+    fn skips_files_larger_than_the_search_cap() {
+        let root = setup_dir("cap");
+        let filler = "x".repeat(MAX_SEARCH_FILE_SIZE as usize);
+        fs::write(root.join("big.txt"), format!("{filler}\nneedle\n")).unwrap();
+        fs::write(root.join("small.txt"), "needle\n").unwrap();
+        let results = run(&root, "needle");
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].file_path.ends_with("small.txt"));
+    }
+
+    #[test]
+    fn stops_early_at_max_results() {
+        let root = setup_dir("max");
+        fs::write(root.join("a.txt"), "needle\n".repeat(50)).unwrap();
+        let mut results = Vec::new();
+        search_dir(&root, "needle", "needle", true, 10, &mut results);
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(results.len(), 10);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn does_not_follow_directory_symlinks() {
+        use std::os::unix::fs::symlink;
+        let root = setup_dir("link");
+        let inner = root.join("inner");
+        fs::create_dir_all(&inner).unwrap();
+        fs::write(inner.join("a.txt"), "needle").unwrap();
+        // Cyclic symlink: root/loop -> root; following it would hang the search
+        symlink(&root, root.join("loop")).unwrap();
+        let results = run(&root, "needle"); // must terminate
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(results.len(), 1);
     }
 }

@@ -1,9 +1,7 @@
 import { v4 as uuid } from "uuid";
 import { create } from "zustand";
-
 // Module-level guard to prevent double restore from React StrictMode
 let _workspaceRestored = false;
-
 import type { SSHConnection, WorkspaceState, WorkspaceTabState } from "@shared/types";
 import { useProjectsStore } from "../projects";
 import {
@@ -26,9 +24,8 @@ import type { PersistedNode } from "./workspace-persistence";
 import { createSpawnActions, waitForSpawn, type SpawnActions } from "./workspace-spawn-actions";
 import { noteLazyCollapse } from "./workspace-spawn-actions";
 import { registerPhaseComplete } from "../../core/instrumentation/startup-metrics";
-
+import { createTerminalWithLimit } from "./terminal-spawn";
 // === Tab Types ===
-
 export type TerminalStatus = "active" | "running" | "exited";
 
 export interface TerminalTab {
@@ -151,32 +148,29 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 	activeTabIds: {},
 	spawningTabs: {},
 	paneErrors: {},
-
 	// === Tab Actions ===
-
 	openTerminalTab: async (projectId: string, label?: string, shell?: string) => {
 		const { projects } = useProjectsStore.getState();
 		const { workspaceTabs, activeTabIds } = get();
 		const project = projects.find((p) => p.id === projectId);
 		if (!project) return;
-
 		const existingTabs = workspaceTabs[projectId] || [];
 		const tabLabel = label || `Terminal ${existingTabs.length + 1}`;
 		const newTabId = uuid();
-
 		let terminalId: string;
 		try {
-			terminalId = await window.connexio.terminal.create(project.path, shell, {
-				projectId,
-				projectName: project.name,
-				tabId: newTabId,
-				tabLabel,
-			});
+			terminalId = await createTerminalWithLimit(() =>
+				window.connexio.terminal.create(project.path, shell, {
+					projectId,
+					projectName: project.name,
+					tabId: newTabId,
+					tabLabel,
+				}),
+			);
 		} catch (e) {
 			console.error("[Connexio] Failed to create terminal:", e);
 			return;
 		}
-
 		const newTab: TerminalTab = {
 			id: newTabId,
 			label: tabLabel,
@@ -190,24 +184,23 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		});
 		get().persistWorkspace();
 	},
-
 	openCommandTerminalTab: async (projectId: string, label: string, command: string[]) => {
 		const projects = useProjectsStore.getState().projects;
 		const { workspaceTabs, activeTabIds } = get();
 		const project = projects.find((p) => p.id === projectId);
 		if (!project) return;
-
 		const existingTabs = workspaceTabs[projectId] || [];
 		const newTabId = uuid();
-
 		let terminalId: string;
 		try {
-			terminalId = await window.connexio.terminal.createCommand(project.path, command, {
-				projectId,
-				projectName: project.name,
-				tabId: newTabId,
-				tabLabel: label,
-			});
+			terminalId = await createTerminalWithLimit(() =>
+				window.connexio.terminal.createCommand(project.path, command, {
+					projectId,
+					projectName: project.name,
+					tabId: newTabId,
+					tabLabel: label,
+				}),
+			);
 		} catch (e) {
 			console.error("[Connexio] Failed to create command terminal:", e);
 			return;
@@ -231,7 +224,9 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		const existingTabs = workspaceTabs[projectId] || [];
 		let terminalId: string;
 		try {
-			terminalId = await window.connexio.terminal.createSsh(connection, password, 80, 24);
+			terminalId = await createTerminalWithLimit(() =>
+				window.connexio.terminal.createSsh(connection, password, 80, 24),
+			);
 		} catch (e) {
 			console.error("[Connexio] Failed to create SSH terminal:", e);
 			window.alert(String(e));
@@ -510,12 +505,14 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		const newPaneId = uuid();
 		let newTerminalId: string;
 		try {
-			newTerminalId = await window.connexio.terminal.create(project.path, tab.shell, {
-				projectId,
-				projectName: project.name,
-				tabId: newPaneId,
-				tabLabel: `${tab.label} (split)`,
-			});
+			newTerminalId = await createTerminalWithLimit(() =>
+				window.connexio.terminal.create(project.path, tab.shell, {
+					projectId,
+					projectName: project.name,
+					tabId: newPaneId,
+					tabLabel: `${tab.label} (split)`,
+				}),
+			);
 		} catch (e) {
 			console.error("[Connexio] Failed to create split terminal:", e);
 			return;
@@ -588,12 +585,14 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 		const newPaneId = uuid();
 		let newTerminalId: string;
 		try {
-			newTerminalId = await window.connexio.terminal.create(project.path, undefined, {
-				projectId,
-				projectName: project.name,
-				tabId: newPaneId,
-				tabLabel: `${tab.label} (terminal)`,
-			});
+			newTerminalId = await createTerminalWithLimit(() =>
+				window.connexio.terminal.create(project.path, undefined, {
+					projectId,
+					projectName: project.name,
+					tabId: newPaneId,
+					tabLabel: `${tab.label} (terminal)`,
+				}),
+			);
 		} catch (e) {
 			console.error("[Connexio] Failed to create terminal from editor split:", e);
 			return;
@@ -876,6 +875,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 			const saved = await window.connexio.workspace.getState();
 			if (!saved || !saved.projectTabs) {
 				set({ isRestoring: false });
+				registerPhaseComplete("workspace-structure-restored");
 				return;
 			}
 

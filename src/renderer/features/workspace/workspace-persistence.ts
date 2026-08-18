@@ -1,6 +1,7 @@
 import { collectLeaves } from "./split-layout";
 import type { SplitDirection, SplitNode } from "./split-layout";
 import { runWithSpawnLimit } from "./spawn-pool";
+import { createTerminalWithTiming } from "./terminal-spawn";
 
 // === Persistence helpers ===
 
@@ -75,13 +76,15 @@ export async function createTerminalsForTree(
 	const results = await runWithSpawnLimit(
 		leaves.map(
 			(leaf) => () =>
-				window.connexio.terminal.create(projectPath, shell, {
-					projectId,
-					projectName,
-					tabId: leaf.id,
-					paneId: leaf.id,
-					tabLabel: `${tabLabel} (split)`,
-				}),
+				createTerminalWithTiming(() =>
+					window.connexio.terminal.create(projectPath, shell, {
+						projectId,
+						projectName,
+						tabId: leaf.id,
+						paneId: leaf.id,
+						tabLabel: `${tabLabel} (split)`,
+					}),
+				),
 		),
 	);
 

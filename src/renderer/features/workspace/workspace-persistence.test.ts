@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../../core/instrumentation/startup-metrics", () => ({
+	setSpawnStart: vi.fn(),
+	registerSpawnComplete: vi.fn(),
+}));
 import { collectLeaves } from "./split-layout";
 import type { SplitBranch, SplitNode } from "./split-layout";
 import { SPAWN_POOL_LIMIT } from "./spawn-pool";

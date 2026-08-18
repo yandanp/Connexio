@@ -23,11 +23,8 @@ import type { StoreApi } from "zustand";
 import type { WorkspaceStore } from "./workspace-store";
 import { useProjectsStore } from "../projects";
 import { useSettingsStore } from "../../core/stores/settingsStore";
-import {
-	registerPhaseStart,
-	registerSpawnComplete,
-	setSpawnStart,
-} from "../../core/instrumentation/startup-metrics";
+import { registerPhaseStart } from "../../core/instrumentation/startup-metrics";
+import { createTerminalWithTiming } from "./terminal-spawn";
 import { collectLeaves, findNode } from "./split-layout";
 import type { SplitLeaf, SplitNode } from "./split-layout";
 import { runWithSpawnLimit } from "./spawn-pool";
@@ -198,22 +195,18 @@ async function spawnTargets(
 
 	await runWithSpawnLimit(
 		targets.map(({ paneId, split }) => async (): Promise<void> => {
-			const startedAt = performance.now();
 			let terminalId: string;
 			try {
-				terminalId = await window.connexio.terminal.create(project.path, shell, {
-					...context,
-					paneId,
-				});
+				terminalId = await createTerminalWithTiming(() =>
+					window.connexio.terminal.create(project.path, shell, {
+						...context,
+						paneId,
+					}),
+				);
 			} catch (err) {
 				setPaneError(set, paneId, err);
 				return;
 			}
-			// Anchor spawn metrics under the REAL terminal id (knowable only now)
-			// with the pre-captured start: duration stays accurate and Task 1's
-			// first-output correlation (keyed by the bus-emitted id) works.
-			setSpawnStart(terminalId, startedAt);
-			registerSpawnComplete(terminalId);
 			// Disposal: leaf removed mid-spawn (closeTab / closeSplitPane /
 			// deleteProject) → close the fresh PTY, never touch state.
 			if (!leafExists(get, projectId, tabId, paneId)) {

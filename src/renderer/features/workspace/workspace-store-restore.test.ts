@@ -40,8 +40,13 @@ vi.mock("../../core/api", () => ({
 // startup-metrics transitively imports @tauri-apps (unavailable under the node
 // test env) — mock it and spy on the phase registration this task must emit.
 const registerPhaseComplete = vi.fn();
-
-vi.mock("../../core/instrumentation/startup-metrics", () => ({ registerPhaseComplete }));
+const setSpawnStart = vi.fn();
+const registerSpawnComplete = vi.fn();
+vi.mock("../../core/instrumentation/startup-metrics", () => ({
+	registerPhaseComplete,
+	setSpawnStart,
+	registerSpawnComplete,
+}));
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -216,5 +221,16 @@ describe("restoreWorkspace (lazy)", () => {
 		await useWorkspaceStore.getState().restoreWorkspace();
 		expect(terminalCreate).not.toHaveBeenCalled();
 		expect(registerPhaseComplete).toHaveBeenCalledTimes(1);
+	});
+
+	it("completes the restore phase when no workspace was saved", async () => {
+		savedState = null;
+		const { useWorkspaceStore } = await importStores();
+
+		await useWorkspaceStore.getState().restoreWorkspace();
+
+		expect(registerPhaseComplete).toHaveBeenCalledWith("workspace-structure-restored");
+		expect(useWorkspaceStore.getState().isRestoring).toBe(false);
+		expect(useWorkspaceStore.getState().workspaceTabs).toEqual({});
 	});
 });

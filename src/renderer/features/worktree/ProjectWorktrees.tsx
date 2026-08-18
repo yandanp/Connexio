@@ -1,12 +1,19 @@
 import { ChevronDown, ChevronRight, GitBranch, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { WorktreeEntry } from "../../../shared/types";
+import ConfirmDialog from "../../core/ui/ConfirmDialog";
 
 interface Props {
 	projectPath: string;
 	projectName: string;
 	/** Opens a terminal tab scoped to the worktree path. */
 	onOpenWorktree: (path: string, name: string) => void;
+}
+
+/** Pending deletion: entry plus the divergence summary shown in the dialog. */
+interface PendingDelete {
+	entry: WorktreeEntry;
+	summary: string;
 }
 
 /**
@@ -19,6 +26,7 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 	const [entries, setEntries] = useState<WorktreeEntry[] | null>(null);
 	const [status, setStatus] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
 	const refresh = useCallback(async () => {
 		setLoading(true);
@@ -38,45 +46,39 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 		if (expanded) void refresh();
 	}, [expanded, refresh]);
 
-	const notify = (title: string, _body: string) => {
+	const notify = (title: string) => {
 		// Lightweight status line inside the section — avoids pulling the
 		// notification store (and its Tauri event listeners) into this tree.
 		setStatus(title);
 	};
 
-	const handleDelete = async (entry: WorktreeEntry) => {
-		// Fetch divergence first so the user sees what would be lost.
-		let summaryText = "";
+	// Step 1: fetch divergence, then ask for confirmation via the dialog.
+	const requestDelete = async (entry: WorktreeEntry) => {
+		let summary = "";
 		try {
-			const summary = await window.connexio.worktree.previewDiff(
-				projectPath,
-				entry.path,
-				entry.baseRef,
-			);
-			summaryText = `\n\n${summary.changedFiles} changed file(s), ${summary.ahead} commit(s) ahead of ${entry.baseRef}.`;
+			const s = await window.connexio.worktree.previewDiff(projectPath, entry.path, entry.baseRef);
+			summary = `${s.changedFiles} changed file(s), ${s.ahead} commit(s) ahead of ${entry.baseRef}.`;
 		} catch {
 			// Preview is best-effort; deletion still requires branch confirmation.
 		}
+		setPendingDelete({ entry, summary });
+	};
 
-		// Confirmation includes the branch name — the backend rejects a
-		// mismatched confirmation, which guards against stale UI state.
-		const confirmed = window.confirm(
-			`Delete worktree "${entry.name}"?${summaryText}\n\nBranch ${entry.branch} and all files at:\n${entry.path}\n\nUnmerged work keeps the branch in the repo.`,
-		);
-		if (!confirmed) return;
+	// Step 2: the dialog confirmed — delete through the backend.
+	const confirmDelete = async () => {
+		if (!pendingDelete) return;
+		const { entry } = pendingDelete;
+		setPendingDelete(null);
 		try {
 			const result = await window.connexio.worktree.delete(projectPath, entry.path, entry.branch);
 			if (result?.preservedBranch) {
-				notify(
-					`${entry.name} removed — branch kept`,
-					`Branch ${result.preservedBranch} has unmerged commits and was preserved.`,
-				);
+				notify(`${entry.name} removed — branch ${result.preservedBranch} kept (unmerged commits)`);
 			} else {
-				notify(`${entry.name} deleted`, "Worktree and branch removed.");
+				notify(`${entry.name} deleted`);
 			}
 			void refresh();
 		} catch (e) {
-			notify("Worktree delete failed", String(e));
+			notify(`Delete failed: ${String(e)}`);
 		}
 	};
 
@@ -136,7 +138,7 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 									type="button"
 									onClick={(e) => {
 										e.stopPropagation();
-										void handleDelete(entry);
+										void requestDelete(entry);
 									}}
 									className="opacity-0 group-hover:opacity-100 rounded p-0.5 hover:bg-red-500/20 transition-all flex-shrink-0"
 									title={`Delete ${entry.name}`}
@@ -164,6 +166,17 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 						New worktree…
 					</a>
 				</div>
+			)}
+
+			{pendingDelete && (
+				<ConfirmDialog
+					title={`Delete worktree "${pendingDelete.entry.name}"?`}
+					message={`${pendingDelete.summary}\n\nBranch ${pendingDelete.entry.branch} and all files at ${pendingDelete.entry.path} will be removed. Branches with unmerged commits are kept in the repo.`}
+					confirmLabel="Delete"
+					variant="danger"
+					onConfirm={() => void confirmDelete()}
+					onCancel={() => setPendingDelete(null)}
+				/>
 			)}
 		</div>
 	);

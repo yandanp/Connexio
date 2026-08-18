@@ -1,3 +1,4 @@
+import { open } from "@tauri-apps/plugin-dialog";
 import type { AppSettings, ShellInfo } from "../../../shared/types";
 import { useSettingsStore } from "../../core/stores/settingsStore";
 import SettingsCard from "../../core/ui/SettingsCard";
@@ -33,6 +34,37 @@ export default function GeneralSettings({
 				</select>
 				<p className="text-[10px] text-connexio-text-muted mt-1">
 					Shell used when opening new terminal tabs
+				</p>
+			</div>
+
+			{/* Worktree Directory */}
+			<div>
+				<label className="block text-xs font-medium text-connexio-text-secondary mb-1.5">
+					Worktree Directory
+				</label>
+				<div className="flex gap-1.5">
+					<input
+						value={settings.worktreeDir}
+						onChange={(e) => onChange("worktreeDir", e.target.value)}
+						placeholder="Default: <project>/.worktrees"
+						className="field-soft flex-1 px-3 py-2 text-sm transition-colors"
+					/>
+					<button
+						type="button"
+						onClick={async () => {
+							const picked = await open({ directory: true, multiple: false });
+							if (typeof picked === "string") onChange("worktreeDir", picked);
+						}}
+						className="px-3 py-2 text-xs font-medium text-connexio-text-secondary border border-connexio-border rounded-lg hover:bg-white/[0.04] transition-colors flex-shrink-0"
+					>
+						Browse…
+					</button>
+				</div>
+				<p className="text-[10px] text-connexio-text-muted mt-1">
+					Where new worktrees are created. Empty keeps them inside each project (
+					<span className="font-mono">.worktrees</span>); setting a folder stores them centrally
+					under <span className="font-mono">&lt;folder&gt;/&lt;project-name&gt;</span> so the
+					original repo stays untouched.
 				</p>
 			</div>
 

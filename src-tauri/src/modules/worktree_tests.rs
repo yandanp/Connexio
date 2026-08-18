@@ -44,9 +44,10 @@ fn parse_worktree_list_handles_detached_head_without_branch_line() {
 #[tokio::test]
 async fn worktree_create_adds_and_lists_and_deletes() {
     let root = setup_repo("cycle");
-    let created = worktree_create(
+    let created = worktree_create_in(
         root.to_str().unwrap().to_string(),
         "My Feature".to_string(),
+        None,
         None,
         None,
     )
@@ -81,17 +82,19 @@ async fn worktree_create_adds_and_lists_and_deletes() {
 #[tokio::test]
 async fn worktree_create_rejects_existing_directory() {
     let root = setup_repo("dup");
-    let first = worktree_create(
+    let first = worktree_create_in(
         root.to_str().unwrap().to_string(),
         "Same Name".to_string(),
+        None,
         None,
         None,
     )
     .await
     .unwrap();
-    let err = worktree_create(
+    let err = worktree_create_in(
         root.to_str().unwrap().to_string(),
         "Same Name".to_string(),
+        None,
         None,
         None,
     )
@@ -105,9 +108,10 @@ async fn worktree_create_rejects_existing_directory() {
 #[tokio::test]
 async fn worktree_delete_rejects_wrong_branch_confirmation() {
     let root = setup_repo("guard");
-    let created = worktree_create(
+    let created = worktree_create_in(
         root.to_str().unwrap().to_string(),
         "Guarded".to_string(),
+        None,
         None,
         None,
     )
@@ -128,9 +132,10 @@ async fn worktree_delete_rejects_wrong_branch_confirmation() {
 #[tokio::test]
 async fn worktree_preview_diff_reports_changed_files() {
     let root = setup_repo("diff");
-    let created = worktree_create(
+    let created = worktree_create_in(
         root.to_str().unwrap().to_string(),
         "Diffed".to_string(),
+        None,
         None,
         None,
     )
@@ -157,9 +162,10 @@ async fn worktree_preview_diff_reports_changed_files() {
 #[tokio::test]
 async fn worktree_delete_reports_preserved_branch_with_unmerged_commits() {
     let root = setup_repo("preserve");
-    let created = worktree_create(
+    let created = worktree_create_in(
         root.to_str().unwrap().to_string(),
         "Unmerged".to_string(),
+        None,
         None,
         None,
     )
@@ -184,4 +190,49 @@ async fn worktree_delete_reports_preserved_branch_with_unmerged_commits() {
     );
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn resolve_worktree_dir_defaults_to_project_dot_worktrees() {
+    let dir = resolve_worktree_dir("/repo", None);
+    assert_eq!(dir, Path::new("/repo").join(".worktrees"));
+}
+
+#[test]
+fn resolve_worktree_dir_uses_central_dir_when_set() {
+    let dir = resolve_worktree_dir("/repo", Some("/wt-root"));
+    // <central>/<repo-name>/<...> — repo dir nests under the repo basename.
+    assert_eq!(dir, Path::new("/wt-root").join("repo"));
+}
+
+#[test]
+fn resolve_worktree_dir_sanitizes_windows_style_project_path() {
+    let dir = resolve_worktree_dir("C:\\Users\\me\\My Project", Some("/wt"));
+    assert_eq!(dir, Path::new("/wt").join("my-project"));
+}
+
+#[tokio::test]
+async fn worktree_create_in_honors_central_dir() {
+    let root = setup_repo("centralrepo");
+    let central = std::env::temp_dir().join(format!("connexio-wt-central-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&central);
+
+    let created = worktree_create_in(
+        root.to_str().unwrap().to_string(),
+        "Side Task".to_string(),
+        None,
+        None,
+        Some(central.to_str().unwrap().to_string()),
+    )
+    .await
+    .unwrap();
+
+    // Worktree lives under <central>/<repo-basename>/<slug>, not in the repo.
+    assert!(created.path.starts_with(central.to_str().unwrap()));
+    assert!(created.path.contains("side-task"));
+    assert!(!created.path.contains(".worktrees"));
+    assert!(std::path::Path::new(&created.path).exists());
+
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(&central);
 }

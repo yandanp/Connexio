@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::path::Path;
+use std::path::PathBuf;
 
 /// A single git worktree registered for a project.
 #[derive(Debug, Clone, Serialize)]
@@ -74,6 +75,22 @@ fn worktree_id(path: &str) -> String {
     format!("{:x}-{}", hasher.finish(), basename)
 }
 
+/// Where a project's worktrees live on disk.
+///
+/// - `None` (default): `<project>/.worktrees` — inside the repo.
+/// - `Some(dir)`: `<dir>/<repo-name>` — a central workspace dir like Orca's,
+///   keeping the original repo untouched.
+pub fn resolve_worktree_dir(project_path: &str, central_dir: Option<&str>) -> PathBuf {
+    let repo_name = Path::new(project_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .map(|n| slugify(&n))
+        .unwrap_or_else(|| "repo".to_string());
+    match central_dir {
+        Some(dir) => Path::new(dir).join(repo_name),
+        None => Path::new(project_path).join(".worktrees"),
+    }
+}
 /// Normalize a workspace name into a filesystem/git-safe branch slug.
 pub fn slugify(name: &str) -> String {
     let mut slug: String = name
@@ -148,14 +165,43 @@ pub fn parse_worktree_list(porcelain: &str, base_ref: &str) -> Vec<WorktreeEntry
 
 #[tauri::command]
 pub async fn worktree_create(
+    app: tauri::AppHandle,
     project_path: String,
     name: String,
     from_ref: Option<String>,
     branch_override: Option<String>,
 ) -> Result<WorktreeEntry, String> {
+    // Read the central worktree dir setting on a blocking thread.
+    let central: Option<String> = tokio::task::spawn_blocking(move || {
+        let settings = super::settings::settings_get(app);
+        let dir = settings.worktree_dir.trim().to_string();
+        if dir.is_empty() {
+            None
+        } else {
+            Some(dir)
+        }
+    })
+    .await
+    .map_err(|e| format!("Settings task failed: {}", e))?;
+    worktree_create_in(project_path, name, from_ref, branch_override, central).await
+}
+
+/// Core create logic, testable without an AppHandle. `central_dir` mirrors
+/// the `worktreeDir` setting: `None` keeps worktrees in `<project>/.worktrees`.
+pub async fn worktree_create_in(
+    project_path: String,
+    name: String,
+    from_ref: Option<String>,
+    branch_override: Option<String>,
+    central_dir: Option<String>,
+) -> Result<WorktreeEntry, String> {
     let branch = branch_override.unwrap_or_else(|| format!("connexio/{}", slugify(&name)));
     let base = from_ref.unwrap_or_else(|| "HEAD".to_string());
-    let parent = Path::new(&project_path).join(".worktrees");
+    let parent = resolve_worktree_dir(&project_path, central_dir.as_deref());
+    if central_dir.is_some() {
+        // The central workspace dir may not exist yet — create it up front.
+        let _ = std::fs::create_dir_all(&parent);
+    }
     let dir = parent.join(slugify(&name));
 
     if dir.exists() {
@@ -166,7 +212,7 @@ pub async fn worktree_create(
     }
 
     run_git_async(
-        project_path.clone(),
+        project_path,
         vec![
             "worktree".into(),
             "add".into(),

@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	cursorBlink: false,
 	scrollback: 1000,
 	copyOnSelect: false,
+	worktreeDir: "",
 	webglRenderer: true,
 	uiFontSize: "default",
 };

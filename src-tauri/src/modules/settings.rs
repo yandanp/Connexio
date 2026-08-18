@@ -26,6 +26,12 @@ pub struct AppSettings {
     pub webgl_renderer: bool,
     #[serde(default = "default_ui_font_size")]
     pub ui_font_size: String,
+    #[serde(default = "default_worktree_dir")]
+    pub worktree_dir: String,
+}
+
+fn default_worktree_dir() -> String {
+    String::new() // empty = `<project>/.worktrees`
 }
 
 fn default_ui_font_size() -> String {
@@ -44,6 +50,7 @@ impl Default for AppSettings {
             copy_on_select: false,
             webgl_renderer: true,
             ui_font_size: "default".to_string(),
+            worktree_dir: String::new(),
         }
     }
 }

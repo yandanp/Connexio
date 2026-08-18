@@ -100,6 +100,8 @@ export interface AppSettings {
 	cursorBlink: boolean;
 	scrollback: number;
 	copyOnSelect: boolean;
+	/** Central directory for worktrees; empty = `<project>/.worktrees`. */
+	worktreeDir: string;
 	webglRenderer: boolean;
 	uiFontSize: "small" | "default" | "large";
 }

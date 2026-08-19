@@ -84,7 +84,11 @@ fn worktree_id(path: &str) -> String {
 /// - `Some(dir)`: `<dir>/<repo-name>` — a central workspace dir like Orca's,
 ///   keeping the original repo untouched.
 pub fn resolve_worktree_dir(project_path: &str, central_dir: Option<&str>) -> PathBuf {
-    let repo_name = Path::new(project_path)
+    // Normalize Windows-style backslashes to forward slashes so the repo
+    // basename is extracted correctly on every platform (Linux CI does not
+    // treat `\` as a path separator).
+    let normalized = project_path.replace('\\', "/");
+    let repo_name = Path::new(&normalized)
         .file_name()
         .map(|n| n.to_string_lossy().to_lowercase())
         .map(|n| slugify(&n))

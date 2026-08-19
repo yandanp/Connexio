@@ -5,6 +5,7 @@ import {
 	Bell,
 	Code2,
 	FileCode,
+	Gauge,
 	GitBranch,
 	Globe,
 	HardDrive,
@@ -26,8 +27,10 @@ export default function AppFooter() {
 	const { isSettingsOpen } = useSettingsStore();
 	const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
 	const [appVersion, setAppVersion] = useState("");
+	const [memBytes, setMemBytes] = useState(0);
 	const [pathCopied, setPathCopied] = useState(false);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const memIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const mountedRef = useRef(true);
 
 	const project = projects.find((p) => p.id === activeProjectId);
@@ -67,6 +70,25 @@ export default function AppFooter() {
 	useEffect(() => {
 		window.connexio.app.getVersion().then((v: string) => setAppVersion(v));
 	}, []);
+
+	// Poll app memory usage every 5s; lightweight sysinfo call on the backend.
+	const fetchMemory = useCallback(async () => {
+		try {
+			const bytes = await window.connexio.app.getMemory();
+			if (mountedRef.current) setMemBytes(bytes);
+		} catch {
+			/* ignore — memory display is non-critical */
+		}
+	}, []);
+
+	useEffect(() => {
+		fetchMemory();
+		if (memIntervalRef.current) clearInterval(memIntervalRef.current);
+		memIntervalRef.current = setInterval(fetchMemory, 5000);
+		return () => {
+			if (memIntervalRef.current) clearInterval(memIntervalRef.current);
+		};
+	}, [fetchMemory]);
 
 	const handleCopyPath = useCallback(() => {
 		if (!project) return;
@@ -221,7 +243,30 @@ export default function AppFooter() {
 					</div>
 				)}
 
-				{/* Version */}
+				{/* Memory usage — color-coded by footprint */}
+				{memBytes > 0 && (
+					<div
+						className="connexio-pill flex items-center gap-1.5 rounded-lg px-2 py-1 text-connexio-text-muted transition-colors"
+						title={`Memory: ${(memBytes / 1024 / 1024).toFixed(0)} MB`}
+					>
+						<Gauge
+							size={12}
+							className={
+								memBytes > 300 * 1024 * 1024
+									? "text-red-400"
+									: memBytes > 150 * 1024 * 1024
+										? "text-yellow-400"
+										: "text-green-400/80"
+							}
+						/>
+						<span className="tabular-nums">
+							{memBytes > 1024 * 1024
+								? `${(memBytes / 1024 / 1024).toFixed(0)} MB`
+								: `${(memBytes / 1024).toFixed(0)} KB`}
+						</span>
+					</div>
+				)}
+
 				{appVersion && (
 					<button
 						onClick={handleOpenSettings}

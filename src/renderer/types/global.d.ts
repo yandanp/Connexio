@@ -263,6 +263,7 @@ interface ConnexioAPI {
 		close: () => Promise<void>;
 		isMaximized: () => Promise<boolean>;
 		getVersion: () => Promise<string>;
+		getMemory: () => Promise<number>;
 	};
 	notification: {
 		list: () => Promise<import("../../shared/types").ConnexioNotification[]>;

@@ -11,6 +11,16 @@ fn app_get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+/// Returns the resident set size (in bytes) of the current process — the
+/// footprint the user actually feels. Polled periodically by the footer.
+#[tauri::command]
+fn app_get_memory() -> u64 {
+    use sysinfo::System;
+    let pid = sysinfo::get_current_pid().unwrap_or(sysinfo::Pid::from(0));
+    let sys = System::new_all();
+    sys.process(pid).map(|p| p.memory()).unwrap_or(0)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -35,7 +45,6 @@ pub fn run() {
 
             // Start notification TCP server
             modules::notification::start_notification_server(app.handle());
-
             // Set window icon from embedded high-res PNG for crisp taskbar display
             if let Some(window) = app.get_webview_window("main") {
                 let icon_bytes = include_bytes!("../icons/128x128@2x.png");
@@ -50,6 +59,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // App
             app_get_version,
+            app_get_memory,
             // Terminal
             modules::pty::terminal_create,
             modules::pty::terminal_create_command,

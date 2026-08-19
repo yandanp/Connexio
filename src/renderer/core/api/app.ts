@@ -16,4 +16,5 @@ export const app = {
 	close: () => getCurrentWindow().close(),
 	isMaximized: () => getCurrentWindow().isMaximized(),
 	getVersion: (): Promise<string> => invoke("app_get_version"),
+	getMemory: (): Promise<number> => invoke("app_get_memory"),
 };

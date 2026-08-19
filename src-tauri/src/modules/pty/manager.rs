@@ -9,6 +9,9 @@ use tauri::{AppHandle, Emitter, Manager};
 pub(crate) struct PtySession {
     pub(crate) writer: Box<dyn Write + Send>,
     pub(crate) master: Box<dyn MasterPty + Send>,
+    /// Handle to the spawned shell process — kept so close can kill it.
+    /// On Windows the child survives a master drop and keeps the cwd locked.
+    pub(crate) child: Box<dyn portable_pty::Child + Send + Sync>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
     pub(crate) context: Option<TerminalContext>,
@@ -165,12 +168,11 @@ pub fn terminal_create(
         cmd.env("CONNEXIO_TERMINAL_ID", &id);
     }
 
-    // Spawn child
-    let _child = pair
+    // Spawn child — keep the handle so terminal_close can kill the process.
+    let child = pair
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn shell: {}", e))?;
-
     // Drop slave — we only need the master side
     drop(pair.slave);
 
@@ -194,6 +196,7 @@ pub fn terminal_create(
             TerminalSession::Local(PtySession {
                 writer,
                 master: pair.master,
+                child,
                 cols: 80,
                 rows: 24,
                 context: context.clone(),
@@ -282,7 +285,7 @@ pub fn terminal_create_command(
         cmd.env("CONNEXIO_TERMINAL_ID", &id);
     }
 
-    let _child = pair
+    let child = pair
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn command: {}", e))?;
@@ -304,6 +307,7 @@ pub fn terminal_create_command(
             TerminalSession::Local(PtySession {
                 writer,
                 master: pair.master,
+                child,
                 cols: 80,
                 rows: 24,
                 context: context.clone(),
@@ -484,13 +488,25 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
     }
     Ok(())
 }
+
 #[tauri::command]
 pub fn terminal_close(app: AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<PtyManager>();
     let mut sessions = state.sessions.lock().unwrap();
-    if let Some(TerminalSession::Ssh(session)) = sessions.remove(&id) {
-        if let Ok(mut channel) = session.channel.try_lock() {
-            let _ = channel.close();
+    if let Some(session) = sessions.remove(&id) {
+        match session {
+            TerminalSession::Local(mut local) => {
+                // Kill the shell process explicitly: on Windows the child
+                // survives dropping the PTY master and keeps its cwd locked,
+                // which blocks worktree deletion.
+                let _ = local.child.kill();
+                drop(local.master);
+            }
+            TerminalSession::Ssh(session) => {
+                if let Ok(mut channel) = session.channel.try_lock() {
+                    let _ = channel.close();
+                }
+            }
         }
     }
     Ok(())

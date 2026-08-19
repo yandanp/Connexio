@@ -38,12 +38,15 @@ pub struct WorktreeDiffSummary {
     pub behind: u32,
 }
 
-/// Result of a worktree deletion: the directory is always removed; the
-/// branch is preserved when it holds unmerged commits.
+/// Result of a worktree deletion: the branch is preserved when it holds
+/// unmerged commits; `leftover_dir` is set when the directory could not be
+/// fully removed (e.g. a lingering Windows process lock) so the UI can
+/// tell the user what remains.
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeDeleteResult {
     pub preserved_branch: Option<String>,
+    pub leftover_dir: Option<String>,
 }
 
 /// Run git on a blocking thread; heavy worktree operations must never run on
@@ -291,10 +294,13 @@ pub async fn worktree_delete(
         ));
     }
 
-    // Retry removing the worktree directory with exponential backoff to handle
-    // Windows file locks from lingering PTY terminals.
+    // Remove the worktree directory. Best-effort with retries: on Windows a
+    // lingering process (e.g. an orphaned shell from an earlier session) can
+    // hold a lock on the folder. A leftover directory must NOT block the
+    // branch cleanup, so failures are reported through `leftover_dir`.
+    let mut leftover_dir: Option<String> = None;
     let mut attempts = 0;
-    const MAX_ATTEMPTS: u8 = 3;
+    const MAX_ATTEMPTS: u8 = 5;
     loop {
         match run_git_async(
             project_path.clone(),
@@ -318,23 +324,38 @@ pub async fn worktree_delete(
                 )
                 .await;
                 let path = worktree_path.clone();
-                tokio::task::spawn_blocking(move || {
+                let removed = tokio::task::spawn_blocking(move || {
                     std::fs::remove_dir_all(&path).map_err(|e| e.to_string())
                 })
                 .await
-                .map_err(|e| format!("Cleanup task failed: {}", e))??;
+                .map_err(|e| format!("Cleanup task failed: {}", e))?;
+                if removed.is_err() {
+                    leftover_dir = Some(worktree_path.clone());
+                }
                 break;
             }
             Err(e) if e.contains("Directory not found") || e.contains("not a valid") => {
                 return Err(format!("Worktree path invalid: {}", e));
             }
-            Err(ref err) if attempts < MAX_ATTEMPTS - 1 => {
+            Err(ref _err) if attempts < MAX_ATTEMPTS - 1 => {
                 attempts += 1;
-                let wait = 500 * (attempts as u64);
+                let wait = 300 * (attempts as u64);
                 tokio::time::sleep(tokio::time::Duration::from_millis(wait)).await;
                 continue;
             }
-            Err(e) => return Err(format!("Failed to remove worktree: {}", e)),
+            // Final attempt failed (lock held by a lingering process). Prune
+            // the registration and fall through to the branch delete; the
+            // leftover directory is reported in the result so the UI can tell
+            // the user to close whatever holds it.
+            Err(_) => {
+                let _ = run_git_async(
+                    project_path.clone(),
+                    vec!["worktree".into(), "prune".into()],
+                )
+                .await;
+                leftover_dir = Some(worktree_path.clone());
+                break;
+            }
         }
     }
 
@@ -354,6 +375,7 @@ pub async fn worktree_delete(
 
     Ok(WorktreeDeleteResult {
         preserved_branch: preserved,
+        leftover_dir,
     })
 }
 

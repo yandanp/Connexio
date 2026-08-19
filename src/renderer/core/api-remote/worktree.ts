@@ -33,7 +33,7 @@ export const worktree = {
 		_projectPath: string,
 		_worktreePath: string,
 		_confirmBranch: string,
-	): Promise<{ preservedBranch: string | null }> => {
+	): Promise<{ preservedBranch: string | null; leftoverDir?: string | null }> => {
 		throw new Error("Worktree management is not available in remote mode");
 	},
 };

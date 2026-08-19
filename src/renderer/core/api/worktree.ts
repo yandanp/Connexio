@@ -42,7 +42,7 @@ export const worktree = {
 		projectPath: string,
 		worktreePath: string,
 		confirmBranch: string,
-	): Promise<{ preservedBranch: string | null }> => {
+	): Promise<{ preservedBranch: string | null; leftoverDir?: string | null }> => {
 		return invoke("worktree_delete", { projectPath, worktreePath, confirmBranch });
 	},
 };

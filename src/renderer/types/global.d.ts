@@ -229,7 +229,7 @@ interface ConnexioAPI {
 			projectPath: string,
 			worktreePath: string,
 			confirmBranch: string,
-		) => Promise<{ preservedBranch: string | null }>;
+		) => Promise<{ preservedBranch: string | null; leftoverDir?: string | null }>;
 	};
 	updater: {
 		check: () => Promise<string | null>;

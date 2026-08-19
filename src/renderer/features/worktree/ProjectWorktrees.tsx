@@ -95,7 +95,11 @@ export default function ProjectWorktrees({ projectPath, projectName, onOpenWorkt
 
 		try {
 			const result = await window.connexio.worktree.delete(projectPath, entry.path, entry.branch);
-			if (result?.preservedBranch) {
+			if (result?.leftoverDir) {
+				notify(
+					`${entry.name} branch deleted — folder left behind (a process is holding it). Close any editors/terminals and retry.`,
+				);
+			} else if (result?.preservedBranch) {
 				notify(`${entry.name} removed — branch ${result.preservedBranch} kept (unmerged commits)`);
 			} else {
 				notify(`${entry.name} deleted`);

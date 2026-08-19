@@ -25,6 +25,7 @@ interface Props {
 	onSelectPanel: (tab: SidePanelTab) => void;
 	onClose: () => void;
 	onOpenInTerminal: (path: string) => void;
+	panelDockMode: boolean;
 	onOpenFile: (filePath: string, lineNumber?: number) => void;
 	onOpenFileInSplit: (filePath: string, direction: "horizontal" | "vertical") => void;
 	onRunCommand: (command: string) => void;
@@ -51,6 +52,7 @@ export default function SidePanelHost({
 	onSSHConnect,
 	onOpenSSHManager,
 	onOpenSftp,
+	panelDockMode,
 }: Props) {
 	const sidePanelItems = [
 		{ id: "ai" as const, label: "AI", icon: Bot },
@@ -63,7 +65,7 @@ export default function SidePanelHost({
 	return (
 		<div
 			ref={panelRef}
-			className="glass-panel animate-panel-in relative flex flex-shrink-0 flex-col overflow-hidden border-l border-connexio-border/45 shadow-[-8px_0_22px_rgba(0,0,0,0.10),inset_1px_0_0_rgba(255,255,255,0.03)]"
+			className={panelDockMode ? "glass-panel relative flex flex-shrink-0 flex-col overflow-hidden border-l border-connexio-border/45 shadow-[-8px_0_22px_rgba(0,0,0,0.10),inset_1px_0_0_rgba(255,255,255,0.03)]" : "glass-panel animate-panel-in absolute bottom-0 right-0 top-0 z-50 flex flex-col overflow-hidden border-l border-connexio-border/45 shadow-[-18px_0_34px_rgba(0,0,0,0.22),inset_1px_0_0_rgba(255,255,255,0.03)]"}
 			style={{ width: panelWidth }}
 		>
 			{/* Resize handle */}

@@ -1,5 +1,6 @@
 import { Bot, Columns2, FolderTree, GitBranch, Globe, ListTodo, Rows2, Server } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSettingsStore } from "../../core/stores/settingsStore";
 import { useProjectsStore } from "../projects";
 import { useWorkspaceStore } from "./workspace-store";
 import { SFTPBrowser, SSHManagerPanel } from "../ssh";
@@ -31,6 +32,7 @@ export default function Workspace() {
 		splitTerminal,
 	} = useWorkspaceStore();
 
+	const panelDockMode = useSettingsStore((s) => s.settings?.panelDockMode ?? false);
 	const [showSidePanel, setShowSidePanel] = useState(false);
 	const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>("tasks");
 	const [closeConfirmTabId, setCloseConfirmTabId] = useState<string | null>(null);
@@ -397,7 +399,7 @@ export default function Workspace() {
 			/>
 
 			{/* Main content area */}
-			<div className="flex flex-1 overflow-hidden">
+			<div className={panelDockMode ? "flex flex-1 overflow-hidden" : "relative flex flex-1 overflow-hidden"}>
 				{/* Terminal / Editor / Preview Area */}
 				<div
 					className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-connexio-bg"
@@ -534,17 +536,18 @@ export default function Workspace() {
 					</div>
 				</div>
 
-				{/* Right Side Panel */}
-				{showSidePanel && (
-					<SidePanelHost
-						activePanel={sidePanelTab}
-						project={project}
-						projectId={activeProjectId}
-						activeFilePath={activeFilePath}
-						panelWidth={panelWidth}
-						isPanelResizing={isPanelResizing}
-						panelRef={panelRef}
-						onResizeStart={handleResizeStart}
+			{/* Right Side Panel */}
+			{showSidePanel && (
+				<SidePanelHost
+					activePanel={sidePanelTab}
+					project={project}
+					projectId={activeProjectId}
+					activeFilePath={activeFilePath}
+					panelWidth={panelWidth}
+					isPanelResizing={isPanelResizing}
+					panelRef={panelRef}
+					panelDockMode={panelDockMode}
+					onResizeStart={handleResizeStart}
 						onSelectPanel={setSidePanelTab}
 						onClose={() => setShowSidePanel(false)}
 						onOpenInTerminal={(path) => {

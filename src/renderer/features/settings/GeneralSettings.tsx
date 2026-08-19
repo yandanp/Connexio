@@ -68,6 +68,21 @@ export default function GeneralSettings({
 				/>
 			</div>
 
+			{/* Panel Dock Mode */}
+			<div className="flex items-center justify-between">
+				<div>
+					<label className="block text-xs font-medium text-connexio-text-secondary">
+						Panel Dock Mode
+					</label>
+					<p className="text-[10px] text-connexio-text-muted mt-0.5">
+						Dock pushes terminal; overlay floats on top
+					</p>
+				</div>
+				<ToggleSwitch
+					checked={settings.panelDockMode}
+					onChange={(v) => onChange("panelDockMode", v)}
+				/>
+			</div>
 			{/* Discord Presence */}
 			<DiscordPresenceToggle />
 		</SettingsCard>

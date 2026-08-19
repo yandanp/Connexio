@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	branchPrefix: "connexio",
 	defaultBaseRef: "HEAD",
 	webglRenderer: true,
+	panelDockMode: false,
 	uiFontSize: "default",
 };
 

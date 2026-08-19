@@ -107,6 +107,7 @@ export interface AppSettings {
 	/** Ref new worktrees start from by default; default "HEAD". */
 	defaultBaseRef: string;
 	webglRenderer: boolean;
+	panelDockMode: boolean;
 	uiFontSize: "small" | "default" | "large";
 }
 

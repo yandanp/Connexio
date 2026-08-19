@@ -110,13 +110,19 @@ pub fn terminal_create(
 
     // Build command — detect PowerShell for shell integration
     let shell_lower = shell_path.replace('\\', "/").to_lowercase();
-    let _is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
+    let is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
 
     let mut cmd = CommandBuilder::new(&shell_path);
 
-    // For PowerShell: set UTF-8 encoding via -Command but let profile load normally
-    #[cfg(target_os = "windows")]
-    if _is_powershell {
+    // Shell-specific initialization
+    if shell_lower.contains("fish") {
+        // Fish shell: ensure completions load by setting XDG_DATA_DIRS if missing
+        if std::env::var("XDG_DATA_DIRS").is_err() {
+            cmd.env("XDG_DATA_DIRS", "/usr/local/share:/usr/share");
+        }
+        // Fish greeting can cause issues with terminal integration
+        cmd.env("fish_greeting", "");
+    } else if is_powershell {
         cmd.arg("-NoLogo");
         cmd.arg("-NoExit");
         cmd.arg("-Command");

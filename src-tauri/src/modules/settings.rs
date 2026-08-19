@@ -26,6 +26,8 @@ pub struct AppSettings {
     pub webgl_renderer: bool,
     #[serde(default = "default_ui_font_size")]
     pub ui_font_size: String,
+    #[serde(default)]
+    pub panel_dock_mode: bool,
     #[serde(default = "default_worktree_dir")]
     pub worktree_dir: String,
     #[serde(default = "default_branch_prefix")]
@@ -75,6 +77,7 @@ impl Default for AppSettings {
             copy_on_select: false,
             webgl_renderer: true,
             ui_font_size: "default".to_string(),
+            panel_dock_mode: false,
             worktree_dir: default_worktree_dir(),
             branch_prefix: "connexio".to_string(),
             default_base_ref: "HEAD".to_string(),

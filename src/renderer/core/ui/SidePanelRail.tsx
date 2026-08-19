@@ -1,4 +1,5 @@
-import type { LucideIcon } from "lucide-react";
+import { PanelRight, type LucideIcon } from "lucide-react";
+import { useSettingsStore } from "../../core/stores/settingsStore";
 
 interface RailItem<T extends string> {
 	id: T;
@@ -22,6 +23,13 @@ export default function SidePanelRail<T extends string>({
 	onClose,
 	closeIcon: CloseIcon,
 }: SidePanelRailProps<T>) {
+	const panelDockMode = useSettingsStore((s) => s.settings?.panelDockMode ?? false);
+	const toggleDockMode = () => {
+		const current = useSettingsStore.getState().settings;
+		if (current) {
+			useSettingsStore.getState().updateSettings({ ...current, panelDockMode: !panelDockMode });
+		}
+	};
 	return (
 		<div className="flex w-14 flex-shrink-0 flex-col items-center border-l border-connexio-border bg-connexio-bg-secondary/45 py-2">
 			<div className="flex flex-1 flex-col items-center gap-1">
@@ -53,6 +61,14 @@ export default function SidePanelRail<T extends string>({
 					);
 				})}
 			</div>
+			<button
+				onClick={toggleDockMode}
+				className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-connexio-bg-tertiary ${panelDockMode ? "text-connexio-accent" : "text-connexio-text-muted hover:text-connexio-text"}`}
+				type="button"
+				title={panelDockMode ? "Dock mode (pushes terminal)" : "Overlay mode (floats over terminal)"}
+			>
+				<PanelRight size={15} />
+			</button>
 			<button
 				onClick={onClose}
 				className="flex h-10 w-10 items-center justify-center rounded-xl text-connexio-text-muted transition-colors hover:bg-connexio-bg-tertiary hover:text-connexio-text"

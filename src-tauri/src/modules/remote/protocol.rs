@@ -31,16 +31,9 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "ch", rename_all = "snake_case")]
 pub enum ClientMessage {
     /// Terminal input (keystrokes)
-    TermInput {
-        id: String,
-        data: String,
-    },
+    TermInput { id: String, data: String },
     /// Terminal resize
-    TermResize {
-        id: String,
-        cols: u16,
-        rows: u16,
-    },
+    TermResize { id: String, cols: u16, rows: u16 },
     /// Command: create terminal
     CmdCreateTerminal {
         #[serde(default)]
@@ -58,9 +51,7 @@ pub enum ClientMessage {
         context: Option<TerminalContextMsg>,
     },
     /// Command: close terminal
-    CmdCloseTerminal {
-        id: String,
-    },
+    CmdCloseTerminal { id: String },
     /// Command: request state refresh
     CmdRefresh,
     /// Detect project tasks
@@ -99,6 +90,8 @@ pub struct TerminalContextMsg {
     pub project_name: String,
     pub tab_id: String,
     pub tab_label: String,
+    #[serde(default)]
+    pub pane_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
@@ -115,6 +108,7 @@ impl From<TerminalContextMsg> for crate::modules::pty::TerminalContext {
             project_name: msg.project_name,
             tab_id: msg.tab_id,
             tab_label: msg.tab_label,
+            pane_id: msg.pane_id,
         }
     }
 }
@@ -125,14 +119,9 @@ impl From<TerminalContextMsg> for crate::modules::pty::TerminalContext {
 #[serde(tag = "ch", rename_all = "snake_case")]
 pub enum ServerMessage {
     /// Terminal output (batched)
-    Term {
-        id: String,
-        data: String,
-    },
+    Term { id: String, data: String },
     /// Terminal exited
-    TermExit {
-        id: String,
-    },
+    TermExit { id: String },
     /// Terminal created (response to cmd)
     TermCreated {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -152,17 +141,47 @@ pub enum ServerMessage {
         error: String,
     },
     /// Full state push (sent on connect and on refresh)
-    State {
-        data: serde_json::Value,
-    },
+    State { data: serde_json::Value },
     /// Heartbeat pong from server
-    Pong {
-        ts: u64,
-    },
+    Pong { ts: u64 },
 }
 
 impl ServerMessage {
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ClientMessage, TerminalContextMsg};
+
+    #[test]
+    fn preserves_pane_id_when_deserializing_terminal_context() {
+        let message: ClientMessage = serde_json::from_str(
+			r#"{"ch":"cmd_create_terminal","project_path":"/repo","shell":null,"context":{"projectId":"project-1","projectName":"Project 1","tabId":"tab-1","tabLabel":"Split","paneId":"pane-2"}}"#,
+		)
+		.expect("terminal create message should deserialize");
+        let ClientMessage::CmdCreateTerminal {
+            context: Some(context),
+            ..
+        } = message
+        else {
+            panic!("expected a terminal create context");
+        };
+
+        assert_eq!(context.pane_id.as_deref(), Some("pane-2"));
+        let pty_context: crate::modules::pty::TerminalContext = context.into();
+        assert_eq!(pty_context.pane_id.as_deref(), Some("pane-2"));
+    }
+
+    #[test]
+    fn accepts_legacy_terminal_context_without_pane_id() {
+        let context: TerminalContextMsg = serde_json::from_str(
+			r#"{"projectId":"project-1","projectName":"Project 1","tabId":"tab-1","tabLabel":"Terminal"}"#,
+		)
+		.expect("legacy context should deserialize");
+
+        assert_eq!(context.pane_id, None);
     }
 }

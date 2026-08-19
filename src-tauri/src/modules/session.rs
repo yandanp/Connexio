@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn sessions_dir(app: &AppHandle) -> PathBuf {
@@ -58,7 +60,12 @@ pub fn session_list(app: AppHandle) -> Vec<Session> {
     let mut sessions = Vec::new();
     if let Ok(entries) = fs::read_dir(&dir) {
         for entry in entries.flatten() {
-            if entry.path().extension().map(|e| e == "json").unwrap_or(false) {
+            if entry
+                .path()
+                .extension()
+                .map(|e| e == "json")
+                .unwrap_or(false)
+            {
                 if let Ok(content) = fs::read_to_string(entry.path()) {
                     if let Ok(session) = serde_json::from_str::<Session>(&content) {
                         sessions.push(session);

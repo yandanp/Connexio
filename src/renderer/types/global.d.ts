@@ -9,6 +9,7 @@ interface ConnexioAPI {
 				projectName: string;
 				tabId: string;
 				tabLabel: string;
+				paneId?: string;
 			},
 		) => Promise<string>;
 		createCommand: (
@@ -19,6 +20,7 @@ interface ConnexioAPI {
 				projectName: string;
 				tabId: string;
 				tabLabel: string;
+				paneId?: string;
 			},
 		) => Promise<string>;
 		createSsh: (
@@ -30,7 +32,7 @@ interface ConnexioAPI {
 		write: (id: string, data: string) => Promise<void>;
 		resize: (id: string, cols: number, rows: number) => Promise<void>;
 		close: (id: string) => Promise<void>;
-		onData: (callback: (id: string, data: string) => void) => () => void;
+		onData: (terminalId: string, callback: (id: string, data: string) => void) => () => void;
 		onExit: (callback: (id: string) => void) => () => void;
 	};
 	project: {
@@ -68,28 +70,20 @@ interface ConnexioAPI {
 	};
 	workspace: {
 		getState: () => Promise<import("../../shared/types").WorkspaceState>;
-		saveState: (
-			state: import("../../shared/types").WorkspaceState,
-		) => Promise<boolean>;
+		saveState: (state: import("../../shared/types").WorkspaceState) => Promise<boolean>;
 	};
 	tasks: {
-		detect: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").TaskScript[]>;
+		detect: (projectPath: string) => Promise<import("../../shared/types").TaskScript[]>;
 	};
 	pinned: {
-		list: (
-			projectId: string,
-		) => Promise<import("../../shared/types").PinnedCommand[]>;
+		list: (projectId: string) => Promise<import("../../shared/types").PinnedCommand[]>;
 		save: (
 			projectId: string,
 			commands: import("../../shared/types").PinnedCommand[],
 		) => Promise<import("../../shared/types").PinnedCommand[]>;
 	};
 	ssh: {
-		list: (
-			projectId: string,
-		) => Promise<import("../../shared/types").SSHConnection[]>;
+		list: (projectId: string) => Promise<import("../../shared/types").SSHConnection[]>;
 		save: (
 			projectId: string,
 			connections: import("../../shared/types").SSHConnection[],
@@ -98,12 +92,8 @@ interface ConnexioAPI {
 		saveGlobal: (
 			connections: import("../../shared/types").SSHConnection[],
 		) => Promise<import("../../shared/types").SSHConnection[]>;
-		buildCommand: (
-			connection: import("../../shared/types").SSHConnection,
-		) => Promise<string>;
-		buildCommandArgs: (
-			connection: import("../../shared/types").SSHConnection,
-		) => Promise<string[]>;
+		buildCommand: (connection: import("../../shared/types").SSHConnection) => Promise<string>;
+		buildCommandArgs: (connection: import("../../shared/types").SSHConnection) => Promise<string[]>;
 		testConnection: (
 			connection: import("../../shared/types").SSHConnection,
 			password?: string,
@@ -164,12 +154,8 @@ interface ConnexioAPI {
 		keyExists: (keyPath: string) => Promise<boolean>;
 	};
 	git: {
-		status: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitStatus>;
-		changedFiles: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitChangedFile[]>;
+		status: (projectPath: string) => Promise<import("../../shared/types").GitStatus>;
+		changedFiles: (projectPath: string) => Promise<import("../../shared/types").GitChangedFile[]>;
 		diff: (
 			projectPath: string,
 			filePath: string,
@@ -189,22 +175,14 @@ interface ConnexioAPI {
 			projectPath: string,
 			message: string,
 		) => Promise<import("../../shared/types").GitActionResult>;
-		push: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitActionResult>;
-		fetch: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitActionResult>;
-		pull: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitActionResult>;
+		push: (projectPath: string) => Promise<import("../../shared/types").GitActionResult>;
+		fetch: (projectPath: string) => Promise<import("../../shared/types").GitActionResult>;
+		pull: (projectPath: string) => Promise<import("../../shared/types").GitActionResult>;
 		history: (
 			projectPath: string,
 			limit?: number,
 		) => Promise<import("../../shared/types").GitCommitEntry[]>;
-		branches: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitBranchEntry[]>;
+		branches: (projectPath: string) => Promise<import("../../shared/types").GitBranchEntry[]>;
 		checkout: (
 			projectPath: string,
 			branch: string,
@@ -213,12 +191,8 @@ interface ConnexioAPI {
 			projectPath: string,
 			branchName: string,
 		) => Promise<import("../../shared/types").GitActionResult>;
-		publishBranch: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitActionResult>;
-		stashList: (
-			projectPath: string,
-		) => Promise<import("../../shared/types").GitStashEntry[]>;
+		publishBranch: (projectPath: string) => Promise<import("../../shared/types").GitActionResult>;
+		stashList: (projectPath: string) => Promise<import("../../shared/types").GitStashEntry[]>;
 		stashSave: (
 			projectPath: string,
 			message?: string,
@@ -236,17 +210,34 @@ interface ConnexioAPI {
 			index?: number,
 		) => Promise<import("../../shared/types").GitActionResult>;
 	};
+	agents: {
+		detectAll: (commands: string[]) => Promise<{ command: string; installed: boolean }[]>;
+	};
+	worktree: {
+		create: (
+			projectPath: string,
+			name: string,
+			options?: { fromRef?: string; branchOverride?: string },
+		) => Promise<import("../../shared/types").WorktreeEntry>;
+		list: (projectPath: string) => Promise<import("../../shared/types").WorktreeEntry[]>;
+		previewDiff: (
+			projectPath: string,
+			worktreePath: string,
+			baseRef: string,
+		) => Promise<{ changedFiles: number; ahead: number; behind: number }>;
+		delete: (
+			projectPath: string,
+			worktreePath: string,
+			confirmBranch: string,
+		) => Promise<{ preservedBranch: string | null; leftoverDir?: string | null }>;
+	};
 	updater: {
 		check: () => Promise<string | null>;
 		download: () => Promise<boolean>;
 		install: () => Promise<void>;
 		onChecking: (cb: () => void) => () => void;
 		onAvailable: (
-			cb: (info: {
-				version: string;
-				releaseNotes: string;
-				releaseName: string;
-			}) => void,
+			cb: (info: { version: string; releaseNotes: string; releaseName: string }) => void,
 		) => () => void;
 		onNotAvailable: (cb: () => void) => () => void;
 		onProgress: (
@@ -257,9 +248,7 @@ interface ConnexioAPI {
 				total: number;
 			}) => void,
 		) => () => void;
-		onDownloaded: (
-			cb: (info: { version: string; releaseName: string }) => void,
-		) => () => void;
+		onDownloaded: (cb: (info: { version: string; releaseName: string }) => void) => () => void;
 		onError: (cb: (error: string) => void) => () => void;
 	};
 	discord: {
@@ -274,6 +263,7 @@ interface ConnexioAPI {
 		close: () => Promise<void>;
 		isMaximized: () => Promise<boolean>;
 		getVersion: () => Promise<string>;
+		getMemory: () => Promise<number>;
 	};
 	notification: {
 		list: () => Promise<import("../../shared/types").ConnexioNotification[]>;
@@ -282,30 +272,20 @@ interface ConnexioAPI {
 		markAllRead: () => Promise<void>;
 		remove: (id: string) => Promise<void>;
 		clear: () => Promise<void>;
-		getSettings: () => Promise<
-			import("../../shared/types").NotificationSettings
-		>;
+		getSettings: () => Promise<import("../../shared/types").NotificationSettings>;
 		updateSettings: (
 			settings: import("../../shared/types").NotificationSettings,
 		) => Promise<import("../../shared/types").NotificationSettings>;
 		getPort: () => Promise<number | null>;
 		onReceived: (
-			cb: (
-				notification: import("../../shared/types").ConnexioNotification,
-			) => void,
+			cb: (notification: import("../../shared/types").ConnexioNotification) => void,
 		) => () => void;
 		onNavigate: (
-			cb: (
-				notification: import("../../shared/types").ConnexioNotification,
-			) => void,
+			cb: (notification: import("../../shared/types").ConnexioNotification) => void,
 		) => () => void;
 		getProviders: () => Promise<import("../../shared/types").AIProvider[]>;
-		installHook: (
-			providerId: string,
-		) => Promise<{ success: boolean; error?: string }>;
-		uninstallHook: (
-			providerId: string,
-		) => Promise<{ success: boolean; error?: string }>;
+		installHook: (providerId: string) => Promise<{ success: boolean; error?: string }>;
+		uninstallHook: (providerId: string) => Promise<{ success: boolean; error?: string }>;
 		uploadSound: () => Promise<{
 			success: boolean;
 			path?: string;

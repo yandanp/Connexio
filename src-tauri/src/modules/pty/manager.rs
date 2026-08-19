@@ -6,11 +6,12 @@ use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
-
-/// Terminal session entry
 pub(crate) struct PtySession {
     pub(crate) writer: Box<dyn Write + Send>,
     pub(crate) master: Box<dyn MasterPty + Send>,
+    /// Handle to the spawned shell process — kept so close can kill it.
+    /// On Windows the child survives a master drop and keeps the cwd locked.
+    pub(crate) child: Box<dyn portable_pty::Child + Send + Sync>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
     pub(crate) context: Option<TerminalContext>,
@@ -20,15 +21,12 @@ pub(crate) enum TerminalSession {
     Local(PtySession),
     Ssh(SshTerminalSession),
 }
-
 pub(crate) struct SshTerminalSession {
     pub(crate) channel: Arc<Mutex<Channel>>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
     pub(crate) context: Option<TerminalContext>,
 }
-
-/// Global PTY manager state
 pub struct PtyManager {
     pub(crate) sessions: Mutex<HashMap<String, TerminalSession>>,
     counter: Mutex<u32>,
@@ -41,27 +39,34 @@ impl PtyManager {
             counter: Mutex::new(0),
         }
     }
-
-    pub(crate) fn find_by_context(&self, project_id: &str, tab_id: &str) -> Option<String> {
+    pub(crate) fn find_by_context(
+        &self,
+        project_id: &str,
+        tab_id: &str,
+        pane_id: Option<&str>,
+    ) -> Option<String> {
         let sessions = self.sessions.lock().unwrap();
+        let requested_pane_id = pane_id.unwrap_or(tab_id);
         sessions.iter().find_map(|(id, session)| {
             let context = match session {
                 TerminalSession::Local(s) => s.context.as_ref(),
                 TerminalSession::Ssh(s) => s.context.as_ref(),
             }?;
-            if context.project_id == project_id && context.tab_id == tab_id {
+            let existing_pane_id = context.pane_id.as_deref().unwrap_or(&context.tab_id);
+            if context.project_id == project_id
+                && context.tab_id == tab_id
+                && existing_pane_id == requested_pane_id
+            {
                 Some(id.clone())
             } else {
                 None
             }
         })
     }
-
     pub(crate) fn session_ids(&self) -> Vec<String> {
         self.sessions.lock().unwrap().keys().cloned().collect()
     }
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalContext {
@@ -69,9 +74,8 @@ pub struct TerminalContext {
     pub project_name: String,
     pub tab_id: String,
     pub tab_label: String,
+    pub pane_id: Option<String>,
 }
-
-/// Create a new terminal session
 #[tauri::command]
 pub fn terminal_create(
     app: AppHandle,
@@ -102,17 +106,17 @@ pub fn terminal_create(
         .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
     // Determine shell
-    let shell_path = shell.unwrap_or_else(|| default_shell());
+    let shell_path = shell.unwrap_or_else(default_shell);
 
     // Build command — detect PowerShell for shell integration
     let shell_lower = shell_path.replace('\\', "/").to_lowercase();
-    let is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
+    let _is_powershell = shell_lower.contains("pwsh") || shell_lower.contains("powershell");
 
     let mut cmd = CommandBuilder::new(&shell_path);
 
     // For PowerShell: set UTF-8 encoding via -Command but let profile load normally
     #[cfg(target_os = "windows")]
-    if is_powershell {
+    if _is_powershell {
         cmd.arg("-NoLogo");
         cmd.arg("-NoExit");
         cmd.arg("-Command");
@@ -151,7 +155,10 @@ pub fn terminal_create(
     // These are picked up by shell profile/init without visible injection
     if shell_lower.contains("bash") {
         // Bash: PROMPT_COMMAND emits OSC 7
-        cmd.env("PROMPT_COMMAND", r#"printf "\e]7;file://%s%s\a" "$HOSTNAME" "$PWD""#);
+        cmd.env(
+            "PROMPT_COMMAND",
+            r#"printf "\e]7;file://%s%s\a" "$HOSTNAME" "$PWD""#,
+        );
     }
     if let Some(ref ctx) = context {
         cmd.env("CONNEXIO_PROJECT_ID", &ctx.project_id);
@@ -161,12 +168,11 @@ pub fn terminal_create(
         cmd.env("CONNEXIO_TERMINAL_ID", &id);
     }
 
-    // Spawn child
-    let _child = pair
+    // Spawn child — keep the handle so terminal_close can kill the process.
+    let child = pair
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn shell: {}", e))?;
-
     // Drop slave — we only need the master side
     drop(pair.slave);
 
@@ -190,6 +196,7 @@ pub fn terminal_create(
             TerminalSession::Local(PtySession {
                 writer,
                 master: pair.master,
+                child,
                 cols: 80,
                 rows: 24,
                 context: context.clone(),
@@ -278,7 +285,7 @@ pub fn terminal_create_command(
         cmd.env("CONNEXIO_TERMINAL_ID", &id);
     }
 
-    let _child = pair
+    let child = pair
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn command: {}", e))?;
@@ -300,6 +307,7 @@ pub fn terminal_create_command(
             TerminalSession::Local(PtySession {
                 writer,
                 master: pair.master,
+                child,
                 cols: 80,
                 rows: 24,
                 context: context.clone(),
@@ -347,11 +355,19 @@ pub fn terminal_create_ssh(
     let rows = rows.unwrap_or(24).max(1);
     let session = crate::modules::ssh::ssh_connect_session(&connection, password.as_deref())?;
     let _ = app.emit("terminal:ssh-status", (&id, "authenticated"));
-    let mut channel = session.channel_session().map_err(|e| format!("Failed to open SSH channel: {}", e))?;
+    let mut channel = session
+        .channel_session()
+        .map_err(|e| format!("Failed to open SSH channel: {}", e))?;
     channel
-        .request_pty("xterm-256color", None, Some((cols as u32, rows as u32, 0, 0)))
+        .request_pty(
+            "xterm-256color",
+            None,
+            Some((cols as u32, rows as u32, 0, 0)),
+        )
         .map_err(|e| format!("Failed to request SSH PTY: {}", e))?;
-    channel.shell().map_err(|e| format!("Failed to start SSH shell: {}", e))?;
+    channel
+        .shell()
+        .map_err(|e| format!("Failed to start SSH shell: {}", e))?;
     let _ = app.emit("terminal:ssh-status", (&id, "shell-started"));
     session.set_blocking(false);
 
@@ -411,9 +427,16 @@ pub fn terminal_write(app: AppHandle, id: String, data: String) -> Result<(), St
                 .write_all(data.as_bytes())
                 .map_err(|e| format!("Write error: {}", e))?,
             TerminalSession::Ssh(session) => {
-                let mut channel = session.channel.lock().map_err(|_| "SSH channel lock poisoned".to_string())?;
-                channel.write_all(data.as_bytes()).map_err(|e| format!("SSH write error: {}", e))?;
-                channel.flush().map_err(|e| format!("SSH flush error: {}", e))?;
+                let mut channel = session
+                    .channel
+                    .lock()
+                    .map_err(|_| "SSH channel lock poisoned".to_string())?;
+                channel
+                    .write_all(data.as_bytes())
+                    .map_err(|e| format!("SSH write error: {}", e))?;
+                channel
+                    .flush()
+                    .map_err(|e| format!("SSH flush error: {}", e))?;
             }
         }
     }
@@ -451,8 +474,12 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
                 if session.cols == cols && session.rows == rows {
                     return Ok(());
                 }
-                let mut channel = session.channel.lock().map_err(|_| "SSH channel lock poisoned".to_string())?;
-                channel.request_pty_size(cols as u32, rows as u32, None, None)
+                let mut channel = session
+                    .channel
+                    .lock()
+                    .map_err(|_| "SSH channel lock poisoned".to_string())?;
+                channel
+                    .request_pty_size(cols as u32, rows as u32, None, None)
                     .map_err(|e| format!("SSH resize error: {}", e))?;
                 session.cols = cols;
                 session.rows = rows;
@@ -462,29 +489,33 @@ pub fn terminal_resize(app: AppHandle, id: String, cols: u16, rows: u16) -> Resu
     Ok(())
 }
 
-/// Close/kill a terminal
 #[tauri::command]
 pub fn terminal_close(app: AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<PtyManager>();
     let mut sessions = state.sessions.lock().unwrap();
     if let Some(session) = sessions.remove(&id) {
-        if let TerminalSession::Ssh(session) = session {
-            if let Ok(mut channel) = session.channel.try_lock() {
-                let _ = channel.close();
+        match session {
+            TerminalSession::Local(mut local) => {
+                // Kill the shell process explicitly: on Windows the child
+                // survives dropping the PTY master and keeps its cwd locked,
+                // which blocks worktree deletion.
+                let _ = local.child.kill();
+                drop(local.master);
+            }
+            TerminalSession::Ssh(session) => {
+                if let Ok(mut channel) = session.channel.try_lock() {
+                    let _ = channel.close();
+                }
             }
         }
     }
     Ok(())
 }
-
-/// Kill all terminals (called on app exit)
 pub fn kill_all(app: &AppHandle) {
     let state = app.state::<PtyManager>();
     let mut sessions = state.sessions.lock().unwrap();
     sessions.clear();
 }
-
-/// Get default shell for the current platform
 fn default_shell() -> String {
     #[cfg(target_os = "windows")]
     {
@@ -500,5 +531,3 @@ fn default_shell() -> String {
         std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string())
     }
 }
-
-

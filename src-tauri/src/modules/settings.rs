@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 fn data_dir(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn settings_file(app: &AppHandle) -> PathBuf {
@@ -24,10 +26,41 @@ pub struct AppSettings {
     pub webgl_renderer: bool,
     #[serde(default = "default_ui_font_size")]
     pub ui_font_size: String,
+    #[serde(default = "default_worktree_dir")]
+    pub worktree_dir: String,
+    #[serde(default = "default_branch_prefix")]
+    pub branch_prefix: String,
+    #[serde(default = "default_base_ref")]
+    pub default_base_ref: String,
+}
+
+fn default_branch_prefix() -> String {
+    "connexio".to_string()
+}
+
+fn default_base_ref() -> String {
+    "HEAD".to_string()
 }
 
 fn default_ui_font_size() -> String {
     "default".to_string()
+}
+
+pub fn default_worktree_dir() -> String {
+    // Default central workspace under the user home: <home>/.connexio/worktrees
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_default();
+    if home.is_empty() {
+        ".connexio/worktrees".to_string()
+    } else {
+        format!(
+            "{}{}.connexio{}worktrees",
+            home,
+            std::path::MAIN_SEPARATOR,
+            std::path::MAIN_SEPARATOR
+        )
+    }
 }
 
 impl Default for AppSettings {
@@ -42,6 +75,9 @@ impl Default for AppSettings {
             copy_on_select: false,
             webgl_renderer: true,
             ui_font_size: "default".to_string(),
+            worktree_dir: default_worktree_dir(),
+            branch_prefix: "connexio".to_string(),
+            default_base_ref: "HEAD".to_string(),
         }
     }
 }
@@ -121,7 +157,10 @@ fn detect_shells() -> Vec<ShellInfo> {
 
         // Windows PowerShell
         let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
-        let wpsh = format!("{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", system_root);
+        let wpsh = format!(
+            "{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            system_root
+        );
         if Path::new(&wpsh).exists() {
             shells.push(ShellInfo {
                 id: "powershell".to_string(),
@@ -174,7 +213,15 @@ fn detect_shells() -> Vec<ShellInfo> {
         let unix_shells = [
             ("bash", "Bash", &["/bin/bash", "/usr/bin/bash"][..]),
             ("zsh", "Zsh", &["/bin/zsh", "/usr/bin/zsh"][..]),
-            ("fish", "Fish", &["/usr/bin/fish", "/usr/local/bin/fish", "/opt/homebrew/bin/fish"][..]),
+            (
+                "fish",
+                "Fish",
+                &[
+                    "/usr/bin/fish",
+                    "/usr/local/bin/fish",
+                    "/opt/homebrew/bin/fish",
+                ][..],
+            ),
         ];
 
         for (id, name, paths) in &unix_shells {

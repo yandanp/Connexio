@@ -69,7 +69,6 @@
 	font-weight: 600;
 }
 
-
 :root {
 	--bg-primary: #090d14;
 	--bg-secondary: #101622;
@@ -97,8 +96,7 @@
 }
 
 body {
-	font-family:
-		"Aptos", "SF Pro Display", "Segoe UI Variable", "Segoe UI", sans-serif;
+	font-family: "Aptos", "SF Pro Display", "Segoe UI Variable", "Segoe UI", sans-serif;
 	background:
 		radial-gradient(circle at 18% -10%, rgba(56, 189, 248, 0.14), transparent 34%),
 		radial-gradient(circle at 84% 0%, rgba(139, 92, 246, 0.1), transparent 30%),
@@ -152,8 +150,7 @@ textarea:focus-visible {
 
 .app-surface {
 	background:
-		linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 140px),
-		var(--bg-secondary);
+		linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 140px), var(--bg-secondary);
 	box-shadow: var(--shadow-inset);
 }
 
@@ -175,7 +172,10 @@ textarea:focus-visible {
 }
 
 .soft-card-hover {
-	transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease,
+		opacity 0.15s ease;
 }
 
 .soft-card-hover:hover {
@@ -201,7 +201,9 @@ textarea:focus-visible {
 .dock-button {
 	border-radius: 0.5rem;
 	color: var(--text-muted);
-	transition: background-color 0.15s ease, color 0.15s ease;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
 }
 
 .dock-button:hover {
@@ -266,7 +268,9 @@ textarea:focus-visible {
 
 /* Drag & Drop tab styles */
 [draggable="true"] {
-	transition: opacity 0.15s ease, transform 0.15s ease;
+	transition:
+		opacity 0.15s ease,
+		transform 0.15s ease;
 }
 
 [draggable="true"]:active {
@@ -313,7 +317,8 @@ textarea:focus-visible {
 }
 
 @keyframes soft-pulse {
-	0%, 100% {
+	0%,
+	100% {
 		opacity: 0.55;
 	}
 	50% {
@@ -322,7 +327,11 @@ textarea:focus-visible {
 }
 
 .interaction-lift {
-	transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+	transition:
+		transform 0.15s ease,
+		background-color 0.15s ease,
+		color 0.15s ease,
+		opacity 0.15s ease;
 }
 
 .interaction-lift:hover {
@@ -418,4 +427,3 @@ textarea:focus-visible {
 [data-ui-size="small"] .text-\[11px\] {
 	font-size: 10px;
 }
-

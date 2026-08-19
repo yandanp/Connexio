@@ -17,10 +17,26 @@ pub struct FileEntry {
 
 /// Common directories/files to ignore
 const IGNORED: &[&str] = &[
-    "node_modules", ".git", "target", "dist", "build", ".next",
-    "__pycache__", ".venv", "venv", ".tox", ".mypy_cache",
-    ".DS_Store", "Thumbs.db", ".idea", ".vscode",
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".tox",
+    ".mypy_cache",
+    ".DS_Store",
+    "Thumbs.db",
+    ".idea",
+    ".vscode",
 ];
+
+/// Files larger than this are not searched — prevents multi-second reads of
+/// minified bundles and logs that make the scan appear to hang.
+const MAX_SEARCH_FILE_SIZE: u64 = 1024 * 1024;
 
 fn should_ignore(name: &str) -> bool {
     IGNORED.contains(&name)
@@ -78,12 +94,10 @@ pub fn explorer_list_dir(_app: AppHandle, dir_path: String) -> Result<Vec<FileEn
     }
 
     // Sort: directories first, then alphabetical
-    entries.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
+    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
     Ok(entries)
@@ -91,7 +105,11 @@ pub fn explorer_list_dir(_app: AppHandle, dir_path: String) -> Result<Vec<FileEn
 
 /// Read full tree (limited depth for performance)
 #[tauri::command]
-pub fn explorer_read_tree(_app: AppHandle, dir_path: String, max_depth: Option<u32>) -> Result<Vec<FileEntry>, String> {
+pub fn explorer_read_tree(
+    _app: AppHandle,
+    dir_path: String,
+    max_depth: Option<u32>,
+) -> Result<Vec<FileEntry>, String> {
     let depth = max_depth.unwrap_or(1);
     read_tree_recursive(&dir_path, depth)
 }
@@ -125,7 +143,9 @@ fn read_tree_recursive(dir_path: &str, depth: u32) -> Result<Vec<FileEntry>, Str
         };
 
         let extension = if !is_dir {
-            entry_path.extension().map(|e| e.to_string_lossy().to_string())
+            entry_path
+                .extension()
+                .map(|e| e.to_string_lossy().to_string())
         } else {
             None
         };
@@ -147,12 +167,10 @@ fn read_tree_recursive(dir_path: &str, depth: u32) -> Result<Vec<FileEntry>, Str
         });
     }
 
-    entries.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
+    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
     Ok(entries)
@@ -175,7 +193,11 @@ pub fn explorer_read_file(_app: AppHandle, file_path: String) -> Result<String, 
 
 /// Write content to a file
 #[tauri::command]
-pub fn explorer_write_file(_app: AppHandle, file_path: String, content: String) -> Result<(), String> {
+pub fn explorer_write_file(
+    _app: AppHandle,
+    file_path: String,
+    content: String,
+) -> Result<(), String> {
     fs::write(&file_path, &content).map_err(|e| format!("Failed to write file: {}", e))
 }
 
@@ -235,8 +257,7 @@ pub struct SearchResult {
 }
 
 #[tauri::command]
-pub fn explorer_search_in_files(
-    _app: AppHandle,
+pub async fn explorer_search_in_files(
     project_path: String,
     query: String,
     case_sensitive: Option<bool>,
@@ -244,30 +265,34 @@ pub fn explorer_search_in_files(
 ) -> Result<Vec<SearchResult>, String> {
     let case_sensitive = case_sensitive.unwrap_or(false);
     let max_results = max_results.unwrap_or(200);
-    let mut results = Vec::new();
-    let query_lower = if !case_sensitive { query.to_lowercase() } else { String::new() };
-
-    search_dir(
-        Path::new(&project_path),
-        &query,
-        &query_lower,
-        case_sensitive,
-        max_results,
-        &mut results,
-    );
-
-    Ok(results)
+    // Searching can walk large project trees; run it off the main thread so
+    // the UI stays responsive while the scan runs.
+    tokio::task::spawn_blocking(move || {
+        let query_lower = if !case_sensitive {
+            query.to_lowercase()
+        } else {
+            String::new()
+        };
+        let mut results = Vec::new();
+        search_dir(
+            Path::new(&project_path),
+            &query,
+            &query_lower,
+            case_sensitive,
+            max_results,
+            &mut results,
+        );
+        results
+    })
+    .await
+    .map_err(|e| format!("Search task failed: {}", e))
 }
 
 /// Binary file extensions to skip
 const BINARY_EXTENSIONS: &[&str] = &[
-    "png", "jpg", "jpeg", "gif", "bmp", "ico", "svg", "webp",
-    "mp3", "mp4", "wav", "avi", "mkv", "mov",
-    "zip", "tar", "gz", "rar", "7z",
-    "exe", "dll", "so", "dylib", "bin",
-    "pdf", "doc", "docx", "xls", "xlsx",
-    "woff", "woff2", "ttf", "otf", "eot",
-    "lock", "map",
+    "png", "jpg", "jpeg", "gif", "bmp", "ico", "svg", "webp", "mp3", "mp4", "wav", "avi", "mkv",
+    "mov", "zip", "tar", "gz", "rar", "7z", "exe", "dll", "so", "dylib", "bin", "pdf", "doc",
+    "docx", "xls", "xlsx", "woff", "woff2", "ttf", "otf", "eot", "lock", "map",
 ];
 
 fn is_binary_file(name: &str) -> bool {
@@ -307,9 +332,26 @@ fn search_dir(
             continue;
         }
 
-        if path.is_dir() {
-            search_dir(&path, query, query_lower, case_sensitive, max_results, results);
-        } else if path.is_file() && !is_binary_file(&name) {
+        // file_type() does not follow symlinks: is_dir() is false for
+        // symlinks-to-dirs, which protects the walk from symlink loops.
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        if file_type.is_dir() {
+            search_dir(
+                &path,
+                query,
+                query_lower,
+                case_sensitive,
+                max_results,
+                results,
+            );
+        } else if file_type.is_file() && !is_binary_file(&name) {
+            if entry.metadata().map(|m| m.len()).unwrap_or(0) > MAX_SEARCH_FILE_SIZE {
+                continue; // oversized file — skip rather than stall the scan
+            }
             // Read file and search line by line
             if let Ok(content) = fs::read_to_string(&path) {
                 for (idx, line) in content.lines().enumerate() {
@@ -333,3 +375,7 @@ fn search_dir(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "explorer_tests.rs"]
+mod explorer_tests;

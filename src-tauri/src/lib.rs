@@ -1,14 +1,24 @@
 mod modules;
 
+use modules::discord::DiscordPresenceState;
 use modules::notification::NotificationState;
 use modules::pty::PtyManager;
-use modules::discord::DiscordPresenceState;
 use modules::remote::RemoteAccessState;
 use tauri::Manager;
 
 #[tauri::command]
 fn app_get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Returns the resident set size (in bytes) of the current process — the
+/// footprint the user actually feels. Polled periodically by the footer.
+#[tauri::command]
+fn app_get_memory() -> u64 {
+    use sysinfo::System;
+    let pid = sysinfo::get_current_pid().unwrap_or(sysinfo::Pid::from(0));
+    let sys = System::new_all();
+    sys.process(pid).map(|p| p.memory()).unwrap_or(0)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -21,9 +31,11 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .setup(|app| {
             // Initialize PTY manager state
             app.manage(PtyManager::new());
@@ -32,8 +44,7 @@ pub fn run() {
             app.manage(RemoteAccessState::new());
 
             // Start notification TCP server
-            modules::notification::start_notification_server(&app.handle());
-
+            modules::notification::start_notification_server(app.handle());
             // Set window icon from embedded high-res PNG for crisp taskbar display
             if let Some(window) = app.get_webview_window("main") {
                 let icon_bytes = include_bytes!("../icons/128x128@2x.png");
@@ -48,6 +59,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // App
             app_get_version,
+            app_get_memory,
             // Terminal
             modules::pty::terminal_create,
             modules::pty::terminal_create_command,
@@ -149,9 +161,9 @@ pub fn run() {
             modules::notification::notification_get_providers,
             modules::notification::notification_install_hook,
             modules::notification::notification_uninstall_hook,
-            modules::notification::notification_upload_sound,
-            modules::notification::notification_remove_custom_sound,
-            modules::notification::notification_get_sound_path,
+            modules::notification_sound::notification_upload_sound,
+            modules::notification_sound::notification_remove_custom_sound,
+            modules::notification_sound::notification_get_sound_path,
             // Explorer
             modules::explorer::explorer_list_dir,
             modules::explorer::explorer_read_tree,
@@ -177,6 +189,11 @@ pub fn run() {
             modules::remote::remote_status,
             modules::remote::remote_regenerate_pin,
             modules::remote::remote_wol_send,
+            // Worktree
+            modules::worktree::worktree_create,
+            modules::worktree::worktree_list,
+            modules::worktree::worktree_preview_diff,
+            modules::worktree::worktree_delete,
         ])
         .on_window_event(|window, event| {
             match event {

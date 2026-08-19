@@ -68,31 +68,31 @@ Connexio organizes your terminals **by project**. Each project gets its own work
 
 ## 📥 Download
 
-| Platform | Download |
-| -------- | -------- |
-| Windows | [Connexio_x64-setup.exe](https://github.com/yandanp/Connexio/releases/latest) |
-| macOS (Apple Silicon) | [Connexio_aarch64.dmg](https://github.com/yandanp/Connexio/releases/latest) |
-| Linux | [Connexio_amd64.AppImage](https://github.com/yandanp/Connexio/releases/latest) |
+| Platform              | Download                                                                       |
+| --------------------- | ------------------------------------------------------------------------------ |
+| Windows               | [Connexio_x64-setup.exe](https://github.com/yandanp/Connexio/releases/latest)  |
+| macOS (Apple Silicon) | [Connexio_aarch64.dmg](https://github.com/yandanp/Connexio/releases/latest)    |
+| Linux                 | [Connexio_amd64.AppImage](https://github.com/yandanp/Connexio/releases/latest) |
 
 Or go to [Releases](https://github.com/yandanp/Connexio/releases) for all versions including pre-releases.
 
 ## 📦 Tech Stack
 
-| Technology | Purpose |
-| --- | --- |
-| **Tauri v2** | Cross-platform desktop framework |
-| **Rust** | Native backend (PTY, git, SSH, file system) |
-| **portable-pty** | Native PTY process management |
-| **React 18** | UI framework |
-| **TypeScript** | Type safety |
-| **xterm.js** | Terminal rendering (with WebGL addon) |
-| **CodeMirror 6** | Code editor |
-| **Zustand** | State management |
-| **Tailwind CSS** | Styling |
-| **Vite** | Frontend build tool |
-| **tauri-plugin-store** | Persistent storage |
-| **tauri-plugin-updater** | Auto-update via GitHub Releases |
-| **discord-rich-presence** | Discord RPC integration |
+| Technology                | Purpose                                     |
+| ------------------------- | ------------------------------------------- |
+| **Tauri v2**              | Cross-platform desktop framework            |
+| **Rust**                  | Native backend (PTY, git, SSH, file system) |
+| **portable-pty**          | Native PTY process management               |
+| **React 18**              | UI framework                                |
+| **TypeScript**            | Type safety                                 |
+| **xterm.js**              | Terminal rendering (with WebGL addon)       |
+| **CodeMirror 6**          | Code editor                                 |
+| **Zustand**               | State management                            |
+| **Tailwind CSS**          | Styling                                     |
+| **Vite**                  | Frontend build tool                         |
+| **tauri-plugin-store**    | Persistent storage                          |
+| **tauri-plugin-updater**  | Auto-update via GitHub Releases             |
+| **discord-rich-presence** | Discord RPC integration                     |
 
 ## 🛠️ Development
 
@@ -116,13 +116,13 @@ npm run dev
 
 ### Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start Tauri dev mode (hot-reload frontend + Rust backend) |
-| `npm run dev:renderer` | Start Vite dev server only (frontend) |
-| `npm run build` | Build frontend for production |
-| `npm run build:tauri` | Build full Tauri app (installer) |
-| `npm run typecheck` | Type-check all TypeScript |
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `npm run dev`          | Start Tauri dev mode (hot-reload frontend + Rust backend) |
+| `npm run dev:renderer` | Start Vite dev server only (frontend)                     |
+| `npm run build`        | Build frontend for production                             |
+| `npm run build:tauri`  | Build full Tauri app (installer)                          |
+| `npm run typecheck`    | Type-check all TypeScript                                 |
 
 ### Release
 
@@ -139,6 +139,7 @@ git push && git push --tags
 Pushing a `v*` tag triggers GitHub Actions → multi-platform build & GitHub Release.
 
 Tag patterns for release channels:
+
 - `v1.0.0` — Stable release
 - `v1.0.0-dev.1` — Dev pre-release
 - `v1.0.0-alpha.1` / `v1.0.0-beta.1` — Alpha/Beta pre-release
@@ -147,40 +148,48 @@ Tag patterns for release channels:
 
 ```
 Connexio/
+├── AGENTS.md                    # Written conventions for AI agents & contributors
+├── docs/
+│   └── STYLEGUIDE.md            # Canonical design tokens & utility classes
+├── config/                      # Tooling & quality gates
+│   ├── check-max-lines.mjs      # Max-lines ratchet (frontend + Rust)
+│   ├── max-lines-baseline.txt   # Big-file baseline (numbers only go down)
+│   ├── check-feature-imports.mjs# Feature boundary checker
+│   └── vitest.config.ts         # Test config
 ├── src/
-│   ├── renderer/                # React frontend
-│   │   ├── components/
-│   │   │   ├── Workspace.tsx         # Main workspace (tabs, terminal, panels)
-│   │   │   ├── Terminal.tsx          # xterm.js terminal instance
-│   │   │   ├── TerminalLayer.tsx     # Global terminal renderer (never unmounts)
-│   │   │   ├── Sidebar.tsx           # Project sidebar with drag & drop
-│   │   │   ├── TaskPanel.tsx         # Task runner + pinned commands
-│   │   │   ├── SSHPanel.tsx          # SSH connection manager UI
-│   │   │   ├── GitStatusBar.tsx      # Git status display
-│   │   │   ├── SearchPanel.tsx       # Terminal search
-│   │   │   ├── SettingsModal.tsx     # Settings UI
-│   │   │   ├── ShellPicker.tsx       # Shell selection dropdown
-│   │   │   ├── WorkspaceTab.tsx      # Draggable, renameable tab
-│   │   │   ├── WebPreview.tsx        # Live web preview panel
-│   │   │   ├── WelcomeScreen.tsx     # Welcome/onboarding screen
-│   │   │   ├── UpdateNotification.tsx
-│   │   │   ├── ai/                   # AI chat panel
-│   │   │   ├── editor/              # CodeMirror code editor
-│   │   │   ├── explorer/            # File explorer tree
-│   │   │   └── git/                 # Branch picker, commit box, history
-│   │   ├── stores/              # Zustand state management
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── lib/                 # Utility functions
-│   │   ├── styles/              # Global CSS
-│   │   └── types/               # TypeScript declarations
-│   └── shared/
-│       └── types.ts             # Shared types (frontend ↔ backend)
+│   ├── shared/
+│   │   └── types.ts             # Pure shared types (frontend ↔ Rust)
+│   └── renderer/                # React frontend
+│       ├── core/                # Kernel — importable by every feature
+│       │   ├── api/             # Typed IPC wrappers per domain (window.connexio)
+│       │   ├── api-remote/      # Same API shape for remote (mobile/web) mode
+│       │   ├── ui/              # Small primitives (ContextMenu, ConfirmDialog, …)
+│       │   ├── hooks/           # use-terminal-resize-v2, useDiscordPresence
+│       │   ├── stores/          # Cross-cutting stores: settings, theme, notifications
+│       │   └── tauri-shim.ts    # Picks desktop vs remote API at startup
+│       ├── features/            # 1 folder = 1 domain; public API via index.ts only
+│       │   ├── terminal/        # Terminal, TerminalLayer, ShellPicker, SearchPanel
+│       │   ├── workspace/       # Workspace composition, tab bar, split layout, store
+│       │   ├── projects/        # Sidebar, AddProjectModal, projects store
+│       │   ├── git/             # SourcePanel, DiffViewer, BranchPicker, CommitBox, …
+│       │   ├── ssh/             # SSH manager: hosts, identities, known hosts, SFTP
+│       │   ├── remote/          # Remote access: login gate, mobile shell, settings
+│       │   ├── tasks/           # TaskPanel + pinned commands
+│       │   ├── explorer/        # FileExplorer
+│       │   ├── editor/          # CodeEditor + RemoteEditorWrapper
+│       │   ├── ai/              # AIChatPanel + provider client & store
+│       │   ├── settings/        # SettingsModal + settings tabs
+│       │   └── notifications/   # NotificationBell, NotificationToast
+│       ├── styles/              # globals.css (design token source)
+│       └── App.tsx / main.tsx   # Composition root — only place features are joined
 ├── src-tauri/
 │   ├── src/
 │   │   ├── main.rs              # Tauri app entry point
 │   │   ├── lib.rs               # Plugin registration & command setup
 │   │   └── modules/
 │   │       ├── pty/             # PTY process management (portable-pty)
+│   │       ├── ssh/             # SSH module folder (connection, sftp, trust, secrets, …)
+│   │       ├── remote/          # Remote access server folder (http, websocket, wol, …)
 │   │       ├── projects.rs      # Project CRUD
 │   │       ├── workspace.rs     # Workspace state persistence
 │   │       ├── session.rs       # Session persistence
@@ -189,8 +198,6 @@ Connexio/
 │   │       ├── git.rs           # Git status & operations
 │   │       ├── tasks.rs         # Task runner (script detection)
 │   │       ├── pinned.rs        # Pinned commands
-│   │       ├── ssh.rs           # SSH connection manager
-│   │       ├── remote/          # Remote access protocol and server
 │   │       ├── theme.rs         # Theme management
 │   │       ├── explorer.rs      # File system explorer
 │   │       ├── clipboard.rs     # Native clipboard handling
@@ -201,7 +208,7 @@ Connexio/
 │   ├── Cargo.toml               # Rust dependencies
 │   └── capabilities/            # Tauri permission capabilities
 ├── assets/                      # App icons
-├── .github/workflows/           # CI/CD (multi-platform release)
+├── .github/workflows/           # CI gates + multi-platform release
 ├── vite.config.ts               # Vite configuration
 ├── tailwind.config.js           # Tailwind configuration
 └── package.json
@@ -209,11 +216,11 @@ Connexio/
 
 ## 🎨 Themes
 
-| Theme | Style |
-| --- | --- |
-| **Connexio Dark** | Default dark theme with blue accents |
-| **Connexio Light** | Clean light theme |
-| **Midnight Ocean** | Deep blue with teal accents |
+| Theme              | Style                                |
+| ------------------ | ------------------------------------ |
+| **Connexio Dark**  | Default dark theme with blue accents |
+| **Connexio Light** | Clean light theme                    |
+| **Midnight Ocean** | Deep blue with teal accents          |
 
 Themes apply to both the app UI and terminal colors.
 
@@ -229,13 +236,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Commit Convention
 
-| Prefix | Usage |
-| --- | --- |
-| `feat:` | New feature |
-| `fix:` | Bug fix |
+| Prefix      | Usage            |
+| ----------- | ---------------- |
+| `feat:`     | New feature      |
+| `fix:`      | Bug fix          |
 | `refactor:` | Code refactoring |
-| `ci:` | CI/CD changes |
-| `chore:` | Maintenance |
+| `ci:`       | CI/CD changes    |
+| `chore:`    | Maintenance      |
 
 ## 📄 License
 

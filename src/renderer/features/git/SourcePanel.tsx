@@ -1,0 +1,689 @@
+import {
+	AlertCircle,
+	Check,
+	ChevronDown,
+	ChevronRight,
+	FileCode,
+	Loader2,
+	Minus,
+	Plus,
+	RefreshCw,
+	RotateCcw,
+	Search,
+	X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GitChangedFile } from "@shared/types";
+import ChangedFileItem, { type SourceMessage } from "./ChangedFileItem";
+import {
+	evictOldProjectsIfNeeded,
+	FETCH_COOLDOWN_MS,
+	filesCache,
+	inflightFetches,
+	INITIAL_VISIBLE_FILES_PER_GROUP,
+	invalidateDiffCache,
+	lastFetchTime,
+	LOAD_MORE_FILES_STEP,
+	trimDiffCache,
+} from "./git-diff-cache";
+import { filterFiles, groupFiles, type FileGroup } from "./git-file-grouping";
+import SkeletonList from "./SkeletonList";
+import DiffModal, { type DiffFileContext } from "./DiffModal";
+import CommitBox from "./CommitBox";
+import GitHistoryPanel from "./GitHistoryPanel";
+import GitStatusBar from "./GitStatusBar";
+
+interface Props {
+	projectPath: string;
+}
+
+const MESSAGE_AUTO_HIDE_MS = 4000;
+
+// ============================================
+// Source Panel (Main Component)
+// ============================================
+
+export default function SourcePanel({ projectPath }: Props) {
+	// Seed from cache to avoid flash of empty state on tab switch
+	const [files, setFiles] = useState<GitChangedFile[]>(() => filesCache.get(projectPath) ?? []);
+	const [isInitialLoad, setIsInitialLoad] = useState(() => !filesCache.has(projectPath));
+	const [isRefreshing, setIsRefreshing] = useState(false);
+	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+	const [collapsedGroups, setCollapsedGroups] = useState<Set<FileGroup>>(new Set());
+	const [visibleLimits, setVisibleLimits] = useState<Record<FileGroup, number>>({
+		staged: INITIAL_VISIBLE_FILES_PER_GROUP,
+		modified: INITIAL_VISIBLE_FILES_PER_GROUP,
+		untracked: INITIAL_VISIBLE_FILES_PER_GROUP,
+		conflicted: INITIAL_VISIBLE_FILES_PER_GROUP,
+	});
+	const [modalOpen, setModalOpen] = useState(false);
+	const [modalInitialIndex, setModalInitialIndex] = useState(0);
+	const [filterQuery, setFilterQuery] = useState("");
+	const [showFilter, setShowFilter] = useState(false);
+	const [message, setMessage] = useState<SourceMessage | null>(null);
+	const [globalActionLoading, setGlobalActionLoading] = useState<string | null>(null);
+	const [activeTab, setActiveTab] = useState<"changes" | "history">("changes");
+	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const mountedRef = useRef(true);
+	const activeProjectPathRef = useRef(projectPath);
+	const filterInputRef = useRef<HTMLInputElement>(null);
+	const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		activeProjectPathRef.current = projectPath;
+	}, [projectPath]);
+
+	const showMessage = useCallback((msg: SourceMessage) => {
+		setMessage(msg);
+		if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+		messageTimerRef.current = setTimeout(() => {
+			setMessage(null);
+		}, MESSAGE_AUTO_HIDE_MS);
+	}, []);
+
+	const dismissMessage = useCallback(() => {
+		setMessage(null);
+		if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+	}, []);
+
+	const fetchFiles = useCallback(
+		async (opts?: { silent?: boolean; force?: boolean }) => {
+			const targetPath = projectPath;
+
+			// Skip if recently fetched (unless forced)
+			if (!opts?.force) {
+				const last = lastFetchTime.get(targetPath) ?? 0;
+				if (Date.now() - last < FETCH_COOLDOWN_MS && filesCache.has(targetPath)) {
+					return;
+				}
+			}
+
+			// Dedupe concurrent requests
+			let promise = inflightFetches.get(targetPath);
+			if (!promise) {
+				promise = (async () => {
+					try {
+						return await window.connexio.git.changedFiles(targetPath);
+					} catch {
+						return [];
+					}
+				})();
+				inflightFetches.set(targetPath, promise);
+				promise.finally(() => {
+					inflightFetches.delete(targetPath);
+				});
+			}
+
+			if (!opts?.silent) setIsRefreshing(true);
+			const result = await promise;
+			filesCache.set(targetPath, result);
+			lastFetchTime.set(targetPath, Date.now());
+			evictOldProjectsIfNeeded(targetPath);
+			// Ignore stale results if user already switched to a different project
+			if (mountedRef.current && activeProjectPathRef.current === targetPath) {
+				setFiles(result);
+				setIsInitialLoad(false);
+				setIsRefreshing(false);
+			}
+		},
+		[projectPath],
+	);
+
+	useEffect(() => {
+		mountedRef.current = true;
+
+		// Reset local state when project changes
+		setExpandedFiles(new Set());
+		setVisibleLimits({
+			staged: INITIAL_VISIBLE_FILES_PER_GROUP,
+			modified: INITIAL_VISIBLE_FILES_PER_GROUP,
+			untracked: INITIAL_VISIBLE_FILES_PER_GROUP,
+			conflicted: INITIAL_VISIBLE_FILES_PER_GROUP,
+		});
+		setModalOpen(false);
+		setFilterQuery("");
+		setMessage(null);
+		setGlobalActionLoading(null);
+		trimDiffCache(projectPath);
+
+		// Seed from cache immediately
+		const cached = filesCache.get(projectPath);
+		if (cached) {
+			setFiles(cached);
+			setIsInitialLoad(false);
+		} else {
+			setFiles([]);
+			setIsInitialLoad(true);
+		}
+
+		// Trigger fetch but don't block UI — cached files render immediately
+		fetchFiles({ silent: filesCache.has(projectPath) });
+
+		const startPolling = () => {
+			if (intervalRef.current) return;
+			intervalRef.current = setInterval(() => {
+				fetchFiles({ silent: true, force: true });
+			}, 60000);
+		};
+		const stopPolling = () => {
+			if (intervalRef.current) {
+				clearInterval(intervalRef.current);
+				intervalRef.current = null;
+			}
+		};
+
+		startPolling();
+
+		const onVisibilityChange = () => {
+			if (document.hidden) {
+				stopPolling();
+			} else {
+				fetchFiles({ silent: true });
+				startPolling();
+			}
+		};
+		const onFocus = () => fetchFiles({ silent: true });
+
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		window.addEventListener("focus", onFocus);
+
+		return () => {
+			mountedRef.current = false;
+			stopPolling();
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+			window.removeEventListener("focus", onFocus);
+		};
+	}, [fetchFiles, projectPath]);
+
+	const grouped = useMemo(() => groupFiles(files), [files]);
+
+	// Apply filter to each group
+	const filteredGrouped = useMemo(() => {
+		if (!filterQuery.trim()) return grouped;
+		return {
+			staged: filterFiles(grouped.staged, filterQuery, "staged"),
+			modified: filterFiles(grouped.modified, filterQuery, "modified"),
+			untracked: filterFiles(grouped.untracked, filterQuery, "untracked"),
+			conflicted: filterFiles(grouped.conflicted, filterQuery, "conflicted"),
+		};
+	}, [grouped, filterQuery]);
+
+	const totalChanges =
+		grouped.staged.length +
+		grouped.modified.length +
+		grouped.untracked.length +
+		grouped.conflicted.length;
+	const filteredTotal =
+		filteredGrouped.staged.length +
+		filteredGrouped.modified.length +
+		filteredGrouped.untracked.length +
+		filteredGrouped.conflicted.length;
+
+	const modalFiles = useMemo<DiffFileContext[]>(() => {
+		return [
+			...filteredGrouped.conflicted.map((f) => ({ file: f, group: "modified" as const })),
+			...filteredGrouped.staged.map((f) => ({ file: f, group: "staged" as const })),
+			...filteredGrouped.modified.map((f) => ({ file: f, group: "modified" as const })),
+			...filteredGrouped.untracked.map((f) => ({
+				file: f,
+				group: "untracked" as const,
+			})),
+		];
+	}, [
+		filteredGrouped.conflicted,
+		filteredGrouped.staged,
+		filteredGrouped.modified,
+		filteredGrouped.untracked,
+	]);
+
+	const toggleFile = useCallback((key: string) => {
+		setExpandedFiles((prev) => {
+			const next = new Set(prev);
+			if (next.has(key)) {
+				next.delete(key);
+			} else {
+				next.add(key);
+				// Cap open previews to 5 — evict oldest (first inserted)
+				if (next.size > 5) {
+					const oldest = next.values().next().value;
+					if (oldest) next.delete(oldest);
+				}
+			}
+			return next;
+		});
+	}, []);
+
+	const toggleGroup = useCallback((group: FileGroup) => {
+		setCollapsedGroups((prev) => {
+			const next = new Set(prev);
+			if (next.has(group)) {
+				next.delete(group);
+			} else {
+				next.add(group);
+			}
+			return next;
+		});
+	}, []);
+
+	const handleShowMore = useCallback((group: FileGroup) => {
+		setVisibleLimits((prev) => ({
+			...prev,
+			[group]: prev[group] + LOAD_MORE_FILES_STEP,
+		}));
+	}, []);
+
+	const handleRefresh = useCallback(() => {
+		invalidateDiffCache(projectPath);
+		setExpandedFiles(new Set());
+		fetchFiles({ force: true });
+	}, [fetchFiles, projectPath]);
+
+	const handleStageAll = useCallback(async () => {
+		if (globalActionLoading) return;
+		setGlobalActionLoading("stage-all");
+		try {
+			await window.connexio.git.stageAll(projectPath);
+			invalidateDiffCache(projectPath);
+			await fetchFiles({ force: true });
+			showMessage({ type: "success", text: "All changes staged" });
+		} catch {
+			showMessage({ type: "error", text: "Failed to stage all changes" });
+		}
+		setGlobalActionLoading(null);
+	}, [fetchFiles, projectPath, globalActionLoading, showMessage]);
+
+	const handleUnstageAll = useCallback(async () => {
+		if (globalActionLoading) return;
+		setGlobalActionLoading("unstage-all");
+		try {
+			await window.connexio.git.unstageAll(projectPath);
+			invalidateDiffCache(projectPath);
+			await fetchFiles({ force: true });
+			showMessage({ type: "success", text: "All changes unstaged" });
+		} catch {
+			showMessage({ type: "error", text: "Failed to unstage all changes" });
+		}
+		setGlobalActionLoading(null);
+	}, [fetchFiles, projectPath, globalActionLoading, showMessage]);
+
+	const openModal = useCallback(
+		(file: GitChangedFile, group: FileGroup) => {
+			const idx = modalFiles.findIndex((f) => f.file.path === file.path && f.group === group);
+			setModalInitialIndex(idx >= 0 ? idx : 0);
+			setModalOpen(true);
+		},
+		[modalFiles],
+	);
+
+	// Stable handlers per (group, path) for memoized item
+	const makeToggle = useCallback((key: string) => () => toggleFile(key), [toggleFile]);
+	const makeMaximize = useCallback(
+		(file: GitChangedFile, group: FileGroup) => () => openModal(file, group),
+		[openModal],
+	);
+
+	const renderGroup = (group: FileGroup, label: string, items: GitChangedFile[]) => {
+		if (items.length === 0) return null;
+		const isCollapsed = collapsedGroups.has(group);
+		const visibleLimit = visibleLimits[group];
+		const visibleItems = items.slice(0, visibleLimit);
+		const hiddenCount = Math.max(0, items.length - visibleItems.length);
+
+		return (
+			<div className="mb-1">
+				<div
+					role="button"
+					tabIndex={0}
+					className="flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-white/[0.04] transition-colors"
+					onClick={() => toggleGroup(group)}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							toggleGroup(group);
+						}
+					}}
+				>
+					{isCollapsed ? (
+						<ChevronRight
+							size={11}
+							className={group === "conflicted" ? "text-red-400" : "text-connexio-text-muted"}
+						/>
+					) : (
+						<ChevronDown
+							size={11}
+							className={group === "conflicted" ? "text-red-400" : "text-connexio-text-muted"}
+						/>
+					)}
+					<span
+						className={`text-[10px] font-semibold uppercase tracking-wider flex-1 ${
+							group === "conflicted" ? "text-red-300" : "text-connexio-text-secondary"
+						}`}
+					>
+						{label}
+					</span>
+					<span
+						className={`text-[10px] px-1.5 rounded-full ${
+							group === "conflicted"
+								? "text-red-300 bg-red-500/15"
+								: "text-connexio-text-muted bg-connexio-bg-tertiary/80"
+						}`}
+					>
+						{items.length}
+					</span>
+
+					{group === "staged" && (
+						<button
+							onClick={(e) => {
+								e.stopPropagation();
+								handleUnstageAll();
+							}}
+							className="p-0.5 rounded hover:bg-connexio-bg-primary transition-colors"
+							title="Unstage all"
+							type="button"
+						>
+							<Minus size={10} className="text-yellow-400" />
+						</button>
+					)}
+					{(group === "modified" || group === "untracked") && (
+						<button
+							onClick={(e) => {
+								e.stopPropagation();
+								handleStageAll();
+							}}
+							className="p-0.5 rounded hover:bg-connexio-bg-primary transition-colors"
+							title="Stage all"
+							type="button"
+						>
+							<Plus size={10} className="text-green-400" />
+						</button>
+					)}
+				</div>
+
+				{!isCollapsed && (
+					<div className="space-y-0.5">
+						{visibleItems.map((file) => {
+							const key = `${group}:${file.path}`;
+							return (
+								<ChangedFileItem
+									key={key}
+									file={file}
+									group={group}
+									projectPath={projectPath}
+									isExpanded={expandedFiles.has(key)}
+									onToggle={makeToggle(key)}
+									onRefresh={handleRefresh}
+									onMaximize={makeMaximize(file, group)}
+									onMessage={showMessage}
+								/>
+							);
+						})}
+						{hiddenCount > 0 && (
+							<button
+								onClick={() => handleShowMore(group)}
+								className="mx-2 my-1 w-[calc(100%-1rem)] rounded  px-2 py-1.5 text-[10px] text-connexio-text-muted hover:border-connexio-accent/50 hover:text-connexio-accent hover:bg-white/[0.04] transition-colors"
+								type="button"
+							>
+								Show {Math.min(hiddenCount, LOAD_MORE_FILES_STEP)} more of {hiddenCount} hidden
+								files
+							</button>
+						)}
+					</div>
+				)}
+			</div>
+		);
+	};
+
+	return (
+		<>
+			<div className="flex h-full flex-col bg-connexio-bg-secondary/35">
+				{/* Git status bar */}
+				<div className="px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] relative overflow-visible">
+					<GitStatusBar
+						projectPath={projectPath}
+						onMessage={showMessage}
+						onRefresh={handleRefresh}
+					/>
+				</div>
+
+				{/* Tab switcher: Changes / History */}
+				<div className="flex items-center shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
+					<button
+						onClick={() => setActiveTab("changes")}
+						className={`flex-1 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+							activeTab === "changes"
+								? "text-connexio-accent border-b-2 border-connexio-accent"
+								: "text-connexio-text-muted hover:text-connexio-text-secondary"
+						}`}
+						type="button"
+					>
+						Changes
+						{totalChanges > 0 && (
+							<span className="ml-1 text-connexio-accent/70">({totalChanges})</span>
+						)}
+					</button>
+					<button
+						onClick={() => setActiveTab("history")}
+						className={`flex-1 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+							activeTab === "history"
+								? "text-connexio-accent border-b-2 border-connexio-accent"
+								: "text-connexio-text-muted hover:text-connexio-text-secondary"
+						}`}
+						type="button"
+					>
+						History
+					</button>
+				</div>
+
+				{/* History tab */}
+				{activeTab === "history" && (
+					<div className="flex-1 min-h-0 overflow-hidden">
+						<GitHistoryPanel projectPath={projectPath} />
+					</div>
+				)}
+
+				{/* Changes tab */}
+				{activeTab === "changes" && (
+					<div className="flex flex-col flex-1 min-h-0">
+						{/* Commit box */}
+						<CommitBox
+							projectPath={projectPath}
+							stagedCount={grouped.staged.length}
+							hasUncommittedChanges={totalChanges > 0}
+							hasUpstream={true}
+							onMessage={showMessage}
+							onRefresh={handleRefresh}
+						/>
+
+						<div className="flex items-center gap-1 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]">
+							<span className="text-[10px] text-connexio-text-muted flex-1">
+								{filteredTotal !== totalChanges && filterQuery
+									? `${filteredTotal} of ${totalChanges} files`
+									: `${totalChanges} file${totalChanges !== 1 ? "s" : ""}`}
+							</span>
+							<button
+								onClick={() => {
+									setShowFilter(!showFilter);
+									if (!showFilter) {
+										setTimeout(() => filterInputRef.current?.focus(), 0);
+									} else {
+										setFilterQuery("");
+									}
+								}}
+								className={`p-1 rounded transition-colors ${
+									showFilter
+										? "bg-connexio-accent/10 text-connexio-accent"
+										: "hover:bg-white/[0.04] text-connexio-text-muted"
+								}`}
+								title="Filter files (Ctrl+F)"
+								type="button"
+							>
+								<Search size={11} />
+							</button>
+							<button
+								onClick={handleRefresh}
+								className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+								title="Refresh"
+								type="button"
+								disabled={isRefreshing}
+							>
+								<RefreshCw
+									size={11}
+									className={`text-connexio-text-muted ${isRefreshing ? "animate-spin" : ""}`}
+								/>
+							</button>
+							{grouped.modified.length + grouped.untracked.length > 0 && (
+								<button
+									onClick={handleStageAll}
+									className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+									title="Stage all changes"
+									type="button"
+									disabled={globalActionLoading === "stage-all"}
+								>
+									{globalActionLoading === "stage-all" ? (
+										<Loader2 size={11} className="text-green-400 animate-spin" />
+									) : (
+										<Plus size={11} className="text-green-400" />
+									)}
+								</button>
+							)}
+							{grouped.staged.length > 0 && (
+								<button
+									onClick={handleUnstageAll}
+									className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+									title="Unstage all"
+									type="button"
+									disabled={globalActionLoading === "unstage-all"}
+								>
+									{globalActionLoading === "unstage-all" ? (
+										<Loader2 size={11} className="text-yellow-400 animate-spin" />
+									) : (
+										<RotateCcw size={11} className="text-yellow-400" />
+									)}
+								</button>
+							)}
+						</div>
+
+						{/* Filter bar */}
+						{showFilter && (
+							<div className="flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] bg-connexio-bg-primary">
+								<Search size={10} className="text-connexio-text-muted flex-shrink-0" />
+								<input
+									ref={filterInputRef}
+									type="text"
+									value={filterQuery}
+									onChange={(e) => setFilterQuery(e.target.value)}
+									placeholder="Filter files... (path, name, M/A/D/?)"
+									className="flex-1 bg-transparent text-[11px] text-connexio-text outline-none placeholder:text-connexio-text-muted/60"
+									onKeyDown={(e) => {
+										if (e.key === "Escape") {
+											setShowFilter(false);
+											setFilterQuery("");
+										}
+									}}
+								/>
+								{filterQuery && (
+									<span className="text-[9px] text-connexio-text-muted tabular-nums">
+										{filteredTotal}/{totalChanges}
+									</span>
+								)}
+								<button
+									onClick={() => {
+										setShowFilter(false);
+										setFilterQuery("");
+									}}
+									className="p-0.5 rounded hover:bg-white/[0.04] transition-colors"
+									type="button"
+								>
+									<X size={10} className="text-connexio-text-muted" />
+								</button>
+							</div>
+						)}
+
+						{/* Inline message */}
+						{message && (
+							<div
+								className={`flex items-center gap-1.5 px-3 py-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)] text-[10px] ${
+									message.type === "error"
+										? "bg-red-500/10 text-red-300"
+										: message.type === "success"
+											? "bg-green-500/10 text-green-300"
+											: "bg-blue-500/10 text-blue-300"
+								}`}
+							>
+								{message.type === "error" ? (
+									<AlertCircle size={10} className="flex-shrink-0" />
+								) : message.type === "success" ? (
+									<Check size={10} className="flex-shrink-0" />
+								) : null}
+								<span className="flex-1 truncate">{message.text}</span>
+								<button
+									onClick={dismissMessage}
+									className="p-0.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
+									type="button"
+								>
+									<X size={9} />
+								</button>
+							</div>
+						)}
+
+						<div className="flex-1 overflow-y-auto py-1">
+							{isInitialLoad ? (
+								<SkeletonList />
+							) : totalChanges === 0 ? (
+								<div className="mx-3 my-6 rounded-2xl bg-white/[0.025] px-4 py-8 text-center">
+									<div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-green-500/10 text-green-300 shadow-[inset_2px_0_0_rgba(74,222,128,0.75)]">
+										<FileCode size={22} />
+									</div>
+									<p className="text-[12px] font-semibold text-connexio-text">
+										Working tree is clean
+									</p>
+									<p className="mx-auto mt-1 max-w-[240px] text-[10px] leading-4 text-connexio-text-muted">
+										No staged, modified, untracked, or conflicted files were detected.
+									</p>
+								</div>
+							) : filteredTotal === 0 && filterQuery ? (
+								<div className="flex flex-col items-center justify-center py-8 px-4">
+									<Search size={20} className="text-connexio-text-muted/30 mb-2" />
+									<p className="text-[11px] text-connexio-text-muted text-center">
+										No files match "{filterQuery}"
+									</p>
+								</div>
+							) : (
+								<>
+									{/* Conflict banner */}
+									{filteredGrouped.conflicted.length > 0 && (
+										<div className="mx-2 mt-1 mb-2 px-2.5 py-2 rounded-lg border-red-500/30 bg-red-500/5">
+											<div className="flex items-center gap-1.5 mb-1">
+												<AlertCircle size={11} className="text-red-400" />
+												<span className="text-[10px] font-semibold text-red-300">
+													Merge Conflicts ({filteredGrouped.conflicted.length})
+												</span>
+											</div>
+											<p className="text-[9px] text-red-300/70 leading-tight">
+												Resolve conflicts, then stage files and commit.
+											</p>
+										</div>
+									)}
+									{renderGroup("conflicted", "Conflicts", filteredGrouped.conflicted)}
+									{renderGroup("staged", "Staged", filteredGrouped.staged)}
+									{renderGroup("modified", "Modified", filteredGrouped.modified)}
+									{renderGroup("untracked", "Untracked", filteredGrouped.untracked)}
+								</>
+							)}
+						</div>
+					</div>
+				)}
+			</div>
+
+			{modalOpen && modalFiles.length > 0 && (
+				<DiffModal
+					projectPath={projectPath}
+					files={modalFiles}
+					initialIndex={Math.min(modalInitialIndex, modalFiles.length - 1)}
+					onClose={() => setModalOpen(false)}
+					onRefresh={handleRefresh}
+				/>
+			)}
+		</>
+	);
+}

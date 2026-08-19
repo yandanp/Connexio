@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0] — 2026-08-16
+
+### ✨ New Features
+
+- **Memory usage in footer** — Live RSS memory gauge in the footer bar, color-coded by footprint (green <150MB, yellow <300MB, red >300MB). Polled every 5s via `sysinfo`.
+- **Worktree management** — Create, list, preview-diff, and delete git worktrees from the sidebar. Auto-opens a terminal in the new worktree. Orca-style branch preservation when unmerged commits exist.
+
+### 🐛 Bug Fixes
+
+- **Fix worktree delete on Windows** — Three layers of robustness: (1) PTY child process is now explicitly killed on terminal close, releasing the directory lock that orphaned shells held; (2) `git worktree remove` retries with exponential backoff for transient locks; (3) stale worktree registrations (leftover from partial deletes) are pruned and cleaned up manually.
+- **Best-effort worktree delete** — A locked directory no longer blocks branch cleanup. The leftover folder is reported via `leftoverDir` so the UI shows a clear message instead of failing the whole operation.
+- **Confirm dialog closes immediately** — Delete confirmation modal now dismisses instantly on click, preventing double-confirm via Enter key.
+- **Prevent orphaned shell processes** — Closing a terminal tab previously leaked the child shell process on Windows. The `Child` handle is now stored and killed explicitly on close.
+
+### 🔧 Infrastructure
+
+- Added `sysinfo` crate (system feature only) for process memory monitoring
+
 ## [0.4.2] — 2026-06-01
 
 First stable release on Tauri v2. Includes all features and fixes from the `0.4.x-dev` pre-release cycle.
